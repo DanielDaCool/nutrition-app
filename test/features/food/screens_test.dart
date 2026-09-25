@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:nutrition_app/features/food/data/remote_food.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
@@ -126,6 +127,34 @@ void main() {
         await tester.runAsync(() => db.select(db.foods).get()),
         hasLength(1),
       );
+      await finish(tester);
+    });
+
+    testWidgets('macros the source lacks are flagged and required', (
+      tester,
+    ) async {
+      // Tall enough that the whole form is built at once.
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await pump(
+        tester,
+        const CustomFoodScreen(
+          draft: RemoteFood(
+            source: 'off',
+            externalId: '7290000000048',
+            name: 'Crackers',
+            kcalPer100g: 420,
+            carbsPer100g: 70,
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('missing-macros')), findsOneWidget);
+      expect(find.textContaining('no protein or fat'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('save-food')));
+      await tester.tap(find.byKey(const Key('save-food')));
+      await settle(tester);
+      expect(find.text('Required'), findsNWidgets(2));
+      expect(await tester.runAsync(() => db.select(db.foods).get()), isEmpty);
       await finish(tester);
     });
   });

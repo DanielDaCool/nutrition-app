@@ -2,15 +2,19 @@
 // Settings tab: current targets, check-in entry, profile form, Health
 // Connect and data export.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
+import '../../core/day_key.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
 import '../targets/checkin_screen.dart';
+import '../targets/engine/engine.dart';
 import '../targets/engine/explain.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
@@ -232,7 +236,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
   DateTime? _birthDate;
   ActivityLevel _activity = ActivityLevel.light;
   double _ratePct = 0.5;
-  double _proteinPerKg = 2.0;
+  double _proteinPerKg = 1.8;
   int _weekday = DateTime.sunday;
   bool _loaded = false;
   bool _saving = false;
@@ -374,6 +378,27 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     final rateKg = trendKg == null ? null : trendKg * _ratePct / 100;
     final theme = Theme.of(context);
 
+    // Faster loss is only capped once there's a weight, height and birth
+    // date to estimate body composition from; until then the full range
+    // stays open (matches how the engine falls back when data is missing).
+    final heightVal = _parse(_height.text);
+    double? rateMax;
+    if (trendKg != null &&
+        heightVal != null &&
+        heightVal > 0 &&
+        _birthDate != null) {
+      final age = ageOn(_birthDate!, dayKeyOf(ref.read(clockProvider)()));
+      final bmi = trendKg / math.pow(heightVal / 100, 2);
+      final bodyFat = deurenbergBodyFatPercent(
+        bmi: bmi,
+        ageYears: age,
+        sex: _sex,
+      ).clamp(5.0, 50.0);
+      rateMax = maxWeeklyRatePct(bmi: bmi, bodyFatPercent: bodyFat);
+    }
+    final effectiveRateMax = rateMax ?? 1.0;
+    if (_ratePct > effectiveRateMax) _ratePct = effectiveRateMax;
+
     return Form(
       key: _formKey,
       child: Padding(
@@ -489,11 +514,30 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               key: const Key('weeklyRate'),
               value: _ratePct,
               min: 0.25,
-              max: 1.0,
-              divisions: 15,
+              max: effectiveRateMax,
+              divisions: ((effectiveRateMax - 0.25) / 0.05).round(),
               label: '${_ratePct.toStringAsFixed(2)} %',
               onChanged: (v) => setState(() => _ratePct = v),
             ),
+            if (rateMax != null && rateMax < 1.0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Capped at ${rateMax.toStringAsFixed(2)} % for now, based '
+                  'on your current weight and height — faster loss costs '
+                  'more muscle the leaner you are.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            if (_ratePct > 0.75)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'At this rate, more protein (2.0–2.2 g/kg) helps hold on '
+                  'to muscle.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
             Text('Protein: ${_proteinPerKg.toStringAsFixed(1)} g per kg'),
             Slider(
               key: const Key('proteinPerKg'),

@@ -53,21 +53,36 @@ void main() {
             externalId: '173904',
             name: 'Oats, rolled',
             kcalPer100g: 379,
+            proteinPer100g: 13,
+            fatPer100g: 6.5,
+            carbsPer100g: 68,
           ),
         );
         expect(b.id, a.id);
         expect(b.name, 'Oats, rolled');
         expect(b.kcalPer100g, 379);
-        expect(b.proteinPer100g, 0); // missing macro stored as 0
+        expect(b.proteinPer100g, 13);
         expect(b.isFavorite, isTrue);
         expect(await db.select(db.foods).get(), hasLength(1));
       },
     );
 
-    test('upsertRemote refuses foods without energy', () {
+    test('upsertRemote refuses foods without energy or macros', () {
       expect(
         () => repo.upsertRemote(
           const RemoteFood(source: 'off', externalId: '1234567', name: 'X'),
+        ),
+        throwsArgumentError,
+      );
+      // Energy but no macros: not saved as 0 g protein/fat/carbs.
+      expect(
+        () => repo.upsertRemote(
+          const RemoteFood(
+            source: 'off',
+            externalId: '7654321',
+            name: 'Y',
+            kcalPer100g: 250,
+          ),
         ),
         throwsArgumentError,
       );
@@ -99,6 +114,9 @@ void main() {
             externalId: '7290000066318',
             name: 'Hummus (OFF)',
             kcalPer100g: 282,
+            proteinPer100g: 7,
+            fatPer100g: 22,
+            carbsPer100g: 12,
           ),
         );
         expect(
