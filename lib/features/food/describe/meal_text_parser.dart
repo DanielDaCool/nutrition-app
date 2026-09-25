@@ -4,7 +4,6 @@
 /// Pure Dart: no Flutter or DB imports.
 library;
 
-import '../../../domain/models.dart';
 
 /// A unit the user can say. Count words without a unit ("2 eggs") are
 /// [piece].
@@ -88,14 +87,11 @@ class ParsedPhrase {
       '${quantityGiven ? '' : ' (default)'})';
 }
 
-/// All phrases of a text plus the meal it mentions, if any.
+/// All phrases of a text.
 class MealTextParse {
-  const MealTextParse({required this.phrases, this.suggestedMeal});
+  const MealTextParse({required this.phrases});
 
   final List<ParsedPhrase> phrases;
-
-  /// Set when the text says e.g. "for breakfast" or "at lunch".
-  final Meal? suggestedMeal;
 }
 
 // ------------------------------------------------------------------- units
@@ -276,13 +272,6 @@ final _mealWords = RegExp(
   r'(breakfast|brunch|lunch|dinner|supper|snacks?)\b',
 );
 
-Meal _mealOf(String word) => switch (word) {
-  'breakfast' => Meal.breakfast,
-  'brunch' || 'lunch' => Meal.lunch,
-  'dinner' || 'supper' => Meal.dinner,
-  _ => Meal.snack,
-};
-
 // ---------------------------------------------------------------- parsing
 
 /// Splits on newlines, ';', '+', '&', '.', ' and ', ' with ', ' plus ' and
@@ -299,11 +288,9 @@ MealTextParse parseMealText(
 }) {
   var t = _normalize(text);
 
-  Meal? meal;
-  t = t.replaceAllMapped(_mealWords, (m) {
-    meal ??= _mealOf(m.group(1)!);
-    return ' , ';
-  });
+  // The meal comes from where the user tapped, so "for breakfast" is just
+  // dropped rather than read as a food.
+  t = t.replaceAll(_mealWords, ' , ');
 
   // Protect "coffee with milk" and similar names from the separators.
   for (final name in keepTogether) {
@@ -318,7 +305,7 @@ MealTextParse parseMealText(
     final p = parsePhrase(part.replaceAll('_', ' '));
     if (p != null) phrases.add(p);
   }
-  return MealTextParse(phrases: phrases, suggestedMeal: meal);
+  return MealTextParse(phrases: phrases);
 }
 
 /// Lowercases and rewrites the forms the tokenizer doesn't handle: unicode

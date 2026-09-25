@@ -100,7 +100,6 @@ void main() {
     test('the example sentence', () {
       final e = DescribeEngine(_builtins, DescribeMemory.empty);
       final r = e.parse('5 spoons of cottage cheese 5% and 2 eggs for lunch');
-      expect(r.suggestedMeal, Meal.lunch);
       expect(r.items, hasLength(2));
       final cottage = r.items[0];
       expect(cottage.match!.candidate.name, 'Cottage cheese 5%');

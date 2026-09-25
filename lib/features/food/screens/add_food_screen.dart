@@ -137,12 +137,6 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
           title: Text('Add to ${mealLabel(widget.meal)}'),
           actions: [
             IconButton(
-              key: const Key('scan-button'),
-              tooltip: 'Scan barcode',
-              icon: const Icon(Icons.qr_code_scanner),
-              onPressed: _busy ? null : _scan,
-            ),
-            IconButton(
               key: const Key('new-food-button'),
               tooltip: 'New food',
               icon: const Icon(Icons.add),
@@ -163,14 +157,33 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
             if (_busy) const LinearProgressIndicator(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: FilledButton.tonalIcon(
-                key: const Key('describe-button'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                ),
-                onPressed: _busy ? null : _describe,
-                icon: const Icon(Icons.edit_note),
-                label: const Text('Describe what you ate'),
+              // The two main ways to add: type it out or scan it.
+              child: Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      key: const Key('describe-button'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                      onPressed: _busy ? null : _describe,
+                      icon: const Icon(Icons.edit_note),
+                      label: const Text('Type it'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      key: const Key('scan-button'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                      onPressed: _busy ? null : _scan,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Scan'),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(

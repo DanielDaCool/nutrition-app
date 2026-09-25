@@ -107,15 +107,12 @@ void main() {
     await finish(tester);
   });
 
-  testWidgets('the text can switch the meal; chips override it', (
+  testWidgets('saves to the meal that was tapped, whatever the text says', (
     tester,
   ) async {
     await pumpApp(tester);
     await type(tester, '2 eggs for breakfast');
-    expect(find.text('Add 1 item to Breakfast'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('meal-dinner')));
-    await tester.pump();
-    expect(find.text('Add 1 item to Dinner'), findsOneWidget);
+    expect(find.text('Add 1 item to Lunch'), findsOneWidget);
     await finish(tester);
   });
 
