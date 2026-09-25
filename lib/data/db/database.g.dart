@@ -295,6 +295,8 @@ class Profile extends DataClass implements Insertable<Profile> {
 
   /// Desired loss per week as % of body weight (e.g. 0.5).
   final double weeklyRatePct;
+
+  /// Protein grams per kg of reference body weight.
   final double proteinPerKg;
 
   /// DateTime.weekday of the weekly check-in (7 = Sunday).
@@ -4231,6 +4233,8 @@ class $TargetHistoryTable extends TargetHistory
 
 class TargetRecord extends DataClass implements Insertable<TargetRecord> {
   final int id;
+
+  /// Day key from which this target applies; one row per day.
   final String effectiveFrom;
   final double kcal;
   final double proteinG;

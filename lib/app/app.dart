@@ -1,3 +1,6 @@
+// Root widget: MaterialApp theme and the bottom-navigation shell that hosts
+// the four top-level screens.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +10,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/today/today_screen.dart';
 import '../features/weight/weight_screen.dart';
 
+/// Root `MaterialApp` with the green Material 3 light and dark themes.
 class NutritionApp extends StatelessWidget {
   const NutritionApp({super.key});
 

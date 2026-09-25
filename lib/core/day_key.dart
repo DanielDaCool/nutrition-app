@@ -4,6 +4,8 @@
 /// stable when the phone changes time zone or daylight-saving time.
 library;
 
+/// The day key (`YYYY-MM-DD`) of [t] in local time; UTC inputs are converted
+/// to local first.
 String dayKeyOf(DateTime t) {
   final local = t.toLocal();
   final m = local.month.toString().padLeft(2, '0');
@@ -12,6 +14,8 @@ String dayKeyOf(DateTime t) {
 }
 
 /// Local midnight at the start of [dayKey].
+///
+/// Throws [FormatException] when [dayKey] is not three `-`-separated parts.
 DateTime startOfDay(String dayKey) {
   final parts = dayKey.split('-');
   if (parts.length != 3) {
