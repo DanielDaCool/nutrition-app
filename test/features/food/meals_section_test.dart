@@ -6,6 +6,7 @@ import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/food/data/food_repository.dart';
 import 'package:nutrition_app/features/food/screens/add_food_screen.dart';
+import 'package:nutrition_app/features/food/widgets/error_retry.dart';
 import 'package:nutrition_app/features/food/widgets/meals_section.dart';
 
 import '../../helpers/test_db.dart';
@@ -320,6 +321,60 @@ void main() {
     expect(find.text('Nothing logged in Lunch Yesterday'), findsNothing);
     expect(find.text('Nothing logged in Lunch yesterday'), findsOneWidget);
     await tearDownTree(tester);
+  });
+
+  testWidgets('copy from another day uses the date picker', (tester) async {
+    await tester.runAsync(() async {
+      final f = await repo.createCustom(
+        const CustomFoodInput(
+          name: 'Soup',
+          per100g: Macros(kcal: 50, proteinG: 2, fatG: 1, carbsG: 8),
+        ),
+      );
+      await repo.logFood(
+        dayKey: '2026-09-20',
+        meal: Meal.dinner,
+        foodId: f.id,
+        grams: 400,
+      );
+    });
+    await pumpSection(tester);
+    await tester.tap(find.byKey(const Key('meal-menu-dinner')));
+    await settle(tester);
+    await tester.tap(find.text('Copy from another day…'));
+    await settle(tester);
+    await tester.tap(find.text('20'));
+    await tester.tap(find.text('OK'));
+    await settle(tester);
+
+    final today = await tester.runAsync(
+      () => (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals(_day))).get(),
+    );
+    expect(today!.single.grams, 400);
+    expect(today.single.meal, Meal.dinner.index);
+    expect(find.text('Added 1 item to Dinner'), findsOneWidget);
+    await tearDownTree(tester);
+  });
+
+  testWidgets('ErrorRetry shows a short message and retries', (tester) async {
+    var retried = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ErrorRetry(
+            error: StateError('SqliteException: disk I/O error'),
+            message: 'Could not load your meals.',
+            onRetry: () => retried++,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Could not load your meals.'), findsOneWidget);
+    expect(find.textContaining('Sqlite'), findsNothing);
+    await tester.tap(find.text('Try again'));
+    expect(retried, 1);
   });
 
   testWidgets('tapping the whole meal header opens add food', (tester) async {
