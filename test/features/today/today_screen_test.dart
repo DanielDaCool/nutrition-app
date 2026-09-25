@@ -66,10 +66,7 @@ void main() {
     tester,
   ) async {
     await pumpToday(tester);
-    expect(
-      find.text('Set up your profile in Settings to get calorie targets'),
-      findsOneWidget,
-    );
+    expect(find.text('Get your daily calorie target'), findsOneWidget);
     expect(find.byKey(const Key('kcalRemaining')), findsNothing);
     expect(find.byKey(const Key('checkInBanner')), findsNothing);
     await unmount(tester);

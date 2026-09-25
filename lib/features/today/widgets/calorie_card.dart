@@ -4,17 +4,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../app/providers.dart';
+import '../../../core/day_key.dart';
 import '../../../domain/models.dart';
 import '../../food/food_providers.dart';
+import '../../settings/setup_screen.dart';
 import '../../targets/targets_providers.dart';
+import '../../weight/weight_providers.dart';
+import '../../weight/widgets/weigh_in_dialog.dart';
 
 final _kcalFormat = NumberFormat.decimalPattern('en_US');
 
 /// Formats kcal rounded to a whole number with thousands separators.
 String formatKcal(double kcal) => _kcalFormat.format(kcal.round());
 
-/// Target minus intake for [dayKey], with macro progress bars. When no
-/// targets exist yet it shows a hint to set up the profile.
+/// Target minus intake for [dayKey], with macro progress bars.
+///
+/// Before there are targets it says what is missing and offers the fix:
+/// "Set up" (opens the setup screen) without a profile, "Log weigh-in"
+/// without a weigh-in. Load errors show a short message and "Try again".
 class CalorieCard extends ConsumerWidget {
   const CalorieCard({super.key, required this.dayKey});
 
@@ -29,35 +37,104 @@ class CalorieCard extends ConsumerWidget {
     final intake = intakeAsync.value;
 
     if (targetsAsync.hasError && targets == null) {
+      debugPrint('CalorieCard: targets failed: ${targetsAsync.error}');
       return _MessageCard(
+        key: const Key('calorieCardError'),
         icon: Icons.error_outline,
-        text: 'Could not load targets: ${targetsAsync.error}',
+        text: "Couldn't load your targets",
+        actionLabel: 'Try again',
+        onAction: () => ref.invalidate(currentTargetsProvider),
       );
     }
     if (intakeAsync.hasError && intake == null) {
+      debugPrint('CalorieCard: food log failed: ${intakeAsync.error}');
       return _MessageCard(
+        key: const Key('calorieCardError'),
         icon: Icons.error_outline,
-        text: 'Could not load food log: ${intakeAsync.error}',
+        text: "Couldn't load what you ate",
+        actionLabel: 'Try again',
+        onAction: () => ref.invalidate(dayIntakeProvider(dayKey)),
       );
     }
-    if (!targetsAsync.hasValue) {
-      return const Card(
-        child: SizedBox(
-          height: 120,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-    if (targets == null) {
-      return const _MessageCard(
-        key: Key('noTargetsCard'),
-        icon: Icons.person_outline,
-        text: 'Set up your profile in Settings to get calorie targets',
-      );
-    }
+    if (!targetsAsync.hasValue) return const _LoadingCard();
+    if (targets == null) return const _NoTargetsCard();
     final eaten = intake?.total ?? Macros.zero;
     return _TargetsCard(target: targets.macros, eaten: eaten);
   }
+}
+
+/// No targets yet: tells the user the one thing that is missing.
+class _NoTargetsCard extends ConsumerWidget {
+  const _NoTargetsCard();
+
+  Future<void> _logWeighIn(BuildContext context, WidgetRef ref) async {
+    final today = dayKeyOf(ref.read(clockProvider)());
+    final input = await showWeighInDialog(context, today: today);
+    if (input == null) return;
+    try {
+      await ref
+          .read(weightRepositoryProvider)
+          .upsert(input.dayKey, input.weightKg);
+    } catch (e, s) {
+      debugPrint('CalorieCard: saving weigh-in failed: $e\n$s');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't save your weigh-in")),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider);
+    final weighIns = ref.watch(weighInsProvider);
+    if (profile.hasError) {
+      debugPrint('CalorieCard: profile failed: ${profile.error}');
+      return _MessageCard(
+        key: const Key('calorieCardError'),
+        icon: Icons.error_outline,
+        text: "Couldn't load your targets",
+        actionLabel: 'Try again',
+        onAction: () => ref.invalidate(profileProvider),
+      );
+    }
+    if (!profile.hasValue) return const _LoadingCard();
+    if (profile.value == null) {
+      return _MessageCard(
+        key: const Key('noTargetsCard'),
+        icon: Icons.flag_outlined,
+        text: 'Get your daily calorie target',
+        subtitle: 'Takes about a minute.',
+        actionLabel: 'Set up',
+        onAction: () => openSetup(context),
+      );
+    }
+    if (weighIns.value?.isNotEmpty ?? false) {
+      // Profile and weigh-in exist: the first target is being worked out.
+      return const _LoadingCard();
+    }
+    return _MessageCard(
+      key: const Key('noWeighInCard'),
+      icon: Icons.monitor_weight_outlined,
+      text: 'Log your first weigh-in to get your targets',
+      subtitle: 'Use the weigh-in box below, or tap the button.',
+      actionLabel: 'Log weigh-in',
+      onAction: () => _logWeighIn(context, ref),
+    );
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard();
+
+  @override
+  Widget build(BuildContext context) => const Card(
+    child: SizedBox(
+      height: 120,
+      child: Center(child: CircularProgressIndicator()),
+    ),
+  );
 }
 
 /// Remaining (or over) kcal, target vs. eaten, and macro bars.
@@ -192,16 +269,70 @@ class _MacroBar extends StatelessWidget {
   }
 }
 
+/// A card with an icon, a short message and an optional action button.
 class _MessageCard extends StatelessWidget {
-  const _MessageCard({super.key, required this.icon, required this.text});
+  const _MessageCard({
+    super.key,
+    required this.icon,
+    required this.text,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final IconData icon;
   final String text;
+  final String? subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
-      child: ListTile(leading: Icon(icon), title: Text(text)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: theme.colorScheme.primary),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(text, style: theme.textTheme.titleMedium),
+                      if (subtitle != null)
+                        Text(
+                          subtitle!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (actionLabel != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonal(
+                  onPressed: onAction,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(120, 48),
+                  ),
+                  child: Text(actionLabel!),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
