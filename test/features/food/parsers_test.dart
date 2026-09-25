@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/features/food/data/off_parser.dart';
+import 'package:nutrition_app/features/food/data/remote_food.dart';
 import 'package:nutrition_app/features/food/data/usda_parser.dart';
 
 import 'fixture.dart';
@@ -108,6 +109,25 @@ void main() {
       expect(water.isComplete, isTrue);
       final mystery = foods.firstWhere((f) => f.externalId == '888888');
       expect(mystery.isComplete, isFalse);
+    });
+
+    test('energy without all macros is incomplete (0 kcal is fine)', () {
+      const partial = RemoteFood(
+        source: 'off',
+        externalId: '1',
+        name: 'Bread',
+        kcalPer100g: 250,
+        carbsPer100g: 48,
+      );
+      expect(partial.isComplete, isFalse);
+      expect(partial.missingMacros, ['protein', 'fat']);
+      const water = RemoteFood(
+        source: 'off',
+        externalId: '2',
+        name: 'Water',
+        kcalPer100g: 0,
+      );
+      expect(water.isComplete, isTrue);
     });
 
     test('bad entries are skipped', () {
