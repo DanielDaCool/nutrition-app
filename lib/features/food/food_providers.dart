@@ -8,9 +8,12 @@ import '../../app/providers.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import 'data/barcode_lookup.dart';
+import 'data/describe_foods.dart';
 import 'data/food_repository.dart';
 import 'data/off_client.dart';
 import 'data/usda_client.dart';
+import 'describe/describe_engine.dart';
+import 'describe/describe_memory.dart';
 
 /// Everything eaten on one day (dayKey = YYYY-MM-DD).
 final dayIntakeProvider = StreamProvider.family<DayIntake, String>(
@@ -92,3 +95,27 @@ final customFoodsProvider = StreamProvider<List<Food>>(
 final foodProvider = StreamProvider.family<Food, int>(
   (ref, id) => ref.watch(foodRepositoryProvider).watchFood(id),
 );
+
+/// Every saved food, for matching described meals.
+final allFoodsProvider = StreamProvider<List<Food>>(
+  (ref) => ref.watch(foodRepositoryProvider).watchAllFoods(),
+);
+
+/// Names and unit weights learned on the describe screen.
+final describeMemoryProvider = StreamProvider<DescribeMemory>(
+  (ref) => ref.watch(foodRepositoryProvider).watchDescribeMemory(),
+);
+
+/// The describe engine over saved + built-in foods and the learned memory.
+/// Rebuilt when foods or memory change; parsing with it is synchronous.
+final describeEngineProvider = Provider<AsyncValue<DescribeEngine>>((ref) {
+  final foods = ref.watch(allFoodsProvider);
+  final memory = ref.watch(describeMemoryProvider);
+  for (final v in [foods, memory]) {
+    if (v.hasError) return AsyncError(v.error!, v.stackTrace!);
+  }
+  final f = foods.value;
+  final m = memory.value;
+  if (f == null || m == null) return const AsyncLoading();
+  return AsyncData(DescribeEngine(describeCandidates(f), m));
+});
