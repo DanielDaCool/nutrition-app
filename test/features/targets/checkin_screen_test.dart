@@ -6,7 +6,10 @@ import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/core/day_key.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
+import 'package:nutrition_app/features/settings/setup_screen.dart';
 import 'package:nutrition_app/features/targets/checkin_screen.dart';
+import 'package:nutrition_app/features/targets/engine/explain.dart';
+import 'package:nutrition_app/features/targets/targets_providers.dart';
 
 import '../../helpers/test_db.dart';
 
@@ -128,6 +131,22 @@ void main() {
       findsOneWidget,
     );
 
+    // Each row shows the change vs. current.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CheckInScreen)),
+    );
+    final rec = await tester.runAsync(
+      () => container.read(targetsRepositoryProvider).recommendToday(),
+    );
+    expect(find.text('Change'), findsOneWidget);
+    final kcalChange = formatChange(2100, rec!.macros.kcal, 'kcal');
+    expect(kcalChange.sign, isNot(0));
+    expect(find.text(kcalChange.text), findsOneWidget);
+    expect(
+      find.text(formatChange(160, rec.macros.proteinG, 'g').text),
+      findsWidgets,
+    );
+
     await tester.ensureVisible(find.text('Accept'));
     await tester.tap(find.text('Accept'));
     await settle(tester);
@@ -143,7 +162,8 @@ void main() {
     expect(saved.method, TargetMethod.adaptive.index);
     expect(saved.maintenanceKcal, closeTo(2500, 50));
     expect(saved.explanationJson, contains('"loggedDays":21'));
-    expect(find.text('New targets saved'), findsOneWidget);
+    expect(saved.kcal, rec.macros.kcal);
+    expect(find.text('New target: ${kcal(saved.kcal)}'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
@@ -156,15 +176,60 @@ void main() {
 
     await tester.pumpWidget(app(db));
     await settle(tester);
-    await tester.ensureVisible(find.text('Skip'));
-    await tester.tap(find.text('Skip'));
+    await tester.ensureVisible(find.text('Skip, keep my current targets'));
+    await tester.tap(find.text('Skip, keep my current targets'));
     await settle(tester);
 
     final rows = await tester.runAsync(() => db.select(db.targetHistory).get());
     expect(rows, hasLength(2));
     expect(rows!.map((r) => r.kcal), [2100, 2100]);
+    expect(find.text('Keeping 2,100 kcal'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
+  });
+
+  testWidgets('without a profile it offers set up', (tester) async {
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    expect(find.text('Accept'), findsNothing);
+    await tester.tap(find.text('Set up'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SetupScreen), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('no current target: no Skip and no change column', (
+    tester,
+  ) async {
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seed(db));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          currentTargetsProvider.overrideWith((ref) => Stream.value(null)),
+        ],
+        child: const MaterialApp(home: CheckInScreen()),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('Accept'), findsOneWidget);
+    expect(find.text('Skip, keep my current targets'), findsNothing);
+    expect(find.text('Change'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  test('change text', () {
+    expect(formatChange(2030, 2150, 'kcal').text, '+120 kcal');
+    expect(formatChange(2150, 2070, 'kcal').text, '−80 kcal');
+    expect(formatChange(1000, 2200, 'kcal').text, '+1,200 kcal');
+    expect(formatChange(150, 150.2, 'g'), (text: 'same', sign: 0));
   });
 }
