@@ -191,11 +191,17 @@ class HealthSyncService {
         }
 
         // Workouts deleted in Health Connect (or by the source app).
-        await (db.delete(db.workouts)..where((t) {
-              final inWindow = t.dayKey.isBetweenValues(from, today);
-              return ids.isEmpty ? inWindow : inWindow & t.id.isNotIn(ids);
-            }))
-            .go();
+        // The health plugin returns an empty list when a read fails, so an
+        // empty result never deletes anything: a failed read must not wipe
+        // stored workouts. (Cost: deleting the only workout in the window
+        // isn't mirrored until another workout lands in that window.)
+        if (ids.isNotEmpty) {
+          await (db.delete(db.workouts)..where(
+                (t) =>
+                    t.dayKey.isBetweenValues(from, today) & t.id.isNotIn(ids),
+              ))
+              .go();
+        }
 
         await _put(lastSyncAtKey, now.toUtc().toIso8601String());
         await _put(lastSyncedDayKey, today);

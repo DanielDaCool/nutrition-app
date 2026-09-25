@@ -216,6 +216,17 @@ void main() {
     },
   );
 
+  test('an empty workout read never deletes stored workouts', () async {
+    // The health plugin returns [] when a native read fails (e.g. a missing
+    // permission), which must not wipe what we already have.
+    source.workoutRecords.add(workout('w1', DateTime(2026, 9, 24, 18)));
+    await syncNow();
+    source.workoutRecords.clear();
+    await syncNow();
+    final ids = (await db.select(db.workouts).get()).map((w) => w.id).toSet();
+    expect(ids, {'w1'});
+  });
+
   group('no access', () {
     test('missing permission records status and does not throw', () async {
       source.permissionsGranted = false;

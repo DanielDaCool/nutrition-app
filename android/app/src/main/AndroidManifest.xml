@@ -7,6 +7,9 @@
     <!-- Health Connect: read steps and workouts (e.g. written by Hevy). -->
     <uses-permission android:name="android.permission.health.READ_STEPS"/>
     <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
+    <!-- The health plugin reads these inside each workout session. -->
+    <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY"/>
 
     <application

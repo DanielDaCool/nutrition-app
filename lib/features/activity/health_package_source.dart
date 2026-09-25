@@ -13,8 +13,22 @@ class HealthPackageSource implements HealthSource {
     : _healthOverride = health,
       _isAndroid = isAndroid ?? Platform.isAndroid;
 
-  static const _types = [hp.HealthDataType.STEPS, hp.HealthDataType.WORKOUT];
-  static const _access = [hp.HealthDataAccess.READ, hp.HealthDataAccess.READ];
+  // Reading WORKOUT makes the plugin also read distance and calorie records
+  // inside each session (health 13.3.2 HealthDataReader.handleWorkoutData).
+  // Without those permissions every workout read throws on the native side
+  // and comes back as an empty list, so they're requested too.
+  static const _types = [
+    hp.HealthDataType.STEPS,
+    hp.HealthDataType.WORKOUT,
+    hp.HealthDataType.DISTANCE_DELTA,
+    hp.HealthDataType.TOTAL_CALORIES_BURNED,
+  ];
+  static const _access = [
+    hp.HealthDataAccess.READ,
+    hp.HealthDataAccess.READ,
+    hp.HealthDataAccess.READ,
+    hp.HealthDataAccess.READ,
+  ];
 
   final hp.Health? _healthOverride;
   final bool _isAndroid;
