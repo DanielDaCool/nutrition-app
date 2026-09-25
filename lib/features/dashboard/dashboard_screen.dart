@@ -1,4 +1,6 @@
 // OWNER: weight & charts agent (D). Contract stub: keep the class name/constructor.
+// Dashboard tab: weight trend, weekly intake vs. target, steps, workouts per
+// week and maintenance estimate over the selected range.
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
@@ -14,6 +16,7 @@ import '../weight/widgets/weight_chart.dart';
 import 'dashboard_logic.dart';
 import 'dashboard_providers.dart';
 
+/// Range chips plus one chart card per section for [dashboardWindowProvider].
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -61,8 +64,10 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
+/// Inclusive (from, to) day keys.
 typedef _Window = (String from, String to);
 
+/// Card with a title, optional subtitle, chart and optional legend.
 class _Section extends StatelessWidget {
   const _Section({
     required this.title,
@@ -226,6 +231,7 @@ class _StepsSection extends ConsumerWidget {
   }
 }
 
+/// Daily step bars with the 7-day average line; x = day index in [days].
 class _StepsChart extends StatelessWidget {
   const _StepsChart({required this.days});
   final List<StepsDay> days;
@@ -368,6 +374,7 @@ class _MaintenanceSection extends ConsumerWidget {
   }
 }
 
+/// Step line of maintenance kcal; x = days since [from].
 class _MaintenanceChart extends StatelessWidget {
   const _MaintenanceChart({required this.series, required this.from});
   final List<MaintenancePoint> series;
@@ -460,7 +467,9 @@ class _WeekBars extends StatelessWidget {
   final List<List<double?>> series;
   final List<Color> colors;
   final String unit;
+  /// Tooltip text for a bar (week index, series index, value).
   final String Function(int week, int series, double value) tooltip;
+  /// Use whole-number y steps (for counts).
   final bool integerAxis;
 
   @override
@@ -597,6 +606,7 @@ FlGridData _grid(ColorScheme scheme, double interval) => FlGridData(
       FlLine(color: scheme.outlineVariant, strokeWidth: 0.5),
 );
 
+/// Shared axis titles: [unit] on the left axis, [xLabel] along the bottom.
 FlTitlesData _titles({
   required TextStyle? labelStyle,
   required String unit,

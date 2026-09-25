@@ -1,4 +1,6 @@
 // OWNER: weight & charts agent (D). Contract stub: keep the class name/constructor.
+// Today tab: day navigation plus the check-in banner, calorie card, quick
+// weigh-in, meals and activity for the selected day.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +15,9 @@ import '../weight/widgets/weigh_in_dialog.dart';
 import 'widgets/calorie_card.dart';
 import 'widgets/quick_weigh_in.dart';
 
+/// Today tab for the day in `selectedDayProvider`. Arrows move a day at a
+/// time but never past today; tapping the title jumps back to today. The
+/// quick weigh-in only appears for days without a weigh-in.
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 

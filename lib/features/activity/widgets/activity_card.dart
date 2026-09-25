@@ -1,4 +1,5 @@
 // OWNER: Health Connect agent (C).
+// The Today screen's activity card (steps and workouts for one day).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +11,7 @@ import '../activity_providers.dart';
 class ActivityCard extends ConsumerWidget {
   const ActivityCard({super.key, required this.dayKey});
 
+  /// Day shown (`YYYY-MM-DD`, local time).
   final String dayKey;
 
   @override

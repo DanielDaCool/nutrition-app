@@ -1,4 +1,6 @@
 // OWNER: Health Connect agent (C).
+// Settings row for Health Connect: status line, last sync time and the
+// install / connect / sync buttons that fit the current status.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';

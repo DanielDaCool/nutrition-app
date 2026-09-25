@@ -1,9 +1,12 @@
+// Add/edit weigh-in dialog and the long day label shared by weight and
+// Today screens.
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/day_key.dart';
 import '../weight_logic.dart';
 
+/// What the weigh-in dialog returns: the chosen day and weight in kg.
 class WeighInInput {
   const WeighInInput({required this.dayKey, required this.weightKg});
   final String dayKey;
@@ -28,6 +31,7 @@ Future<WeighInInput?> showWeighInDialog(
   );
 }
 
+/// The dialog behind [showWeighInDialog]; editing when [initialKg] is set.
 class WeighInDialog extends StatefulWidget {
   const WeighInDialog({
     super.key,
@@ -36,6 +40,7 @@ class WeighInDialog extends StatefulWidget {
     this.initialKg,
   });
 
+  /// Latest selectable day; later days are clamped to it.
   final String today;
   final String? initialDayKey;
   final double? initialKg;

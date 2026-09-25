@@ -4,7 +4,9 @@ library;
 import '../../core/day_key.dart';
 import '../../domain/models.dart';
 
+/// Lowest weight (kg) accepted from user input.
 const double kMinWeightKg = 30;
+/// Highest weight (kg) accepted from user input.
 const double kMaxWeightKg = 300;
 
 /// Parses user input like "82.4" or "82,4" into kg rounded to one decimal.

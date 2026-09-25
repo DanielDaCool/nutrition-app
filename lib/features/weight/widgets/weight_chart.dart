@@ -1,3 +1,5 @@
+// Weight trend line chart, shared with the dashboard, plus small chart
+// helpers ([shortDateLabel], [ChartEmptyState]).
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
@@ -17,6 +19,7 @@ class WeightChart extends StatelessWidget {
   });
 
   final List<TrendPoint> points;
+  /// Draw the raw scale weights as dots next to the trend line.
   final bool showWeighIns;
   final double height;
 
@@ -159,6 +162,7 @@ class WeightChart extends StatelessWidget {
   }
 }
 
+/// Y grid step (kg) that gives a handful of lines for a [span] kg range.
 double _niceInterval(double span) {
   if (span <= 2) return 0.5;
   if (span <= 5) return 1;
