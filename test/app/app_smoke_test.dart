@@ -18,6 +18,9 @@ void main() {
     );
     await tester.pump();
     expect(find.byType(NavigationBar), findsOneWidget);
+    // Dark only, even when the phone is in light mode (the test default).
+    final context = tester.element(find.byType(NavigationBar));
+    expect(Theme.of(context).brightness, Brightness.dark);
 
     for (final label in ['Weight', 'Dashboard', 'Settings', 'Today']) {
       await tester.tap(find.text(label).last);

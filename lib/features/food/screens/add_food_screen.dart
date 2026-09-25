@@ -1,5 +1,5 @@
-// Food picker for one meal: tabs for recent, favorite, custom and searched
-// foods, plus barcode scan and "new food" actions.
+// Food picker for one meal: "Describe what you ate", tabs for recent,
+// favorite, custom and searched foods, plus barcode scan and "new food".
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,11 +10,14 @@ import '../data/barcode_lookup.dart';
 import '../data/remote_food.dart';
 import '../food_providers.dart';
 import '../widgets/food_format.dart';
+import '../widgets/food_search_panel.dart';
 import 'barcode_scan_screen.dart';
 import 'custom_food_screen.dart';
+import 'describe_food_screen.dart';
 import 'portion_screen.dart';
 
-/// Pick a food for one meal: Recent, Favorites, My foods, Search, or scan.
+/// Pick a food for one meal: describe it in words, Recent, Favorites, My
+/// foods, Search, or scan.
 class AddFoodScreen extends ConsumerStatefulWidget {
   const AddFoodScreen({super.key, required this.dayKey, required this.meal});
 
@@ -34,6 +37,18 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       MaterialPageRoute(
         builder: (_) =>
             PortionScreen(food: food, dayKey: widget.dayKey, meal: widget.meal),
+      ),
+    );
+    if (added == true && mounted) Navigator.of(context).pop();
+  }
+
+  /// Opens "Describe what you ate" for the same day and meal; closes this
+  /// screen once it added something.
+  Future<void> _describe() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            DescribeFoodScreen(dayKey: widget.dayKey, meal: widget.meal),
       ),
     );
     if (added == true && mounted) Navigator.of(context).pop();
@@ -122,12 +137,6 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
           title: Text('Add to ${mealLabel(widget.meal)}'),
           actions: [
             IconButton(
-              key: const Key('scan-button'),
-              tooltip: 'Scan barcode',
-              icon: const Icon(Icons.qr_code_scanner),
-              onPressed: _busy ? null : _scan,
-            ),
-            IconButton(
               key: const Key('new-food-button'),
               tooltip: 'New food',
               icon: const Icon(Icons.add),
@@ -146,6 +155,37 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
         body: Column(
           children: [
             if (_busy) const LinearProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              // The two main ways to add: type it out or scan it.
+              child: Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      key: const Key('describe-button'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                      onPressed: _busy ? null : _describe,
+                      icon: const Icon(Icons.edit_note),
+                      label: const Text('Type it'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      key: const Key('scan-button'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                      onPressed: _busy ? null : _scan,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Scan'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: TabBarView(
                 children: [
@@ -167,7 +207,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
                     onTap: _openPortion,
                     onEdit: _editFood,
                   ),
-                  _SearchTab(onPick: _pickRemote),
+                  FoodSearchPanel(onPick: _pickRemote),
                 ],
               ),
             ),
@@ -225,155 +265,6 @@ class _FoodList extends ConsumerWidget {
         },
       ),
       AsyncError(:final error) => Center(child: Text('Error: $error')),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
-  }
-}
-
-/// Which remote database the Search tab queries.
-enum SearchSource { off, usda }
-
-/// Remote search (USDA or Open Food Facts). Results survive tab switches.
-class _SearchTab extends ConsumerStatefulWidget {
-  const _SearchTab({required this.onPick});
-
-  final Future<void> Function(RemoteFood) onPick;
-
-  @override
-  ConsumerState<_SearchTab> createState() => _SearchTabState();
-}
-
-class _SearchTabState extends ConsumerState<_SearchTab>
-    with AutomaticKeepAliveClientMixin {
-  final _query = TextEditingController();
-  SearchSource _source = SearchSource.usda;
-  AsyncValue<List<RemoteFood>>? _results;
-
-  /// Incremented per search so a slow, older response can't overwrite a
-  /// newer one.
-  int _requestId = 0;
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  void dispose() {
-    _query.dispose();
-    super.dispose();
-  }
-
-  /// Runs only when the user submits (API rate limits).
-  Future<void> _search() async {
-    final q = _query.text.trim();
-    if (q.isEmpty) return;
-    FocusScope.of(context).unfocus();
-    final id = ++_requestId;
-    setState(() => _results = const AsyncLoading());
-    final result = await AsyncValue.guard(
-      () => switch (_source) {
-        SearchSource.off => ref.read(offClientProvider).search(q),
-        SearchSource.usda => ref.read(usdaClientProvider).search(q),
-      },
-    );
-    if (mounted && id == _requestId) setState(() => _results = result);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: SegmentedButton<SearchSource>(
-            segments: const [
-              ButtonSegment(
-                value: SearchSource.usda,
-                label: Text('USDA (generic)'),
-              ),
-              ButtonSegment(
-                value: SearchSource.off,
-                label: Text('Open Food Facts'),
-              ),
-            ],
-            selected: {_source},
-            onSelectionChanged: (s) => setState(() {
-              _source = s.first;
-              _results = null;
-            }),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            key: const Key('search-field'),
-            controller: _query,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: _source == SearchSource.usda
-                  ? 'e.g. chicken breast, rice, egg'
-                  : 'Product or brand',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                key: const Key('search-button'),
-                tooltip: 'Search',
-                icon: const Icon(Icons.search),
-                onPressed: _search,
-              ),
-            ),
-            onSubmitted: (_) => _search(),
-          ),
-        ),
-        Expanded(child: _body()),
-      ],
-    );
-  }
-
-  Widget _body() {
-    final r = _results;
-    if (r == null) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text(
-            'Type a food and press Search.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-    return switch (r) {
-      AsyncData(:final value) when value.isEmpty => const Center(
-        child: Text('No results.'),
-      ),
-      AsyncData(:final value) => ListView.builder(
-        itemCount: value.length,
-        itemBuilder: (context, i) {
-          final f = value[i];
-          final kcal = f.kcalPer100g;
-          return ListTile(
-            title: Text(f.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              [
-                if (f.brand != null) f.brand!,
-                kcal == null
-                    ? 'No nutrition data (enter from label)'
-                    : '${kcal.round()} kcal/100 g',
-              ].join(' · '),
-            ),
-            onTap: () => widget.onPick(f),
-          );
-        },
-      ),
-      AsyncError(:final error) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            error is FoodApiException ? error.message : 'Search failed.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }

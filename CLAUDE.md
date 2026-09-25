@@ -36,7 +36,7 @@ CI (`.github/workflows/ci.yml`) runs codegen check, analyze, test, and builds an
 |---|---|---|---|
 | Shared core | lead | `pubspec.yaml`, `lib/main.dart`, `lib/app/**`, `lib/core/**`, `lib/domain/**`, `lib/data/**`, `android/**`, `.github/**`, `test/helpers/**` | — |
 | A. Calorie engine, check-in, settings | engine agent | `lib/features/targets/**`, `lib/features/settings/**`, `test/features/targets/**`, `test/features/settings/**` | Profiles, TargetHistory |
-| B. Food logging | food agent | `lib/features/food/**`, `test/features/food/**` | Foods, FoodLogEntries, SavedMeals, SavedMealItems, DayStatuses |
+| B. Food logging | food agent | `lib/features/food/**`, `test/features/food/**` | Foods, FoodLogEntries, SavedMeals, SavedMealItems, DayStatuses, KeyValues (keys prefixed `describe.`) |
 | C. Health Connect | health agent | `lib/features/activity/**`, `test/features/activity/**` | DailySteps, Workouts, KeyValues (keys prefixed `hc.`) |
 | D. Weight, Today, Dashboard | charts agent | `lib/features/weight/**`, `lib/features/today/**`, `lib/features/dashboard/**`, `test/features/{weight,today,dashboard}/**` | WeighIns |
 

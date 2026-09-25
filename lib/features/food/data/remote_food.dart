@@ -6,6 +6,10 @@ abstract final class FoodSource {
   static const off = 'off';
   static const usda = 'usda';
   static const custom = 'custom';
+
+  /// A food from the built-in list (typical values); `externalId` is its
+  /// key in `builtin_foods.dart`. Saved the first time it is logged.
+  static const builtin = 'builtin';
 }
 
 /// A food from Open Food Facts or USDA. Nutrients are per 100 g; null means
