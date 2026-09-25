@@ -20,10 +20,10 @@ List<String> explainLines(Explanation e) {
   if (e.measuredKcal != null && e.weight > 0) {
     final delta = e.trendDeltaKg!;
     final move = delta.abs() < 0.05
-        ? 'your trend stayed flat'
+        ? 'your weight held steady'
         : delta < 0
-        ? 'your trend dropped ${_kg(delta)}'
-        : 'your trend rose ${_kg(delta)}';
+        ? 'your weight went down ${_kg(delta)}'
+        : 'your weight went up ${_kg(delta)}';
     final measured = kcal(e.measuredKcal!);
     if (e.weight >= 1) {
       lines.add(

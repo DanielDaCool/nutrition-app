@@ -114,6 +114,35 @@ void main() {
   });
 
   group('adaptive maintenance', () {
+    test('no lag in the first weeks: 21 days of data measure the real '
+        'maintenance', () {
+      // True maintenance 2500, eating 1950 -> losing 0.071 kg/day from the
+      // first weigh-in. A smoothed trend that starts at the first weigh-in
+      // hasn't caught up with that slope yet after 3 weeks.
+      for (final noise in [0.0, 0.6]) {
+        final h = history(
+          maintenanceKcal: 2500,
+          intakeKcal: 1950,
+          historyDays: 21,
+          noiseKg: noise,
+        );
+        final r = recommend(
+          EngineInput(
+            today: today,
+            profile: profile(),
+            weighIns: h.weighIns,
+            intake: h.intake,
+          ),
+        );
+        final measured = r.explanation.measuredKcal!;
+        expect(
+          measured,
+          closeTo(2500, noise == 0 ? 1 : 200),
+          reason: 'noise $noise',
+        );
+      }
+    });
+
     test('steady loss at known intake recovers maintenance (±50 kcal)', () {
       final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
       final r = recommend(
@@ -486,7 +515,7 @@ void main() {
       );
       final text = explainLines(r.explanation).join(' ');
       expect(text, contains('You averaged 2,150 kcal on 21 fully logged days'));
-      expect(text, contains('your trend dropped'));
+      expect(text, contains('your weight went down'));
       expect(text, contains('so your maintenance is about 2,'));
     });
 
