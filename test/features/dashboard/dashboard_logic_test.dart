@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nutrition_app/core/day_key.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_logic.dart';
 
@@ -128,5 +129,80 @@ void main() {
     ]);
     expect(maintenanceSeries(const [], '2026-09-01', '2026-09-25'), isEmpty);
     expect(maintenanceSeries(targets, '2026-07-01', '2026-07-31'), isEmpty);
+  });
+
+  group('headlines', () {
+    test('weightHeadline shows the latest trend and its change', () {
+      const points = [
+        TrendPoint(dayKey: '2026-09-01', trendKg: 84.3),
+        TrendPoint(dayKey: '2026-09-02', trendKg: 83.8),
+        TrendPoint(dayKey: '2026-09-03', trendKg: 83.14),
+      ];
+      expect(weightHeadline(points), 'Trend 83.1 kg · −1.2 kg');
+      expect(weightHeadline(points.sublist(0, 1)), 'Trend 84.3 kg');
+      expect(weightHeadline(const []), isNull);
+    });
+
+    test('stepsHeadline averages days with data, rounded to 100', () {
+      expect(
+        stepsHeadline([
+          act('2026-09-01', 8000),
+          act('2026-09-02', null),
+          act('2026-09-03', 8760),
+        ]),
+        'Avg 8,400/day',
+      );
+      expect(stepsHeadline([act('2026-09-01', null)]), isNull);
+    });
+
+    test('intakeHeadline uses fully logged days and their targets', () {
+      const targets = [
+        TargetPoint(
+          effectiveFrom: '2026-09-01',
+          kcal: 2200,
+          maintenanceKcal: 0,
+        ),
+        TargetPoint(
+          effectiveFrom: '2026-09-03',
+          kcal: 2400,
+          maintenanceKcal: 0,
+        ),
+      ];
+      final days = [
+        day('2026-09-01', 2100),
+        day('2026-09-02', 9999, logged: false),
+        day('2026-09-03', 2200),
+      ];
+      expect(intakeHeadline(days, targets), 'Avg 2,150 of 2,300 kcal');
+      expect(intakeHeadline(days, const []), 'Avg 2,150 kcal');
+      expect(
+        intakeHeadline([day('2026-09-01', 2000, logged: false)], targets),
+        isNull,
+      );
+    });
+
+    test('workoutsHeadline counts workouts and the weekly rate', () {
+      final days = [
+        for (var i = 0; i < 28; i++)
+          act(addDays('2026-09-01', i), null, workouts: i % 3 == 0 ? 1 : 0),
+      ];
+      expect(workoutsHeadline(days), '10 workouts · 2.5/week');
+      expect(
+        workoutsHeadline([act('2026-09-01', null, workouts: 1)]),
+        '1 workout · 7.0/week',
+      );
+      expect(workoutsHeadline([act('2026-09-01', 5000)]), isNull);
+    });
+
+    test('maintenanceHeadline shows the latest estimate', () {
+      expect(
+        maintenanceHeadline(const [
+          MaintenancePoint(dayKey: '2026-09-01', kcal: 2600),
+          MaintenancePoint(dayKey: '2026-09-25', kcal: 2553),
+        ]),
+        'Now 2,550 kcal/day',
+      );
+      expect(maintenanceHeadline(const []), isNull);
+    });
   });
 }

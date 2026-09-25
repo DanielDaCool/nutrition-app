@@ -1,8 +1,11 @@
 /// Pure dashboard aggregation (no Flutter/DB imports) so it's unit-testable.
 library;
 
+import 'package:intl/intl.dart';
+
 import '../../core/day_key.dart';
 import '../../domain/models.dart';
+import '../weight/weight_logic.dart';
 
 /// A target row reduced to what the dashboard needs.
 class TargetPoint {
@@ -15,6 +18,7 @@ class TargetPoint {
   /// Day key the target applies from.
   final String effectiveFrom;
   final double kcal;
+
   /// Estimated maintenance calories at that check-in.
   final double maintenanceKcal;
 }
@@ -53,6 +57,7 @@ class WeeklyIntake {
 
   /// Average kcal over fully logged days; null when no day was fully logged.
   final double? avgKcal;
+
   /// Number of fully logged days that week.
   final int loggedDays;
 
@@ -199,4 +204,70 @@ List<MaintenancePoint> maintenanceSeries(
     out.add(MaintenancePoint(dayKey: to, kcal: out.last.kcal));
   }
   return out;
+}
+
+// ------------------------------------------------------------- headlines
+
+final _count = NumberFormat.decimalPattern('en_US');
+
+/// Rounds [v] to the nearest [step] and adds thousands separators.
+String _rounded(double v, int step) => _count.format((v / step).round() * step);
+
+/// "Trend 83.1 kg · −1.2 kg": the latest trend and its change over [points]
+/// (the trend within the range). Null without points.
+String? weightHeadline(List<TrendPoint> points) {
+  if (points.isEmpty) return null;
+  final last = points.last.trendKg;
+  final head = 'Trend ${formatKg(last)} kg';
+  if (points.length < 2) return head;
+  return '$head · ${formatChangeKg(last - points.first.trendKg)}';
+}
+
+/// "Avg 8,400/day" over days with step data (rounded to 100). Null when no
+/// day has steps.
+String? stepsHeadline(List<DayActivity> days) {
+  final withSteps = [
+    for (final d in days)
+      if (d.steps != null) d.steps!,
+  ];
+  if (withSteps.isEmpty) return null;
+  final avg = withSteps.fold<int>(0, (s, v) => s + v) / withSteps.length;
+  return 'Avg ${_rounded(avg, 100)}/day';
+}
+
+/// "Avg 2,150 of 2,300 kcal": average intake over fully logged days against
+/// the average target on those days (rounded to 10). Without any target it's
+/// "Avg 2,150 kcal". Null when no day is fully logged.
+String? intakeHeadline(List<DayIntake> days, List<TargetPoint> targets) {
+  final logged = [
+    for (final d in days)
+      if (d.fullyLogged) d,
+  ];
+  if (logged.isEmpty) return null;
+  final avg =
+      logged.fold<double>(0, (s, d) => s + d.total.kcal) / logged.length;
+  final dayTargets = [
+    for (final d in logged)
+      if (targetOn(targets, d.dayKey) case final t?) t.kcal,
+  ];
+  if (dayTargets.isEmpty) return 'Avg ${_rounded(avg, 10)} kcal';
+  final target =
+      dayTargets.fold<double>(0, (s, v) => s + v) / dayTargets.length;
+  return 'Avg ${_rounded(avg, 10)} of ${_rounded(target, 10)} kcal';
+}
+
+/// "9 workouts · 2.3/week" over [days] (the whole range, one entry per
+/// day). Null when there were no workouts.
+String? workoutsHeadline(List<DayActivity> days) {
+  final total = days.fold<int>(0, (s, d) => s + d.workouts.length);
+  if (total == 0) return null;
+  final perWeek = total / (days.length / 7);
+  final noun = total == 1 ? 'workout' : 'workouts';
+  return '$total $noun · ${perWeek.toStringAsFixed(1)}/week';
+}
+
+/// "Now 2,550 kcal/day": the latest maintenance estimate. Null when empty.
+String? maintenanceHeadline(List<MaintenancePoint> series) {
+  if (series.isEmpty) return null;
+  return 'Now ${_rounded(series.last.kcal, 10)} kcal/day';
 }
