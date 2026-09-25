@@ -11,6 +11,8 @@ import '../../../domain/models.dart';
 import '../data/barcode_lookup.dart';
 import '../data/food_repository.dart';
 import '../data/remote_food.dart';
+import '../describe/builtin_foods.dart';
+import '../describe/food_matcher.dart';
 import '../food_providers.dart';
 import '../nutrition_math.dart';
 import '../widgets/error_retry.dart';
@@ -87,6 +89,28 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       food = await ref.read(foodRepositoryProvider).upsertRemote(remote);
     } catch (e, st) {
       _showError('Could not save it.', e, st);
+      return;
+    }
+    if (mounted) await _openPortion(food);
+  }
+
+  /// Opens the portion screen for a saved or built-in food from the Search
+  /// tab. A built-in food is saved first.
+  Future<void> _pickLocal(FoodCandidate c) async {
+    final repo = ref.read(foodRepositoryProvider);
+    final Food food;
+    try {
+      final id = c.foodId;
+      final builtin = c.builtinKey == null ? null : builtinByKey(c.builtinKey!);
+      if (id != null) {
+        food = await repo.foodById(id);
+      } else if (builtin != null) {
+        food = await repo.saveBuiltin(builtin);
+      } else {
+        throw StateError('Food ${c.key} is neither saved nor built in');
+      }
+    } catch (e, st) {
+      _showError('Could not open that food.', e, st);
       return;
     }
     if (mounted) await _openPortion(food);
@@ -267,7 +291,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
                     onTap: _openPortion,
                     onEdit: _editFood,
                   ),
-                  FoodSearchPanel(onPick: _pickRemote),
+                  FoodSearchPanel(onPick: _pickRemote, onPickLocal: _pickLocal),
                 ],
               ),
             ),

@@ -329,6 +329,41 @@ void main() {
       await finish(tester);
     });
 
+    testWidgets('Search tab finds common foods as you type; picking one '
+        'saves it and opens the portion screen', (tester) async {
+      await pump(
+        tester,
+        const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+        client: mock(
+          (_) => http.Response.bytes(
+            utf8.encode(fixtureText('usda_search.json')),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          ),
+        ),
+      );
+      await tester.tap(find.text('Search'));
+      await settle(tester);
+      await tester.enterText(find.byKey(const Key('search-field')), 'banan');
+      await settle(tester);
+      expect(requests, isEmpty);
+      expect(find.text('Your foods'), findsOneWidget);
+      expect(find.byKey(const Key('local-builtin:banana')), findsOneWidget);
+
+      // Online search only on the button.
+      await tester.tap(find.byKey(const Key('search-online-button')));
+      await settle(tester);
+      expect(requests, hasLength(1));
+
+      await tester.tap(find.byKey(const Key('local-builtin:banana')));
+      await settle(tester);
+      expect(find.byType(PortionScreen), findsOneWidget);
+      final foods = await tester.runAsync(() => db.select(db.foods).get());
+      expect(foods!.single.source, 'builtin');
+      expect(foods.single.name, 'Banana');
+      await finish(tester);
+    });
+
     testWidgets('search runs on submit only and shows results', (tester) async {
       await pump(
         tester,
