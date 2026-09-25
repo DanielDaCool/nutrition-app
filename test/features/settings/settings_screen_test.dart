@@ -35,6 +35,19 @@ void tallScreen(WidgetTester tester) {
   addTearDown(tester.view.reset);
 }
 
+Future<void> seedProfile(AppDatabase db) => db
+    .into(db.profiles)
+    .insert(
+      ProfilesCompanion.insert(
+        sex: Sex.male.index,
+        birthDate: DateTime(1996, 9, 25),
+        heightCm: 180,
+        activityLevel: ActivityLevel.moderate.index,
+        goalWeightKg: 80,
+        updatedAt: now,
+      ),
+    );
+
 void main() {
   testWidgets('saving the profile creates the first target', (tester) async {
     tallScreen(tester);
@@ -57,13 +70,19 @@ void main() {
     expect(find.textContaining('No targets yet'), findsOneWidget);
     expect(find.byType(HealthConnectSettingsTile), findsOneWidget);
 
-    // Birth date: open the picker, choose the 25th of the initial month
-    // (September 1996, i.e. 30 years before "now").
+    // Birth date is typed, not scrolled to.
     await tester.tap(find.byKey(const Key('birthDate')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('25'));
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(TextField),
+      ),
+      '09/25/1996',
+    );
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
+    expect(find.text('Sep 25, 1996 · 30 years old'), findsOneWidget);
 
     await tester.enterText(find.byKey(const Key('heightCm')), '180');
     await tester.enterText(find.byKey(const Key('goalWeightKg')), '80');
@@ -101,9 +120,90 @@ void main() {
     ); // matches engine_test.dart's formula-only case
 
     expect(find.text('2,470 kcal'), findsOneWidget);
+    expect(find.text('Profile saved'), findsOneWidget);
+    // With a profile, targets come first again.
+    expect(
+      tester.getTopLeft(find.byKey(const Key('targetsCard'))).dy,
+      lessThan(tester.getTopLeft(find.byKey(const Key('profileForm'))).dy),
+    );
 
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
+  });
+
+  testWidgets('without a profile the form comes first', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    expect(find.byKey(const Key('startHere')), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byKey(const Key('profileForm'))).dy,
+      lessThan(tester.getTopLeft(find.byKey(const Key('targetsCard'))).dy),
+    );
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('saving without a weigh-in says what to do next', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    final save = find.byKey(const Key('saveProfile'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await settle(tester);
+    expect(
+      find.text(
+        'Profile saved. Next: log your weight on Today to get your targets.',
+      ),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('at or below the goal the rate text says targets hold', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() async {
+      await seedProfile(db); // goal 80 kg
+      await db
+          .into(db.weighIns)
+          .insert(
+            WeighInsCompanion.insert(
+              dayKey: '2026-09-25',
+              weightKg: 79,
+              createdAt: now,
+            ),
+          );
+    });
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    expect(
+      find.text("You're at your goal, targets will hold your weight"),
+      findsOneWidget,
+    );
+
+    // A lower goal brings the loss rate back.
+    await tester.enterText(find.byKey(const Key('goalWeightKg')), '75');
+    await tester.pump();
+    expect(find.textContaining('Weekly loss rate'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  test('age counts whole years', () {
+    expect(ageOn(DateTime(1996, 9, 25), DateTime(2026, 9, 25)), 30);
+    expect(ageOn(DateTime(1996, 9, 26), DateTime(2026, 9, 25)), 29);
+    expect(ageOn(DateTime(1996, 12, 1), DateTime(2026, 9, 25)), 29);
   });
 
   testWidgets('invalid form is not saved', (tester) async {

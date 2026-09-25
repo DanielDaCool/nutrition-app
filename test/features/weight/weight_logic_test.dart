@@ -62,4 +62,36 @@ void main() {
     expect(formatChangeKg(0.26), '+0.3 kg');
     expect(formatChangeKg(0.01), '0.0 kg');
   });
+
+  test('latestWeighInKg and changeVsPreviousKg', () {
+    final w = {'2026-09-20': 84.0, '2026-09-24': 83.1, '2026-09-22': 83.6};
+    expect(latestWeighInKg(w), 83.1);
+    expect(latestWeighInKg(const {}), isNull);
+    expect(changeVsPreviousKg(w, '2026-09-24'), closeTo(-0.5, 1e-9));
+    expect(changeVsPreviousKg(w, '2026-09-20'), isNull);
+    expect(changeVsPreviousKg(w, '2026-09-21'), isNull);
+  });
+
+  test('weighInSummaryLine', () {
+    final w = {'2026-09-18': 84.0, '2026-09-25': 82.4};
+    final trend = computeTrend(w, until: '2026-09-25');
+    // trend: 84.0 until the 25th, then 84 + 0.1 * (82.4 - 84) = 83.84.
+    expect(
+      weighInSummaryLine(w, trend, '2026-09-25'),
+      '82.4 kg · trend 83.8 · −0.2 this week',
+    );
+    // Not enough history for a weekly change.
+    expect(weighInSummaryLine(w, trend, '2026-09-18'), '84.0 kg · trend 84.0');
+    expect(weighInSummaryLine(w, trend, '2026-09-20'), isNull);
+  });
+
+  test('toGoalText and goalLabel', () {
+    expect(toGoalText(81.1, 78), '3.1 kg to goal');
+    expect(toGoalText(77.0, 78), '1.0 kg to goal');
+    expect(toGoalText(78.04, 78), 'At your goal');
+    expect(toGoalText(null, 78), isNull);
+    expect(toGoalText(80, null), isNull);
+    expect(goalLabel(78), 'Goal 78 kg');
+    expect(goalLabel(78.5), 'Goal 78.5 kg');
+  });
 }

@@ -3,10 +3,12 @@
 // weigh-in, meals and activity for the selected day.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
 import '../../core/day_key.dart';
 import '../activity/widgets/activity_card.dart';
+import '../dashboard/dashboard_providers.dart';
 import '../food/widgets/meals_section.dart';
 import '../targets/checkin_screen.dart';
 import '../targets/targets_providers.dart';
@@ -14,21 +16,72 @@ import '../weight/weight_providers.dart';
 import '../weight/widgets/weigh_in_dialog.dart';
 import 'widgets/calorie_card.dart';
 import 'widgets/quick_weigh_in.dart';
+import 'widgets/yesterday_prompt.dart';
 
 /// Today tab for the day in `selectedDayProvider`. Arrows move a day at a
-/// time but never past today; tapping the title jumps back to today. The
-/// quick weigh-in only appears for days without a weigh-in.
-class TodayScreen extends ConsumerWidget {
+/// time but never past today; tapping the title jumps back to today.
+///
+/// On today without a weigh-in the quick weigh-in sits above the calorie
+/// card (morning routine); once saved a compact summary row takes its place.
+/// When the app resumes on a new calendar day while "today" was shown, it
+/// moves to the new today.
+class TodayScreen extends ConsumerStatefulWidget {
   const TodayScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodayScreen> createState() => _TodayScreenState();
+}
+
+class _TodayScreenState extends ConsumerState<TodayScreen> {
+  late final AppLifecycleListener _lifecycle;
+
+  /// Today's dayKey when the screen opened or last resumed.
+  late String _today;
+
+  String _now() => dayKeyOf(ref.read(clockProvider)());
+
+  @override
+  void initState() {
+    super.initState();
+    _today = _now();
+    _lifecycle = AppLifecycleListener(onResume: _checkDayRollover);
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  /// If midnight passed while the app was in the background, follow it.
+  void _checkDayRollover() {
+    if (!mounted) return;
+    final now = _now();
+    if (now == _today) return;
+    final wasOnToday = ref.read(selectedDayProvider) == _today;
+    _today = now;
+    setState(() {});
+    if (wasOnToday) ref.read(selectedDayProvider.notifier).set(now);
+    // These read "today" once; refresh them for the new day.
+    ref.invalidate(weightTrendProvider);
+    ref.invalidate(dashboardWindowProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final dayKey = ref.watch(selectedDayProvider);
-    final today = dayKeyOf(ref.read(clockProvider)());
+    final today = _now();
     final selected = ref.read(selectedDayProvider.notifier);
     final checkInDue = ref.watch(checkInDueProvider).value ?? false;
     final weighIns = ref.watch(weighInsProvider).value;
+    final isToday = dayKey == today;
     final canGoForward = dayKey.compareTo(today) < 0;
+
+    final Widget? weight = weighIns == null
+        ? null
+        : weighIns.containsKey(dayKey)
+        ? WeighInSummaryRow(dayKey: dayKey)
+        : QuickWeighIn(key: ValueKey('quick-$dayKey'), dayKey: dayKey);
 
     return Scaffold(
       appBar: AppBar(
@@ -62,6 +115,7 @@ class TodayScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          if (!isToday) _PastDayBar(dayKey: dayKey, onBack: selected.today),
           if (checkInDue) ...[
             Card(
               key: const Key('checkInBanner'),
@@ -80,12 +134,60 @@ class TodayScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
           ],
+          if (isToday) YesterdayPrompt(today: today),
+          if (isToday && weight != null) weight,
           CalorieCard(dayKey: dayKey),
-          if (weighIns != null && !weighIns.containsKey(dayKey))
-            QuickWeighIn(key: ValueKey('quick-$dayKey'), dayKey: dayKey),
+          if (!isToday && weight != null) weight,
           MealsSection(dayKey: dayKey),
           ActivityCard(dayKey: dayKey),
         ],
+      ),
+    );
+  }
+}
+
+/// "Viewing Wed 24 Sep · Back to today" bar shown on past days.
+class _PastDayBar extends StatelessWidget {
+  const _PastDayBar({required this.dayKey, required this.onBack});
+
+  final String dayKey;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = DateFormat('EEE d MMM').format(startOfDay(dayKey));
+    return Card(
+      key: const Key('pastDayBar'),
+      color: theme.colorScheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16, right: 4),
+        child: Row(
+          children: [
+            Icon(
+              Icons.history,
+              size: 20,
+              color: theme.colorScheme.onTertiaryContainer,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Viewing $label',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.onTertiaryContainer,
+                ),
+              ),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.onTertiaryContainer,
+                minimumSize: const Size(48, 48),
+              ),
+              onPressed: onBack,
+              child: const Text('Back to today'),
+            ),
+          ],
+        ),
       ),
     );
   }

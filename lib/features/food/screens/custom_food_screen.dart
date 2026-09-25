@@ -148,11 +148,13 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
           ? await repo.createCustom(input)
           : await repo.updateCustom(widget.existing!.id, input);
       if (mounted) Navigator.of(context).pop(food);
-    } catch (e) {
+    } catch (e, st) {
+      final message = friendlyError(e, st);
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not save: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save the food. $message')),
+      );
     }
   }
 

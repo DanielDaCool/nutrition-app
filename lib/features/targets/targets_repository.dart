@@ -268,15 +268,33 @@ class TargetsRepository {
     return rec.toDailyTargets();
   }
 
-  /// Spec §6: due on the check-in weekday when no target starts today, or
-  /// when a profile exists but no target yet.
+  /// True when there is at least one weigh-in on or before [day].
+  Future<bool> hasWeighInBy(String day) async {
+    final q = db.selectOnly(db.weighIns)
+      ..addColumns([db.weighIns.dayKey])
+      ..where(db.weighIns.dayKey.isSmallerOrEqualValue(day))
+      ..limit(1);
+    return (await q.getSingleOrNull()) != null;
+  }
+
+  /// Spec §6, with a missed check-in staying due until it is done.
+  ///
+  /// Never due without a profile or a weigh-in (there is nothing to review).
+  /// Otherwise due when no target is in effect yet, or when the current
+  /// target started before the most recent check-in weekday on or before
+  /// today (see [lastCheckInDay]).
   Future<bool> checkInDue() async {
     final profile = await loadProfile();
     if (profile == null) return false;
     final day = today;
-    if (await latestTarget(day) == null) return true;
-    return startOfDay(day).weekday == profile.checkInWeekday &&
-        !await hasTargetOn(day);
+    if (!await hasWeighInBy(day)) return false;
+    final current = await latestTarget(day);
+    if (current == null) return true;
+    return isCheckInDue(
+      today: day,
+      currentEffectiveFrom: current.effectiveFrom,
+      checkInWeekday: profile.checkInWeekday,
+    );
   }
 
   /// Emits [compute] now and again whenever one of [tables] changes or the
@@ -336,5 +354,21 @@ class TargetsRepository {
 
   /// Stream behind `checkInDueProvider`; see [checkInDue].
   Stream<bool> watchCheckInDue() =>
-      watch([db.profiles, db.targetHistory], checkInDue);
+      watch([db.profiles, db.targetHistory, db.weighIns], checkInDue);
 }
+
+/// The most recent day on or before [today] that falls on [checkInWeekday]
+/// (DateTime.weekday, 7 = Sunday). Pure date logic.
+String lastCheckInDay(String today, int checkInWeekday) {
+  final back = (startOfDay(today).weekday - checkInWeekday) % 7;
+  return addDays(today, -back);
+}
+
+/// True when the target in effect ([currentEffectiveFrom]) started before the
+/// latest check-in day, i.e. that check-in has not been done (accepted or
+/// skipped) yet. A missed check-in day stays due until it is done.
+bool isCheckInDue({
+  required String today,
+  required String currentEffectiveFrom,
+  required int checkInWeekday,
+}) => currentEffectiveFrom.compareTo(lastCheckInDay(today, checkInWeekday)) < 0;

@@ -263,6 +263,93 @@ void main() {
     });
   });
 
+  group('repeat and remember', () {
+    test(
+      'copyMeal copies foods and grams in order; deleteEntries undoes',
+      () async {
+        final a = await repo.createCustom(custom('A'));
+        final b = await repo.createCustom(custom('B'));
+        await repo.logFood(
+          dayKey: '2026-09-24',
+          meal: Meal.breakfast,
+          foodId: a.id,
+          grams: 50,
+        );
+        await repo.logFood(
+          dayKey: '2026-09-24',
+          meal: Meal.breakfast,
+          foodId: b.id,
+          grams: 120,
+        );
+        await repo.logFood(
+          dayKey: '2026-09-24',
+          meal: Meal.lunch,
+          foodId: b.id,
+          grams: 300,
+        );
+
+        final ids = await repo.copyMeal(
+          fromDay: '2026-09-24',
+          fromMeal: Meal.breakfast,
+          toDay: '2026-09-25',
+          toMeal: Meal.breakfast,
+        );
+        expect(ids, hasLength(2));
+        final copied = await (db.select(
+          db.foodLogEntries,
+        )..where((t) => t.dayKey.equals('2026-09-25'))).get();
+        expect(copied.map((e) => (e.foodId, e.grams)), [
+          (a.id, 50.0),
+          (b.id, 120.0),
+        ]);
+        expect(copied.map((e) => e.kcal), [50.0, 120.0]);
+
+        expect(
+          await repo.copyMeal(
+            fromDay: '2026-09-24',
+            fromMeal: Meal.dinner,
+            toDay: '2026-09-25',
+            toMeal: Meal.dinner,
+          ),
+          isEmpty,
+        );
+
+        await repo.deleteEntries(ids);
+        expect(await db.select(db.foodLogEntries).get(), hasLength(3));
+      },
+    );
+
+    test(
+      'lastGrams and watchLastGrams return the newest entry per food',
+      () async {
+        final a = await repo.createCustom(custom('A'));
+        final b = await repo.createCustom(custom('B'));
+        expect(await repo.lastGrams(a.id), isNull);
+        await repo.logFood(
+          dayKey: '2026-09-20',
+          meal: Meal.lunch,
+          foodId: a.id,
+          grams: 80,
+        );
+        now = now.add(const Duration(hours: 1));
+        await repo.logFood(
+          dayKey: '2026-09-25',
+          meal: Meal.lunch,
+          foodId: a.id,
+          grams: 150,
+        );
+        await repo.logFood(
+          dayKey: '2026-09-25',
+          meal: Meal.snack,
+          foodId: b.id,
+          grams: 30,
+        );
+        expect(await repo.lastGrams(a.id), 150);
+        expect(await repo.watchLastGrams().first, {a.id: 150.0, b.id: 30.0});
+      },
+    );
+  });
+
   group('intake', () {
     test(
       'range covers every day, zeros for empty days, oldest first',

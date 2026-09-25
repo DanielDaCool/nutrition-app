@@ -104,6 +104,10 @@ void main() {
     expect(find.byType(AddFoodScreen), findsNothing);
     expect(find.text('open'), findsOneWidget);
     expect(find.text('Added 2 items to Lunch'), findsOneWidget);
+    // Undo takes both back out.
+    await tester.tap(find.text('Undo'));
+    await settle(tester);
+    expect(await entries(tester), isEmpty);
     await finish(tester);
   });
 
