@@ -360,8 +360,8 @@ GramsEstimate estimateGrams({
   final u = unit ?? MeasureUnit.serving;
   var typical = entry?.grams[u];
   var shownUnit = u;
-  if (typical == null && unit == null) {
-    // "banana" with no amount: one piece.
+  if (typical == null && u == MeasureUnit.serving) {
+    // "banana" with no amount (or "1 serving"): one piece.
     typical = entry?.grams[MeasureUnit.piece];
     shownUnit = MeasureUnit.piece;
   }

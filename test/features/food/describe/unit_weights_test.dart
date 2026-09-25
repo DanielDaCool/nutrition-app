@@ -128,6 +128,10 @@ void main() {
     final banana = _est(1, null, const FoodWeightInfo(name: 'Banana'));
     expect(banana.grams, 120);
     expect(banana.explanation, '1 piece ≈ 120 g');
+    expect(
+      _est(1, MeasureUnit.serving, const FoodWeightInfo(name: 'Banana')).grams,
+      120,
+    );
     final rice = _est(1, null, const FoodWeightInfo(name: 'Rice'));
     expect(rice.explanation, '1 serving ≈ 160 g');
     final unknown = _est(1, null, _mystery);
