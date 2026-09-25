@@ -65,7 +65,8 @@ class ParsedPhrase {
     required this.quantityGiven,
   });
 
-  /// The phrase as typed (trimmed, meal words removed).
+  /// The phrase as typed, lowercased and tidied ("200g" -> "200 g"), without
+  /// meal words.
   final String original;
 
   /// How many [unit]s; 1 when nothing was said ("hummus").
