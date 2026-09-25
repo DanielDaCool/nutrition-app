@@ -457,6 +457,9 @@ String _itemsLabel(int n) => n == 1 ? '1 item' : '$n items';
 String _amountLabel(double quantity, MeasureUnit? unit) {
   if (unit == null) return '1 portion';
   if (unit == MeasureUnit.gram) return '${fmtNum(quantity)} g';
+  if (unit == MeasureUnit.piece) {
+    return '${fmtNum(quantity, decimals: 2)} ${quantity == 1 ? 'pc' : 'pcs'}';
+  }
   return '${fmtNum(quantity, decimals: 2)} ${unit.label(quantity)}';
 }
 
