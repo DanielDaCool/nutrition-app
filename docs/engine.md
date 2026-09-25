@@ -15,12 +15,16 @@ formulaMaintenance = BMR × activityLevel.factor.
 
 ## 2. Measured (adaptive) maintenance
 Window = the 21 days ending yesterday (today is incomplete).
-- Needs trend values at both window ends (at least one weigh-in on/before window start, or use the first
-  trend point inside the window as start and shorten the span), span ≥ 10 days, ≥ 7 fully-logged days,
-  and ≥ 6 weigh-ins inside the window. Otherwise measured = null.
+- Weight change per day (kgPerDay):
+  - Once the trend has run ≥ 30 days before the window start: (trend(end) − trend(start)) / days over the
+    whole window. By then the EMA's lag is < 5 % and its difference is steadier than raw weigh-ins.
+  - Before that: the least-squares slope through the raw weigh-ins inside the window. The trend starts at
+    the first weigh-in and lags ~10 days behind a steady loss, so a trend difference in the first weeks
+    under-counts the loss (true maintenance 2500, intake 1950: 2283 at day 21) and the target comes out
+    too low. Needs the weigh-ins to span ≥ 10 days.
+- Also needs ≥ 7 fully-logged days and ≥ 6 weigh-ins inside the window. Otherwise measured = null.
 - avgIntake = mean kcal over fully-logged days in the window.
-- trendDeltaKg = trend(end) − trend(start); days = span in days.
-- measured = avgIntake − trendDeltaKg × 7700 / days.
+- measured = avgIntake − kgPerDay × 7700. (Explanation: trendDeltaKg = kgPerDay × days.)
 - Clamp measured to [0.6, 1.6] × formulaMaintenance (guards against bad logging).
 
 ## 3. Blend

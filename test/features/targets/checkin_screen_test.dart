@@ -123,7 +123,7 @@ void main() {
     expect(
       find.textContaining(
         'You averaged 2,000 kcal on 21 fully logged days '
-        'and your trend dropped 1.3 kg in 20 days',
+        'and your weight went down 1.3 kg in 20 days',
       ),
       findsOneWidget,
     );
