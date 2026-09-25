@@ -152,6 +152,8 @@ const List<BuiltinFood> builtinFoods = [
     54,
     21,
     aliases: ['tahini', 'raw tahini', 'tahini paste', 'sesame paste'],
+    servingName: 'serving (2 tbsp)',
+    servingGrams: 30,
     preferred: true,
   ),
   BuiltinFood(
@@ -642,6 +644,8 @@ const List<BuiltinFood> builtinFoods = [
     15,
     41,
     aliases: ['fries', 'french fries', 'chips'],
+    servingName: 'portion',
+    servingGrams: 150,
   ),
 
   // Meat, fish, protein
@@ -1125,7 +1129,17 @@ const List<BuiltinFood> builtinFoods = [
     aliases: ['dark chocolate'],
   ),
   BuiltinFood('sugar', 'Sugar', 387, 0, 0, 100, aliases: ['sugar']),
-  BuiltinFood('honey', 'Honey', 304, 0.3, 0, 82.4, aliases: ['honey']),
+  BuiltinFood(
+    'honey',
+    'Honey',
+    304,
+    0.3,
+    0,
+    82.4,
+    aliases: ['honey'],
+    servingName: 'tbsp',
+    servingGrams: 21,
+  ),
   BuiltinFood(
     'jam',
     'Jam',
@@ -1134,6 +1148,8 @@ const List<BuiltinFood> builtinFoods = [
     0.1,
     68.9,
     aliases: ['jam', 'jelly', 'preserves'],
+    servingName: 'tbsp',
+    servingGrams: 20,
   ),
   BuiltinFood(
     'ice_cream',
