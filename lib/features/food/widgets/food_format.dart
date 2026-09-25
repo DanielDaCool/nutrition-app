@@ -1,8 +1,13 @@
 // Display formatting shared by the food screens (numbers, kcal, macros,
-// meal and source names).
+// meal and source names, days, friendly error messages).
 
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
+
+import '../../../core/day_key.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
+import '../data/remote_food.dart';
 
 /// Display name of a meal.
 String mealLabel(Meal m) => switch (m) {
@@ -44,3 +49,35 @@ String foodSubtitle(Food f) {
   ];
   return parts.join(' · ');
 }
+
+/// A short message for [error] that is safe to show the user. The details
+/// go to the debug log, never to the screen.
+String friendlyError(Object error, [StackTrace? stackTrace]) {
+  debugPrint('food: $error${stackTrace == null ? '' : '\n$stackTrace'}');
+  return switch (error) {
+    FoodApiException(:final message) => message,
+    ArgumentError(name: 'grams') => 'Enter an amount above 0',
+    _ => 'Something went wrong. Try again.',
+  };
+}
+
+/// "Yesterday", "Tomorrow" or e.g. "Wed 24 Sep" for [dayKey] seen from
+/// [todayKey]; null when it is today.
+String? otherDayLabel(String dayKey, String todayKey) {
+  if (dayKey == todayKey) return null;
+  return switch (daysBetween(todayKey, dayKey)) {
+    -1 => 'Yesterday',
+    1 => 'Tomorrow',
+    _ => DateFormat('EEE d MMM').format(startOfDay(dayKey)),
+  };
+}
+
+/// [title] followed by the day when it isn't today, e.g.
+/// "Add to Breakfast · Yesterday".
+String withDay(String title, String dayKey, String todayKey) {
+  final day = otherDayLabel(dayKey, todayKey);
+  return day == null ? title : '$title · $day';
+}
+
+/// "1 item" / "4 items".
+String itemsLabel(int n) => n == 1 ? '1 item' : '$n items';

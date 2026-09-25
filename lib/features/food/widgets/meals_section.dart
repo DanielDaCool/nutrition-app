@@ -9,6 +9,7 @@ import '../data/food_repository.dart';
 import '../food_providers.dart';
 import '../nutrition_math.dart';
 import '../screens/add_food_screen.dart';
+import 'error_retry.dart';
 import 'food_format.dart';
 
 /// The meals of one day (breakfast/lunch/dinner/snacks) with add buttons and
@@ -27,9 +28,14 @@ class MealsSection extends ConsumerWidget {
 
     final body = switch (items) {
       AsyncData(:final value) => _meals(context, ref, value),
-      AsyncError(:final error) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('Could not load meals: $error'),
+      AsyncError(:final error, :final stackTrace) => ErrorRetry(
+        error: error,
+        stackTrace: stackTrace,
+        message: 'Could not load your meals.',
+        onRetry: () {
+          ref.invalidate(dayItemsProvider(dayKey));
+          ref.invalidate(dayIntakeProvider(dayKey));
+        },
       ),
       _ => const Padding(
         padding: EdgeInsets.all(24),
@@ -56,9 +62,7 @@ class MealsSection extends ConsumerWidget {
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('Day fully logged'),
-            subtitle: const Text(
-              'Only fully logged days feed the calorie recommendation.',
-            ),
+            subtitle: const Text('Counts toward your weekly check-in'),
             value: intake.value?.fullyLogged ?? false,
             onChanged: intake.hasValue
                 ? (v) =>

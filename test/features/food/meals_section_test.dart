@@ -93,10 +93,7 @@ void main() {
     // Day total: 441 kcal, 39 g protein.
     expect(find.text('441 kcal · P 39 g'), findsOneWidget);
     expect(find.text('Day fully logged'), findsOneWidget);
-    expect(
-      find.text('Only fully logged days feed the calorie recommendation.'),
-      findsOneWidget,
-    );
+    expect(find.text('Counts toward your weekly check-in'), findsOneWidget);
     await tearDownTree(tester);
   });
 
