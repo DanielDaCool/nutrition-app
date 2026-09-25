@@ -35,7 +35,12 @@ class RemoteFood {
   final double? proteinPer100g;
   final double? fatPer100g;
   final double? carbsPer100g;
+
+  /// Serving description from the source, e.g. "1 slice (30 g)". Only set
+  /// when [servingGrams] is known.
   final String? servingName;
+
+  /// Grams in one serving, when the source gives it in grams.
   final double? servingGrams;
 
   /// Enough data to log it. Missing macros count as 0; missing energy does
@@ -48,6 +53,7 @@ class RemoteFood {
       '$kcalPer100g kcal P$proteinPer100g F$fatPer100g C$carbsPer100g)';
 }
 
+/// Category of a [FoodApiException], for callers that react differently.
 enum FoodApiErrorKind {
   notFound,
   rateLimited,
@@ -62,6 +68,8 @@ class FoodApiException implements Exception {
   const FoodApiException(this.kind, this.message);
 
   final FoodApiErrorKind kind;
+
+  /// Short, user-readable explanation; safe to show as-is.
   final String message;
 
   @override

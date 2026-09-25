@@ -1,3 +1,6 @@
+// Shared HTTP helpers for the food API clients: timeouts, error mapping
+// and user-facing messages.
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -6,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import 'remote_food.dart';
 
+/// How long a food API request may take before it counts as a network error.
 const requestTimeout = Duration(seconds: 15);
 
 /// Runs [send] and turns transport failures into [FoodApiException]s.
@@ -47,6 +51,8 @@ Map<String, dynamic> decodeJsonObject(String serviceName, http.Response r) {
   );
 }
 
+/// UI message for a request blocked by the local rate limiter. Rounds the
+/// wait up to whole seconds.
 String waitMessage(String serviceName, Duration wait) {
   final s = wait.inSeconds + 1;
   return '$serviceName allows only a few requests per minute. '

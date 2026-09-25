@@ -1,3 +1,5 @@
+// HTTP client for Open Food Facts product lookup and search.
+
 import 'package:http/http.dart' as http;
 
 import 'http_util.dart';
@@ -17,6 +19,7 @@ class OffClient {
   }) : _productLimiter = RateLimiter(maxRequests: 15, clock: clock),
        _searchLimiter = RateLimiter(maxRequests: 10, clock: clock);
 
+  /// OFF asks API users to identify their app in the User-Agent.
   static const userAgent =
       'NutritionApp/0.1 (+https://github.com/DanielDaCool/nutrition-app)';
   static const serviceName = 'Open Food Facts';
@@ -32,6 +35,9 @@ class OffClient {
   };
 
   /// Product by barcode, or null if OFF doesn't have it.
+  ///
+  /// Throws [FoodApiException] for a malformed barcode, when rate limited
+  /// (locally or HTTP 429), and on network, server or parse errors.
   Future<RemoteFood?> product(String barcode) async {
     final code = barcode.trim();
     if (!RegExp(r'^\d{6,14}$').hasMatch(code)) {
@@ -57,6 +63,9 @@ class OffClient {
   }
 
   /// Full-text search. Call on submit only, never per keystroke.
+  ///
+  /// Returns an empty list for a blank query. Throws [FoodApiException] like
+  /// [product].
   Future<List<RemoteFood>> search(String query, {int pageSize = 24}) async {
     final q = query.trim();
     if (q.isEmpty) return const [];
@@ -81,6 +90,8 @@ class OffClient {
     return parseOffSearchResponse(decodeJsonObject(serviceName, r));
   }
 
+  /// Takes a slot from [limiter] or throws a rate-limited
+  /// [FoodApiException] saying how long to wait.
   void _acquire(RateLimiter limiter) {
     final wait = limiter.tryAcquire();
     if (wait != null) {
@@ -91,6 +102,7 @@ class OffClient {
     }
   }
 
+  /// Maps non-200 responses to a [FoodApiException] of the matching kind.
   void _checkStatus(http.Response r) {
     if (r.statusCode == 429) {
       throw const FoodApiException(

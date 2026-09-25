@@ -1,3 +1,5 @@
+// Form for creating or editing a user-defined food from its nutrition label.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +11,8 @@ import '../food_providers.dart';
 import '../nutrition_math.dart';
 import '../widgets/food_format.dart';
 
+/// Whether the typed label values are per 100 g or per serving. Per-serving
+/// values are converted to per 100 g before saving.
 enum LabelBasis { per100g, perServing }
 
 /// Create or edit a custom food, e.g. typed from a package label.
@@ -43,6 +47,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
   LabelBasis _basis = LabelBasis.per100g;
   bool _saving = false;
 
+  /// Reached from a barcode that wasn't found (changes the title only).
   bool get _isLabelFlow => widget.barcode != null && widget.existing == null;
 
   @override
@@ -88,6 +93,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     super.dispose();
   }
 
+  /// Serving size in grams, or null when empty, invalid or not above 0.
   double? get _servingG {
     final v = parseAmount(_servingGrams.text);
     return (v != null && v > 0) ? v : null;
@@ -106,6 +112,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     return s == null ? null : per100gFromServing(entered, s);
   }
 
+  /// Form validator for an optional (or [required]) non-negative number.
   String? _nonNegative(String? v, {bool required = false}) {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return required ? 'Required' : null;
@@ -115,6 +122,8 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     return null;
   }
 
+  /// Validates, creates or updates the food, and pops with it. Errors show a
+  /// snackbar and keep the form open.
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final per100g = _per100g;

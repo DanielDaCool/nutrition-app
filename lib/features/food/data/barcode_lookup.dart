@@ -1,3 +1,6 @@
+// Resolves a scanned barcode to a loggable food, or explains why the user
+// has to enter it from the label.
+
 import '../../../data/db/database.dart';
 import 'food_repository.dart';
 import 'off_client.dart';
@@ -6,6 +9,8 @@ import 'remote_food.dart';
 /// Result of looking up a scanned barcode.
 sealed class BarcodeResult {
   const BarcodeResult(this.barcode);
+
+  /// The trimmed barcode that was looked up.
   final String barcode;
 }
 
@@ -13,6 +18,8 @@ sealed class BarcodeResult {
 class BarcodeFound extends BarcodeResult {
   const BarcodeFound(super.barcode, this.food, {required this.fromCache});
   final Food food;
+
+  /// True when the food was already in the local DB (no network call).
   final bool fromCache;
 }
 
@@ -31,6 +38,9 @@ class BarcodeLookup {
   final FoodRepository _repo;
   final OffClient _off;
 
+  /// Looks up [barcode]. Never throws for API failures: network, rate-limit
+  /// and bad-response errors become a [BarcodeNeedsLabel] with the error
+  /// message. A complete OFF product is saved locally before it's returned.
   Future<BarcodeResult> lookup(String barcode) async {
     final code = barcode.trim();
     final local = await _repo.findByBarcode(code);

@@ -1,3 +1,6 @@
+// Amount entry for logging one food, in grams or servings, with a live
+// nutrition preview.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +11,8 @@ import '../food_providers.dart';
 import '../nutrition_math.dart';
 import '../widgets/food_format.dart';
 
+/// Unit of the amount field. Servings are only offered when the food has a
+/// serving size.
 enum _Unit { grams, servings }
 
 /// Choose how much of a food to log. Pops with `true` after adding.
@@ -42,6 +47,8 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
     super.dispose();
   }
 
+  /// The entered amount in grams, or null when it's empty, not above 0, or
+  /// in servings for a food without a serving size.
   double? _grams(Food food) {
     final v = parseAmount(_amount.text);
     if (v == null || v <= 0) return null;
@@ -52,6 +59,7 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
     return v;
   }
 
+  /// Switches unit and converts the typed amount so the grams stay the same.
   void _switchUnit(_Unit unit, Food food) {
     if (unit == _unit) return;
     final grams = _grams(food);
@@ -67,6 +75,7 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
     });
   }
 
+  /// Logs the portion and pops with `true`; on error shows a snackbar.
   Future<void> _add(Food food) async {
     final grams = _grams(food);
     if (grams == null) return;
@@ -174,6 +183,7 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
   }
 }
 
+/// kcal and macros of the chosen portion.
 class _Preview extends StatelessWidget {
   const _Preview({required this.macros});
 

@@ -17,6 +17,10 @@ abstract final class UsdaNutrient {
 
 /// Converts one food of a `/v1/foods/search` result. Foundation and SR Legacy
 /// values are per 100 g.
+///
+/// Returns null when `fdcId` or `description` is missing. Energy comes
+/// from the kcal nutrient, then the Atwater energy values, then kJ
+/// converted to kcal. Negative values are treated as missing.
 RemoteFood? parseUsdaFood(Map<String, dynamic> food) {
   final id = food['fdcId'];
   final description = food['description'];
@@ -66,6 +70,8 @@ RemoteFood? parseUsdaFood(Map<String, dynamic> food) {
   );
 }
 
+/// Parses a `/v1/foods/search` response (`foods` array), skipping foods
+/// [parseUsdaFood] can't use.
 List<RemoteFood> parseUsdaSearchResponse(Map<String, dynamic> json) {
   final foods = json['foods'];
   if (foods is! List) return const [];

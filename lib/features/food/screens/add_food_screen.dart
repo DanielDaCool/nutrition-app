@@ -1,3 +1,6 @@
+// Food picker for one meal: tabs for recent, favorite, custom and searched
+// foods, plus barcode scan and "new food" actions.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -36,6 +39,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     if (added == true && mounted) Navigator.of(context).pop();
   }
 
+  /// Opens the custom food form (prefilled from [barcode]/[draft]) and, once
+  /// saved, goes on to the portion screen.
   Future<void> _createFood({String? barcode, RemoteFood? draft}) async {
     final food = await Navigator.of(context).push<Food>(
       MaterialPageRoute(
@@ -49,6 +54,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     MaterialPageRoute(builder: (_) => CustomFoodScreen(existing: food)),
   );
 
+  /// Saves a search result locally and opens the portion screen. Results
+  /// without energy go to the custom food form instead.
   Future<void> _pickRemote(RemoteFood remote) async {
     if (!remote.isComplete) {
       await _createFood(draft: remote);
@@ -171,6 +178,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
   }
 }
 
+/// A list of local foods from [provider]. With [onEdit], rows show an edit
+/// button instead of the favorite star.
 class _FoodList extends ConsumerWidget {
   const _FoodList({
     required this.provider,
@@ -221,8 +230,10 @@ class _FoodList extends ConsumerWidget {
   }
 }
 
+/// Which remote database the Search tab queries.
 enum SearchSource { off, usda }
 
+/// Remote search (USDA or Open Food Facts). Results survive tab switches.
 class _SearchTab extends ConsumerStatefulWidget {
   const _SearchTab({required this.onPick});
 
@@ -237,6 +248,9 @@ class _SearchTabState extends ConsumerState<_SearchTab>
   final _query = TextEditingController();
   SearchSource _source = SearchSource.usda;
   AsyncValue<List<RemoteFood>>? _results;
+
+  /// Incremented per search so a slow, older response can't overwrite a
+  /// newer one.
   int _requestId = 0;
 
   @override

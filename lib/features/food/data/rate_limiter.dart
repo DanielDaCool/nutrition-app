@@ -7,6 +7,7 @@ class RateLimiter {
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
+  /// Requests allowed within any one [window].
   final int maxRequests;
   final Duration window;
   final DateTime Function() _clock;

@@ -1,3 +1,5 @@
+// HTTP client for USDA FoodData Central search (generic, unbranded foods).
+
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -22,6 +24,9 @@ class UsdaClient {
   });
 
   static const serviceName = 'USDA FoodData Central';
+
+  /// FDC datasets searched. Both report nutrients per 100 g; Branded foods
+  /// are left to Open Food Facts.
   static const dataTypes = ['Foundation', 'SR Legacy'];
 
   final http.Client _http;
@@ -30,6 +35,10 @@ class UsdaClient {
 
   /// Searches generic foods. Uses the POST form of /v1/foods/search so the
   /// dataType list ("SR Legacy" has a space) is sent as a JSON array.
+  ///
+  /// Returns an empty list for a blank query. Throws [FoodApiException] on
+  /// network errors, HTTP 429 (rate limited), 401/403 (bad key) and other
+  /// non-200 responses.
   Future<List<RemoteFood>> search(String query, {int pageSize = 25}) async {
     final q = query.trim();
     if (q.isEmpty) return const [];
