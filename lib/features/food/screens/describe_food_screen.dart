@@ -7,6 +7,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
+import '../../../core/day_key.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
 import '../data/describe_foods.dart';
@@ -22,6 +24,7 @@ import '../nutrition_math.dart';
 import '../widgets/error_retry.dart';
 import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
+import '../widgets/undo_snack.dart';
 import 'custom_food_screen.dart';
 
 /// How long typing must pause before the text is parsed again.
@@ -294,20 +297,19 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
           if (g != null) remember[g.key] = g.value;
         }
       }
-      await repo.logMany(
+      final ids = await repo.logMany(
         dayKey: widget.dayKey,
         meal: meal,
         items: items,
         remember: remember,
       );
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Added ${_itemsLabel(items.length)} to ${mealLabel(meal)}',
-          ),
-        ),
-      );
       if (mounted) Navigator.of(context).pop(true);
+      showAddedSnack(
+        messenger,
+        repo,
+        'Added ${itemsLabel(items.length)} to ${mealLabel(meal)}',
+        ids,
+      );
     } catch (e, st) {
       final message = friendlyError(e, st);
       if (!mounted) return;
@@ -329,7 +331,15 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
     final meal = widget.meal;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Type what you ate · ${mealLabel(meal)}')),
+      appBar: AppBar(
+        title: Text(
+          withDay(
+            'Type what you ate · ${mealLabel(meal)}',
+            widget.dayKey,
+            dayKeyOf(ref.read(clockProvider)()),
+          ),
+        ),
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -453,8 +463,6 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
 
 String _capitalize(String s) =>
     s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
-
-String _itemsLabel(int n) => n == 1 ? '1 item' : '$n items';
 
 /// "5 tbsp", "2 eggs" style amount; "portion" when nothing was said.
 String _amountLabel(double quantity, MeasureUnit? unit) {
@@ -789,7 +797,7 @@ class _BottomBar extends StatelessWidget {
                   key: const Key('describe-add'),
                   onPressed: addable.isEmpty || saving ? null : onAdd,
                   child: Text(
-                    'Add ${_itemsLabel(addable.length)} to ${mealLabel(meal)}',
+                    'Add ${itemsLabel(addable.length)} to ${mealLabel(meal)}',
                     textAlign: TextAlign.center,
                   ),
                 ),

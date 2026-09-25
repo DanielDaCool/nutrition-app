@@ -4,12 +4,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
+import '../../../core/day_key.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
 import '../data/food_repository.dart';
 import '../food_providers.dart';
 import '../nutrition_math.dart';
 import '../widgets/food_format.dart';
+import '../widgets/undo_snack.dart';
 
 /// Unit of the amount field. Servings are only offered when the food has a
 /// serving size.
@@ -36,15 +39,65 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
   late _Unit _unit = widget.food.servingGrams != null
       ? _Unit.servings
       : _Unit.grams;
-  late final _amount = TextEditingController(
-    text: _unit == _Unit.servings ? '1' : '100',
-  );
+  late final _amount = TextEditingController();
   bool _saving = false;
+
+  /// Set once the user types or switches unit, so the remembered amount
+  /// arriving late doesn't overwrite them.
+  bool _touched = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _setAmount(_unit == _Unit.servings ? '1' : '100');
+    _prefillLastAmount();
+  }
 
   @override
   void dispose() {
     _amount.dispose();
     super.dispose();
+  }
+
+  /// Puts [text] in the field, all selected so typing replaces it.
+  void _setAmount(String text) {
+    _amount.value = TextEditingValue(
+      text: text,
+      selection: TextSelection(baseOffset: 0, extentOffset: text.length),
+    );
+  }
+
+  /// Prefills the amount logged last time: in servings when it is a whole
+  /// or half number of servings, else in grams.
+  Future<void> _prefillLastAmount() async {
+    final double? last;
+    try {
+      last = await ref.read(foodRepositoryProvider).lastGrams(widget.food.id);
+    } catch (e, st) {
+      friendlyError(e, st); // logged; the default amount stays
+      return;
+    }
+    if (last == null || !mounted || _touched) return;
+    final servings = evenServings(last, widget.food.servingGrams);
+    setState(() {
+      _lastGrams = last;
+      _unit = servings == null ? _Unit.grams : _Unit.servings;
+      _setAmount(fmtNum(servings ?? last!, decimals: 2));
+    });
+  }
+
+  /// Grams logged last time, once loaded (null if never logged).
+  double? _lastGrams;
+
+  /// "= 150 g" for servings, plus "same as last time" when it matches.
+  String? _helper(double? grams) {
+    if (grams == null) return null;
+    final same = _lastGrams != null && (grams - _lastGrams!).abs() < 1e-6;
+    final parts = [
+      if (_unit == _Unit.servings) '= ${fmtNum(grams)} g',
+      if (same) 'Same as last time',
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
   }
 
   /// The entered amount in grams, or null when it's empty, not above 0, or
@@ -64,6 +117,7 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
     if (unit == _unit) return;
     final grams = _grams(food);
     setState(() {
+      _touched = true;
       _unit = unit;
       final s = food.servingGrams;
       if (grams != null && s != null && s > 0) {
@@ -75,21 +129,34 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
     });
   }
 
-  /// Logs the portion and pops with `true`; on error shows a snackbar.
+  /// Logs the portion, pops with `true` and confirms with an Undo snackbar;
+  /// on error shows a snackbar and stays.
   Future<void> _add(Food food) async {
     final grams = _grams(food);
-    if (grams == null) return;
+    if (grams == null || _saving) return;
     setState(() => _saving = true);
+    // Captured before popping: this screen's context is gone afterwards.
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(foodRepositoryProvider);
     try {
-      await ref
-          .read(foodRepositoryProvider)
-          .logFood(
-            dayKey: widget.dayKey,
-            meal: widget.meal,
-            foodId: food.id,
-            grams: grams,
-          );
+      final id = await repo.logFood(
+        dayKey: widget.dayKey,
+        meal: widget.meal,
+        foodId: food.id,
+        grams: grams,
+      );
       if (mounted) Navigator.of(context).pop(true);
+      showAddedSnack(
+        messenger,
+        repo,
+        addedMessage(
+          food.name,
+          grams,
+          macrosForGrams(per100gOf(food), grams).kcal,
+          widget.meal,
+        ),
+        [id],
+      );
     } catch (e, st) {
       final message = friendlyError(e, st);
       if (!mounted) return;
@@ -111,7 +178,13 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add to ${mealLabel(widget.meal)}'),
+        title: Text(
+          withDay(
+            'Add to ${mealLabel(widget.meal)}',
+            widget.dayKey,
+            dayKeyOf(ref.read(clockProvider)()),
+          ),
+        ),
         actions: [
           IconButton(
             key: const Key('favorite-toggle'),
@@ -162,11 +235,9 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
               errorText: grams == null && _amount.text.isNotEmpty
                   ? 'Enter an amount above 0'
                   : null,
-              helperText: _unit == _Unit.servings && grams != null
-                  ? '= ${fmtNum(grams)} g'
-                  : null,
+              helperText: _helper(grams),
             ),
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => setState(() => _touched = true),
             onSubmitted: (_) => _add(food),
           ),
           const SizedBox(height: 24),
@@ -174,6 +245,9 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
           const SizedBox(height: 24),
           FilledButton.icon(
             key: const Key('add-button'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
             onPressed: grams == null || _saving ? null : () => _add(food),
             icon: const Icon(Icons.check),
             label: const Text('Add'),
