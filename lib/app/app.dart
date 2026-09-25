@@ -10,7 +10,8 @@ import '../features/settings/settings_screen.dart';
 import '../features/today/today_screen.dart';
 import '../features/weight/weight_screen.dart';
 
-/// Root `MaterialApp` with the green Material 3 light and dark themes.
+/// Root `MaterialApp`: dark only (green Material 3), whatever the phone's
+/// setting.
 class NutritionApp extends StatelessWidget {
   const NutritionApp({super.key});
 
@@ -20,10 +21,7 @@ class NutritionApp extends StatelessWidget {
     return MaterialApp(
       title: 'Nutrition',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: seed),
-        useMaterial3: true,
-      ),
+      themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: seed,
