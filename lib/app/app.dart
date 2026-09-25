@@ -17,26 +17,20 @@ import '../features/today/today_screen.dart';
 import '../features/weight/weight_providers.dart';
 import '../features/weight/weight_screen.dart';
 import 'providers.dart';
+import 'theme.dart';
 
-/// Root `MaterialApp`: dark only (green Material 3), whatever the phone's
+/// Root `MaterialApp`: dark only (see theme.dart), whatever the phone's
 /// setting.
 class NutritionApp extends StatelessWidget {
   const NutritionApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFF2E7D5B);
     return MaterialApp(
       title: 'Nutrition',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.dark,
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: seed,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      darkTheme: buildAppTheme(),
       home: const HomeShell(),
     );
   }
