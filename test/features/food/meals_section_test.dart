@@ -162,6 +162,111 @@ void main() {
     await tearDownTree(tester);
   });
 
+  Future<Food> logYesterdayBreakfast() async {
+    final oats = await repo.createCustom(
+      const CustomFoodInput(
+        name: 'Oats',
+        per100g: Macros(kcal: 380, proteinG: 13, fatG: 7, carbsG: 60),
+      ),
+    );
+    final milk = await repo.createCustom(
+      const CustomFoodInput(
+        name: 'Milk',
+        per100g: Macros(kcal: 60, proteinG: 3.3, fatG: 3, carbsG: 4.8),
+      ),
+    );
+    await repo.logMany(
+      dayKey: '2026-09-24',
+      meal: Meal.breakfast,
+      items: [(foodId: oats.id, grams: 50), (foodId: milk.id, grams: 200)],
+    );
+    return oats;
+  }
+
+  testWidgets('empty meal offers "Same as yesterday"; Undo removes it', (
+    tester,
+  ) async {
+    await tester.runAsync(logYesterdayBreakfast);
+    await pumpSection(tester);
+
+    // 190 + 120 kcal yesterday; only breakfast had food.
+    expect(find.text('Same as yesterday · 2 items · 310 kcal'), findsOneWidget);
+    expect(find.byKey(const Key('repeat-lunch')), findsNothing);
+    expect(find.text('Tap to add'), findsNWidgets(4));
+
+    await tester.tap(find.byKey(const Key('repeat-breakfast')));
+    await settle(tester);
+    var today = await tester.runAsync(
+      () => (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals(_day))).get(),
+    );
+    expect(today!.map((e) => e.grams), [50, 200]);
+    expect(today.every((e) => e.meal == Meal.breakfast.index), isTrue);
+    expect(find.text('Added 2 items to Breakfast'), findsOneWidget);
+    expect(find.byKey(const Key('repeat-breakfast')), findsNothing);
+    // Breakfast subtotal and the day total.
+    expect(find.text('310 kcal · P 13 g'), findsNWidgets(2));
+
+    await tester.tap(find.text('Undo'));
+    await settle(tester);
+    today = await tester.runAsync(
+      () => (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals(_day))).get(),
+    );
+    expect(today, isEmpty);
+    await tearDownTree(tester);
+  });
+
+  testWidgets('meal menu copies from yesterday into a non-empty meal', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final oats = await logYesterdayBreakfast();
+      await repo.logFood(
+        dayKey: _day,
+        meal: Meal.breakfast,
+        foodId: oats.id,
+        grams: 30,
+      );
+    });
+    await pumpSection(tester);
+    expect(find.byKey(const Key('repeat-breakfast')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('meal-menu-breakfast')));
+    await settle(tester);
+    await tester.tap(find.text('Copy from yesterday'));
+    await settle(tester);
+    final today = await tester.runAsync(
+      () => (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals(_day))).get(),
+    );
+    expect(today!.map((e) => e.grams), [30, 50, 200]);
+    expect(find.text('Added 2 items to Breakfast'), findsOneWidget);
+
+    // Nothing to copy for lunch.
+    await tester.tap(find.byKey(const Key('meal-menu-lunch')));
+    await settle(tester);
+    await tester.tap(find.text('Copy from yesterday'));
+    await settle(tester);
+    expect(find.text('Nothing logged in Lunch Yesterday'), findsNothing);
+    expect(find.text('Nothing logged in Lunch yesterday'), findsOneWidget);
+    await tearDownTree(tester);
+  });
+
+  testWidgets('tapping the whole meal header opens add food', (tester) async {
+    await pumpSection(tester);
+    final size = tester.getSize(find.byKey(const Key('meal-header-lunch')));
+    expect(size.height, greaterThanOrEqualTo(48));
+    await tester.tap(find.text('Lunch'));
+    await settle(tester);
+    expect(find.byType(AddFoodScreen), findsOneWidget);
+    expect(find.text('Add to Lunch'), findsOneWidget);
+    await tearDownTree(tester);
+  });
+
   testWidgets('+ opens the add food screen for that meal', (tester) async {
     await pumpSection(tester);
     await tester.tap(find.byKey(const Key('add-dinner')));

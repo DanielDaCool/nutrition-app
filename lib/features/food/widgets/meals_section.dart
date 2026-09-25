@@ -1,9 +1,12 @@
 // OWNER: food agent (B). Contract stub: keep the class name and constructor.
-// Today screen's meal list: per-meal entries with add, edit-amount and
-// swipe-to-delete (with undo), plus the day's "fully logged" switch.
+// Today screen's meal list: per-meal entries with add, copy from another
+// day, edit and swipe-to-delete (with undo), plus the day's "fully logged"
+// switch.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
+import '../../../core/day_key.dart';
 import '../../../domain/models.dart';
 import '../data/food_repository.dart';
 import '../food_providers.dart';
@@ -11,6 +14,7 @@ import '../nutrition_math.dart';
 import '../screens/add_food_screen.dart';
 import 'error_retry.dart';
 import 'food_format.dart';
+import 'undo_snack.dart';
 
 /// The meals of one day (breakfast/lunch/dinner/snacks) with add buttons and
 /// the "fully logged" toggle. Shown on the Today screen.
@@ -75,6 +79,10 @@ class MealsSection extends ConsumerWidget {
   }
 
   Widget _meals(BuildContext context, WidgetRef ref, List<LoggedItem> items) {
+    // The day before, to offer "Same as yesterday" on empty meals. Errors
+    // and loading just mean no suggestion.
+    final previous =
+        ref.watch(dayItemsProvider(addDays(dayKey, -1))).value ?? const [];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -86,23 +94,76 @@ class MealsSection extends ConsumerWidget {
               for (final i in items)
                 if (i.meal == meal) i,
             ],
+            previousDayItems: [
+              for (final i in previous)
+                if (i.meal == meal) i,
+            ],
           ),
       ],
     );
   }
 }
 
-/// One meal's header (subtotal and add button) and its logged items.
+/// Copies [fromMeal] of [fromDay] into [toMeal] of [toDay] and confirms with
+/// an Undo snackbar ("Added 4 items to Breakfast").
+Future<void> copyMealWithUndo({
+  required ScaffoldMessengerState messenger,
+  required FoodRepository repo,
+  required String fromDay,
+  required Meal fromMeal,
+  required String toDay,
+  required Meal toMeal,
+  required String todayKey,
+}) async {
+  final List<int> ids;
+  try {
+    ids = await repo.copyMeal(
+      fromDay: fromDay,
+      fromMeal: fromMeal,
+      toDay: toDay,
+      toMeal: toMeal,
+    );
+  } catch (e, st) {
+    showInfoSnack(messenger, 'Could not copy it. ${friendlyError(e, st)}');
+    return;
+  }
+  if (ids.isEmpty) {
+    final when = switch (otherDayLabel(fromDay, todayKey)) {
+      null => 'today',
+      'Yesterday' => 'yesterday',
+      'Tomorrow' => 'tomorrow',
+      final day => 'on $day',
+    };
+    showInfoSnack(messenger, 'Nothing logged in ${mealLabel(fromMeal)} $when');
+    return;
+  }
+  showAddedSnack(
+    messenger,
+    repo,
+    'Added ${itemsLabel(ids.length)} to ${mealLabel(toMeal)}',
+    ids,
+  );
+}
+
+/// Actions in a meal header's overflow menu.
+enum _MealAction { copyYesterday, copyOtherDay }
+
+/// One meal's header (tap to add, subtotal, copy menu), the "Same as
+/// yesterday" chip when it's empty, and its logged items.
 class _MealBlock extends ConsumerStatefulWidget {
   const _MealBlock({
     required this.dayKey,
     required this.meal,
     required this.items,
+    required this.previousDayItems,
   });
 
   final String dayKey;
   final Meal meal;
   final List<LoggedItem> items;
+
+  /// The same meal on the day before [dayKey].
+  final List<LoggedItem> previousDayItems;
 
   @override
   ConsumerState<_MealBlock> createState() => _MealBlockState();
@@ -120,40 +181,117 @@ class _MealBlockState extends ConsumerState<_MealBlock> {
     _dismissed.retainAll(ids);
   }
 
+  String get _todayKey => dayKeyOf(ref.read(clockProvider)());
+
+  void _openAdd() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => AddFoodScreen(dayKey: widget.dayKey, meal: widget.meal),
+    ),
+  );
+
+  Future<void> _copyFrom(String fromDay) => copyMealWithUndo(
+    messenger: ScaffoldMessenger.of(context),
+    repo: ref.read(foodRepositoryProvider),
+    fromDay: fromDay,
+    fromMeal: widget.meal,
+    toDay: widget.dayKey,
+    toMeal: widget.meal,
+    todayKey: _todayKey,
+  );
+
+  Future<void> _onMenu(_MealAction action) async {
+    switch (action) {
+      case _MealAction.copyYesterday:
+        await _copyFrom(addDays(widget.dayKey, -1));
+      case _MealAction.copyOtherDay:
+        final day = startOfDay(widget.dayKey);
+        final picked = await showDatePicker(
+          context: context,
+          helpText: 'Copy ${mealLabel(widget.meal)} from',
+          initialDate: DateTime(day.year, day.month, day.day - 1),
+          firstDate: DateTime(day.year - 3),
+          lastDate: day,
+        );
+        if (picked == null || !mounted) return;
+        await _copyFrom(dayKeyOf(picked));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final meal = widget.meal;
     final items = [
       for (final i in widget.items)
         if (!_dismissed.contains(i.id)) i,
     ];
     final sub = items.fold(Macros.zero, (a, b) => a + b.macros);
+    final previous = widget.previousDayItems;
+    final previousKcal = previous.fold(0.0, (a, b) => a + b.macros.kcal);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Divider(height: 1),
+        // The whole header adds to this meal.
         ListTile(
-          dense: true,
-          title: Text(mealLabel(meal), style: theme.textTheme.titleSmall),
-          subtitle: items.isEmpty
-              ? null
-              : Text(
-                  '${fmtKcal(sub.kcal)} · '
-                  'P ${fmtNum(sub.proteinG, decimals: 0)} g',
+          key: Key('meal-header-${meal.name}'),
+          minTileHeight: 56,
+          contentPadding: const EdgeInsets.only(left: 16, right: 4),
+          title: Text(mealLabel(meal), style: theme.textTheme.titleMedium),
+          subtitle: Text(
+            items.isEmpty
+                ? 'Tap to add'
+                : '${fmtKcal(sub.kcal)} · '
+                      'P ${fmtNum(sub.proteinG, decimals: 0)} g',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          onTap: _openAdd,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PopupMenuButton<_MealAction>(
+                key: Key('meal-menu-${meal.name}'),
+                tooltip: 'More for ${mealLabel(meal)}',
+                onSelected: _onMenu,
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: _MealAction.copyYesterday,
+                    child: Text('Copy from yesterday'),
+                  ),
+                  PopupMenuItem(
+                    value: _MealAction.copyOtherDay,
+                    child: Text('Copy from another day…'),
+                  ),
+                ],
+              ),
+              IconButton(
+                key: Key('add-${meal.name}'),
+                tooltip: 'Add to ${mealLabel(meal)}',
+                icon: Icon(Icons.add_circle_outline, color: scheme.primary),
+                onPressed: _openAdd,
+              ),
+            ],
+          ),
+        ),
+        if (items.isEmpty && previous.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ActionChip(
+                key: Key('repeat-${meal.name}'),
+                avatar: Icon(Icons.replay, size: 18, color: scheme.primary),
+                label: Text(
+                  'Same as yesterday · ${itemsLabel(previous.length)} · '
+                  '${fmtKcal(previousKcal)}',
                 ),
-          trailing: IconButton(
-            key: Key('add-${meal.name}'),
-            tooltip: 'Add to ${mealLabel(meal)}',
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    AddFoodScreen(dayKey: widget.dayKey, meal: meal),
+                onPressed: () => _copyFrom(addDays(widget.dayKey, -1)),
               ),
             ),
           ),
-        ),
         for (final item in items)
           _ItemTile(item: item, onDismissed: () => _delete(item)),
       ],
@@ -168,18 +306,10 @@ class _MealBlockState extends ConsumerState<_MealBlock> {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final removed = await repo.deleteEntry(item.id);
     if (removed == null || messenger == null) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text('Removed ${item.foodName}'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            if (mounted) setState(() => _dismissed.remove(item.id));
-            repo.restoreEntry(removed);
-          },
-        ),
-      ),
-    );
+    showUndoSnack(messenger, 'Removed ${item.foodName}', () {
+      if (mounted) setState(() => _dismissed.remove(item.id));
+      repo.restoreEntry(removed);
+    });
   }
 }
 
