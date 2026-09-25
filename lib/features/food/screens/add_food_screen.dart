@@ -1,5 +1,5 @@
-// Food picker for one meal: tabs for recent, favorite, custom and searched
-// foods, plus barcode scan and "new food" actions.
+// Food picker for one meal: "Describe what you ate", tabs for recent,
+// favorite, custom and searched foods, plus barcode scan and "new food".
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,9 +13,11 @@ import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
 import 'barcode_scan_screen.dart';
 import 'custom_food_screen.dart';
+import 'describe_food_screen.dart';
 import 'portion_screen.dart';
 
-/// Pick a food for one meal: Recent, Favorites, My foods, Search, or scan.
+/// Pick a food for one meal: describe it in words, Recent, Favorites, My
+/// foods, Search, or scan.
 class AddFoodScreen extends ConsumerStatefulWidget {
   const AddFoodScreen({super.key, required this.dayKey, required this.meal});
 
@@ -35,6 +37,18 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       MaterialPageRoute(
         builder: (_) =>
             PortionScreen(food: food, dayKey: widget.dayKey, meal: widget.meal),
+      ),
+    );
+    if (added == true && mounted) Navigator.of(context).pop();
+  }
+
+  /// Opens "Describe what you ate" for the same day and meal; closes this
+  /// screen once it added something.
+  Future<void> _describe() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            DescribeFoodScreen(dayKey: widget.dayKey, meal: widget.meal),
       ),
     );
     if (added == true && mounted) Navigator.of(context).pop();
@@ -147,6 +161,18 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
         body: Column(
           children: [
             if (_busy) const LinearProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: FilledButton.tonalIcon(
+                key: const Key('describe-button'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                ),
+                onPressed: _busy ? null : _describe,
+                icon: const Icon(Icons.edit_note),
+                label: const Text('Describe what you ate'),
+              ),
+            ),
             Expanded(
               child: TabBarView(
                 children: [
