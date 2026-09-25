@@ -62,7 +62,10 @@ class BarcodeLookup {
       return BarcodeNeedsLabel(
         code,
         draft: remote,
-        message: 'Open Food Facts has "${remote.name}" but no calories for it.',
+        message: remote.kcalPer100g == null
+            ? 'Open Food Facts has "${remote.name}" but no calories for it.'
+            : 'Open Food Facts has "${remote.name}" but no '
+                  '${remote.missingMacros.join(' or ')} for it.',
       );
     }
     final food = await _repo.upsertRemote(remote);
