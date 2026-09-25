@@ -20,12 +20,16 @@ const double kMaxMaintenanceChangeKcal = 150;
 
 /// Minimum data needed for a measured maintenance estimate.
 const int kMinSpanDays = 10;
+/// Minimum fully-logged days in the window for a measured estimate.
 const int kMinLoggedDays = 7;
+/// Minimum weigh-ins in the window for a measured estimate.
 const int kMinWeighIns = 6;
 
 /// Carb floor (g) kept by lowering fat toward [kMinFatPerKg].
 const double kMinCarbsG = 50;
+/// Lowest fat (g per kg of trend weight) when protecting the carb floor.
 const double kMinFatPerKg = 0.6;
+/// Default fat (g per kg of trend weight), unless 25% of kcal is more.
 const double kFatPerKg = 0.8;
 
 /// Profile fields the engine needs.
@@ -61,6 +65,7 @@ class DayLog {
   final bool fullyLogged;
 }
 
+/// Everything [recommend] needs, already loaded from the DB.
 class EngineInput {
   const EngineInput({
     required this.today,
@@ -113,9 +118,11 @@ class Explanation {
     required this.maintenanceMode,
   });
 
+  /// Smoothed trend weight today (kg); used instead of the raw scale weight.
   final double trendKg;
   final int ageYears;
   final double bmrKcal;
+  /// Formula maintenance: BMR × activity factor.
   final double formulaKcal;
 
   /// Measured maintenance after clamping, or null when data was insufficient.
@@ -138,19 +145,25 @@ class Explanation {
   /// Fully-logged days in the window (n).
   final int loggedDays;
   final int weighInsInWindow;
+  /// First and last day keys of the adaptive window (inclusive).
   final String windowStart;
   final String windowEnd;
 
   /// Blended maintenance before the ±150 kcal change limit.
   final double unlimitedMaintenanceKcal;
   final double? previousMaintenanceKcal;
+  /// True when the ±[kMaxMaintenanceChangeKcal] limit changed the result.
   final bool changeLimited;
   final double maintenanceKcal;
+  /// Daily deficit from the weekly loss rate (0 in maintenance mode).
   final double deficitKcal;
+  /// Minimum target: max(BMR, 1500 men / 1200 women).
   final double floorKcal;
   final bool floorApplied;
+  /// True when trend weight is at or below goal, so target = maintenance.
   final bool maintenanceMode;
 
+  /// Serialised into `TargetHistory.explanationJson`.
   Map<String, Object?> toJson() => {
     'trendKg': trendKg,
     'ageYears': ageYears,
@@ -177,6 +190,8 @@ class Explanation {
     'maintenanceMode': maintenanceMode,
   };
 
+  /// Inverse of [toJson]. Missing bool fields default to false. Throws on
+  /// JSON that isn't an explanation (e.g. the `{'skipped': true}` marker).
   static Explanation fromJson(Map<String, Object?> j) {
     double d(String k) => (j[k] as num).toDouble();
     double? nd(String k) => (j[k] as num?)?.toDouble();
@@ -208,6 +223,7 @@ class Explanation {
   }
 }
 
+/// Targets proposed by [recommend], plus the numbers behind them.
 class Recommendation {
   const Recommendation({
     required this.effectiveFrom,
@@ -225,6 +241,7 @@ class Recommendation {
   final TargetMethod method;
   final Explanation explanation;
 
+  /// The contract type the rest of the app uses.
   DailyTargets toDailyTargets() => DailyTargets(
     effectiveFrom: effectiveFrom,
     macros: macros,
@@ -256,6 +273,7 @@ double mifflinStJeorBmr({
     5 * ageYears +
     (sex == Sex.male ? 5 : -161);
 
+/// [value] rounded to the nearest multiple of [step].
 double roundTo(double value, double step) => (value / step).round() * step;
 
 /// Protein / fat / carbs for [targetKcal] (spec §5). kcal is kept as given.

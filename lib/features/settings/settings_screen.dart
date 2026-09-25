@@ -1,4 +1,7 @@
 // OWNER: engine agent (A). Contract stub: keep the class name and constructor.
+// Settings tab: current targets, check-in entry, profile form, Health
+// Connect and data export.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +16,7 @@ import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
 import 'data_export.dart';
 
+/// The Settings tab of the home shell.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -102,6 +106,7 @@ String _methodText(TargetMethod m) => switch (m) {
   TargetMethod.adaptive => 'from your data',
 };
 
+/// Opens [CheckInScreen]; highlights when a check-in is due.
 class CheckInTile extends ConsumerWidget {
   const CheckInTile({super.key});
 
@@ -413,6 +418,8 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
   }
 }
 
+/// Exports all tables as JSON via the share sheet; shows a snackbar if the
+/// export fails.
 class ExportDataTile extends ConsumerStatefulWidget {
   const ExportDataTile({super.key});
 

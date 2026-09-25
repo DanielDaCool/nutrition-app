@@ -7,6 +7,7 @@ import 'engine.dart';
 
 final _int = NumberFormat.decimalPattern('en_US');
 
+/// Formats [v] as a rounded, grouped calorie amount, e.g. "2,150 kcal".
 String kcal(num v) => '${_int.format(v.round())} kcal';
 
 String _kg(double v) => '${v.abs().toStringAsFixed(1)} kg';

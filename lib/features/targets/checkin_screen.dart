@@ -1,4 +1,7 @@
 // OWNER: engine agent (A). Contract stub: keep the class name and constructor.
+// Weekly check-in screen: current vs. recommended targets with the engine's
+// explanation; Accept saves the recommendation, Skip keeps the current one.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +11,9 @@ import 'engine/explain.dart';
 import 'targets_providers.dart';
 
 /// Weekly check-in: shows the new recommendation and why, user accepts it.
+///
+/// Pops itself after either action succeeds; a save error is shown in a
+/// snackbar and the screen stays open.
 class CheckInScreen extends ConsumerStatefulWidget {
   const CheckInScreen({super.key});
 

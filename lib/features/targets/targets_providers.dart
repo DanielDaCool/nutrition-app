@@ -1,4 +1,7 @@
 // OWNER: engine agent (A). Contract stub: keep the public names and types.
+// Riverpod providers for calorie/macro targets, the weekly check-in and the
+// user profile. All logic lives in TargetsRepository.
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
@@ -7,6 +10,7 @@ import '../../domain/models.dart';
 import 'engine/engine.dart';
 import 'targets_repository.dart';
 
+/// The [TargetsRepository] bound to the app DB and clock.
 final targetsRepositoryProvider = Provider<TargetsRepository>(
   (ref) => TargetsRepository(
     ref.watch(databaseProvider),
@@ -33,6 +37,8 @@ final profileProvider = StreamProvider<Profile?>(
 );
 
 /// A fresh recommendation for today (null without profile or weigh-in).
+///
+/// Auto-disposed so each visit to the check-in screen recomputes it.
 final checkInRecommendationProvider =
     FutureProvider.autoDispose<Recommendation?>(
       (ref) => ref.watch(targetsRepositoryProvider).recommendToday(),
