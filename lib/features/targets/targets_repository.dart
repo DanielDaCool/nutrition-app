@@ -1,4 +1,7 @@
 // OWNER: engine agent (A).
+// Data access for the targets feature: profile, target history, engine input
+// and the reactive streams behind the targets providers.
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -16,10 +19,12 @@ class TargetsRepository {
   final AppDatabase db;
   final DateTime Function() clock;
 
+  /// Today's day key according to [clock].
   String get today => dayKeyOf(clock());
 
   // ---- Profile -----------------------------------------------------------
 
+  /// The single profile row (id = 1), or null before setup.
   Future<Profile?> loadProfile() =>
       (db.select(db.profiles)..where((p) => p.id.equals(1))).getSingleOrNull();
 
@@ -28,6 +33,8 @@ class TargetsRepository {
   /// fails widget tests that end right after unmounting.
   Stream<Profile?> watchProfile() => watch([db.profiles], loadProfile);
 
+  /// Inserts or updates the single profile row. [birthDate] is truncated to
+  /// a local date; [checkInWeekday] uses DateTime.weekday (7 = Sunday).
   Future<void> saveProfile({
     required Sex sex,
     required DateTime birthDate,
@@ -54,6 +61,7 @@ class TargetsRepository {
         ),
       );
 
+  /// Converts a DB row (enum indexes) to the engine's profile type.
   static EngineProfile toEngineProfile(Profile p) => EngineProfile(
     sex: Sex.values[p.sex],
     birthDate: p.birthDate,
@@ -82,6 +90,7 @@ class TargetsRepository {
     return q.getSingleOrNull();
   }
 
+  /// True when a target row starts exactly on [day].
   Future<bool> hasTargetOn(String day) async {
     final q = db.selectOnly(db.targetHistory)
       ..addColumns([db.targetHistory.id])
@@ -90,6 +99,7 @@ class TargetsRepository {
     return (await q.getSingleOrNull()) != null;
   }
 
+  /// Converts a TargetHistory row to the contract type.
   static DailyTargets toDailyTargets(TargetRecord r) => DailyTargets(
     effectiveFrom: r.effectiveFrom,
     macros: Macros(
@@ -133,6 +143,7 @@ class TargetsRepository {
     );
   }
 
+  // Replaces any row for the same effectiveFrom day in one transaction.
   Future<void> _saveRow({
     required String effectiveFrom,
     required Macros macros,
@@ -300,9 +311,11 @@ class TargetsRepository {
     return controller.stream;
   }
 
+  /// Stream behind `currentTargetsProvider`; see [currentTargets].
   Stream<DailyTargets?> watchCurrentTargets() =>
       watch([db.profiles, db.targetHistory, db.weighIns], currentTargets);
 
+  /// Stream behind `checkInDueProvider`; see [checkInDue].
   Stream<bool> watchCheckInDue() =>
       watch([db.profiles, db.targetHistory], checkInDue);
 }

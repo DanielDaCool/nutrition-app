@@ -1,4 +1,6 @@
 // OWNER: engine agent (A).
+// Full-database JSON export, shared through the Android share sheet.
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,6 +12,8 @@ import '../../core/day_key.dart';
 import '../../data/db/database.dart';
 
 /// All tables as `{table_name: [row, ...]}`. DateTimes are ISO-8601 strings.
+///
+/// Wrapped with `app`, `schemaVersion` and `exportedAt` ([now]) metadata.
 Future<Map<String, Object?>> exportAllTables(
   AppDatabase db, {
   required DateTime now,
@@ -34,6 +38,9 @@ Future<Map<String, Object?>> exportAllTables(
 }
 
 /// Writes the export to a temp file and opens the Android share sheet.
+///
+/// The file is named after [now]'s day key. Errors (I/O, sharing) propagate
+/// to the caller.
 Future<ShareResult> shareExport(AppDatabase db, DateTime now) async {
   final data = await exportAllTables(db, now: now);
   final dir = await getTemporaryDirectory();
