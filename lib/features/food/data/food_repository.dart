@@ -1,3 +1,6 @@
+// Drift access for the food feature: foods, log entries, day statuses and
+// the per-day intake totals other features read.
+
 import 'package:drift/drift.dart';
 
 import '../../../core/day_key.dart';
@@ -21,12 +24,19 @@ class LoggedItem {
   });
 
   final int id;
+
+  /// Day it was logged on (`YYYY-MM-DD`, local time).
   final String dayKey;
   final Meal meal;
   final int foodId;
   final String foodName;
   final String? brand;
+
+  /// Amount eaten, in grams.
   final double grams;
+
+  /// Nutrition snapshot copied at log time for [grams]; later edits to the
+  /// food don't change it.
   final Macros macros;
   final DateTime createdAt;
 }
@@ -46,10 +56,13 @@ class CustomFoodInput {
   final String? brand;
   final Macros per100g;
   final String? servingName;
+
+  /// Grams in one serving, or null when the food has no serving size.
   final double? servingGrams;
   final String? barcode;
 }
 
+/// The per-100 g nutrition stored on a [Food] row, as [Macros].
 Macros per100gOf(Food f) => Macros(
   kcal: f.kcalPer100g,
   proteinG: f.proteinPer100g,
@@ -67,9 +80,11 @@ class FoodRepository {
 
   // ---------------------------------------------------------------- foods
 
+  /// The food with [id]; throws if it doesn't exist.
   Future<Food> foodById(int id) =>
       (_db.select(_db.foods)..where((f) => f.id.equals(id))).getSingle();
 
+  /// The food with [id], re-emitted whenever its row changes.
   Stream<Food> watchFood(int id) =>
       (_db.select(_db.foods)..where((f) => f.id.equals(id))).watchSingle();
 
@@ -116,6 +131,8 @@ class FoodRepository {
     });
   }
 
+  /// Inserts a user-created food. Blank brand, barcode and serving name are
+  /// stored as null.
   Future<Food> createCustom(CustomFoodInput input) async {
     final id = await _db
         .into(_db.foods)
@@ -155,6 +172,7 @@ class FoodRepository {
     return foodById(foodId);
   }
 
+  /// Stars or unstars a food (shown in the Favorites tab).
   Future<void> setFavorite(int foodId, bool favorite) =>
       (_db.update(_db.foods)..where((f) => f.id.equals(foodId))).write(
         FoodsCompanion(isFavorite: Value(favorite)),
@@ -297,6 +315,8 @@ class FoodRepository {
   Future<void> restoreEntry(FoodLogEntry e) =>
       _db.into(_db.foodLogEntries).insertOnConflictUpdate(e);
 
+  /// Entries of [dayKey] joined with their foods, in the order they were
+  /// logged.
   Stream<List<LoggedItem>> watchDayItems(String dayKey) {
     final q =
         _db.select(_db.foodLogEntries).join([
@@ -337,6 +357,8 @@ class FoodRepository {
 
   // --------------------------------------------------------------- day status
 
+  /// Marks [dayKey] as completely logged (or not). Only fully logged days
+  /// feed the calorie engine's intake estimate.
   Future<void> setFullyLogged(String dayKey, bool fullyLogged) => _db
       .into(_db.dayStatuses)
       .insertOnConflictUpdate(
@@ -361,6 +383,8 @@ class FoodRepository {
     return trigger.asyncMap((_) => intakeRange(from, to));
   }
 
+  /// One-shot version of [watchIntakeRange]. Returns an empty list when
+  /// [to] is before [from].
   Future<List<DayIntake>> intakeRange(String from, String to) async {
     final days = daysBetween(from, to);
     if (days < 0) return const [];
@@ -418,10 +442,13 @@ class FoodRepository {
 
   // ----------------------------------------------------------------- helpers
 
+  /// Maps a stored meal index back to [Meal]; unknown values fall back to
+  /// snack rather than throwing.
   static Meal _mealOf(int index) => (index >= 0 && index < Meal.values.length)
       ? Meal.values[index]
       : Meal.snack;
 
+  /// Rejects zero, negative, NaN and infinite amounts with [ArgumentError].
   static void _checkGrams(double grams) {
     if (grams.isNaN || grams <= 0 || grams.isInfinite) {
       throw ArgumentError.value(grams, 'grams', 'must be > 0');

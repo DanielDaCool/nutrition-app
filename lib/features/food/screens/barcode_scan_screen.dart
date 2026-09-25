@@ -1,3 +1,5 @@
+// Camera barcode scanning with a manual-entry fallback.
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -20,6 +22,8 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     ],
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
+
+  /// Set after the first pop so repeated detections don't pop twice.
   bool _done = false;
 
   @override
@@ -34,6 +38,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
     Navigator.of(context).pop(code);
   }
 
+  /// Accepts the first detected code that is 6 to 14 digits.
   void _onDetect(BarcodeCapture capture) {
     for (final b in capture.barcodes) {
       final v = b.rawValue?.trim();
@@ -102,6 +107,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   }
 }
 
+/// Dialog for typing a barcode by hand. Pops with the digits, or null.
 class _TypeBarcodeDialog extends StatefulWidget {
   const _TypeBarcodeDialog();
 

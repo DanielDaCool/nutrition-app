@@ -20,6 +20,7 @@ const offProductFields = [
   'nutriments',
 ];
 
+/// Trimmed string value, or null for non-strings and blank text.
 String? _text(Object? v) {
   if (v is! String) return null;
   final t = v.trim();

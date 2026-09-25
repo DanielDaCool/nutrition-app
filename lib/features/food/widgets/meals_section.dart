@@ -1,4 +1,6 @@
 // OWNER: food agent (B). Contract stub: keep the class name and constructor.
+// Today screen's meal list: per-meal entries with add, edit-amount and
+// swipe-to-delete (with undo), plus the day's "fully logged" switch.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +16,7 @@ import 'food_format.dart';
 class MealsSection extends ConsumerWidget {
   const MealsSection({super.key, required this.dayKey});
 
+  /// Day shown (`YYYY-MM-DD`, local time).
   final String dayKey;
 
   @override
@@ -85,6 +88,7 @@ class MealsSection extends ConsumerWidget {
   }
 }
 
+/// One meal's header (subtotal and add button) and its logged items.
 class _MealBlock extends ConsumerStatefulWidget {
   const _MealBlock({
     required this.dayKey,
@@ -152,6 +156,8 @@ class _MealBlockState extends ConsumerState<_MealBlock> {
     );
   }
 
+  /// Deletes the entry at once and offers Undo, which re-inserts the same
+  /// row (same id and snapshot).
   Future<void> _delete(LoggedItem item) async {
     setState(() => _dismissed.add(item.id));
     final repo = ref.read(foodRepositoryProvider);
@@ -173,6 +179,7 @@ class _MealBlockState extends ConsumerState<_MealBlock> {
   }
 }
 
+/// A logged entry: tap to change grams, swipe left to delete.
 class _ItemTile extends ConsumerWidget {
   const _ItemTile({required this.item, required this.onDismissed});
 
