@@ -4,7 +4,6 @@
 /// Pure Dart: no Flutter or DB imports.
 library;
 
-
 /// A unit the user can say. Count words without a unit ("2 eggs") are
 /// [piece].
 enum MeasureUnit {
@@ -62,6 +61,8 @@ class ParsedPhrase {
     required this.unit,
     required this.foodText,
     required this.quantityGiven,
+    this.numberAfterFood = false,
+    this.gramsAssumed = false,
   });
 
   /// The phrase as typed, lowercased and tidied ("200g" -> "200 g"), without
@@ -80,6 +81,14 @@ class ParsedPhrase {
 
   /// False when the amount is a default rather than something the user said.
   final bool quantityGiven;
+
+  /// The amount was a bare number after the food words ("cottage 3"), which
+  /// may be a fat % rather than a count.
+  final bool numberAfterFood;
+
+  /// [unit] is grams only because a bare number was 20 or more ("25
+  /// almonds"); a count may fit better for foods with a piece weight.
+  final bool gramsAssumed;
 
   @override
   String toString() =>
@@ -408,6 +417,7 @@ ParsedPhrase? parsePhrase(String phrase) {
   }
 
   // Amount after the food: "rice 1 cup", "chicken breast 200g", "eggs 2".
+  var numberAfterFood = false;
   if (quantity == null && unit == null) {
     for (var i = 1; i < tokens.length; i++) {
       if (!_isDigits(tokens[i]) && !_fraction.hasMatch(tokens[i])) continue;
@@ -416,6 +426,7 @@ ParsedPhrase? parsePhrase(String phrase) {
       if (a.unit != null || a.end == tokens.length) {
         quantity = a.quantity;
         unit = a.unit;
+        numberAfterFood = a.unit == null;
         tokens.removeRange(i, a.end);
         break;
       }
@@ -430,9 +441,11 @@ ParsedPhrase? parsePhrase(String phrase) {
   if (food.isEmpty && quantity == null && unit == null) return null;
 
   final given = quantity != null;
+  var gramsAssumed = false;
   if (quantity != null && unit == null) {
     // "rice 150" means grams; "2 eggs" means pieces.
-    unit = quantity >= 20 ? MeasureUnit.gram : MeasureUnit.piece;
+    gramsAssumed = quantity >= 20;
+    unit = gramsAssumed ? MeasureUnit.gram : MeasureUnit.piece;
   }
   return ParsedPhrase(
     original: original,
@@ -440,6 +453,8 @@ ParsedPhrase? parsePhrase(String phrase) {
     unit: unit,
     foodText: food,
     quantityGiven: given,
+    numberAfterFood: numberAfterFood,
+    gramsAssumed: gramsAssumed,
   );
 }
 
