@@ -6,6 +6,16 @@ import '../../domain/models.dart';
 /// Energy conversion used when a label only gives kJ.
 const double kjPerKcal = 4.184;
 
+/// [grams] as a number of servings when it is a whole or half number of
+/// [servingGrams] (e.g. 300 g of a 150 g serving = 2), else null.
+double? evenServings(double grams, double? servingGrams) {
+  if (servingGrams == null || servingGrams <= 0 || grams <= 0) return null;
+  final halves = grams / servingGrams * 2;
+  return (halves - halves.roundToDouble()).abs() < 1e-6
+      ? halves.roundToDouble() / 2
+      : null;
+}
+
 /// Nutrition of [grams] of a food whose values are given per 100 g.
 Macros macrosForGrams(Macros per100g, double grams) {
   final f = grams / 100.0;
