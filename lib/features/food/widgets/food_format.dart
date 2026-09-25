@@ -30,6 +30,7 @@ String macroLine(Macros m) =>
 String sourceLabel(String source) => switch (source) {
   'off' => 'Open Food Facts',
   'usda' => 'USDA',
+  'builtin' => 'Typical values',
   _ => 'My food',
 };
 

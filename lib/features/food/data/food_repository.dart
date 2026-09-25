@@ -6,6 +6,8 @@ import 'package:drift/drift.dart';
 import '../../../core/day_key.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
+import '../describe/builtin_foods.dart';
+import '../describe/describe_memory.dart';
 import '../nutrition_math.dart';
 import 'remote_food.dart';
 
@@ -71,7 +73,7 @@ Macros per100gOf(Food f) => Macros(
 );
 
 /// All reads and writes of the food feature's tables (Foods, FoodLogEntries,
-/// DayStatuses).
+/// DayStatuses) and its `describe.*` KeyValues rows.
 class FoodRepository {
   FoodRepository(this._db, this._now);
 
@@ -130,6 +132,22 @@ class FoodRepository {
       return foodById(id);
     });
   }
+
+  /// Saves a built-in food (or refreshes its saved copy) so it can be
+  /// logged and shows up under Recent.
+  Future<Food> saveBuiltin(BuiltinFood b) => upsertRemote(
+    RemoteFood(
+      source: FoodSource.builtin,
+      externalId: b.key,
+      name: b.name,
+      kcalPer100g: b.kcal,
+      proteinPer100g: b.proteinG,
+      fatPer100g: b.fatG,
+      carbsPer100g: b.carbsG,
+      servingName: b.servingName,
+      servingGrams: b.servingGrams,
+    ),
+  );
 
   /// Inserts a user-created food. Blank brand, barcode and serving name are
   /// stored as null.
@@ -220,6 +238,10 @@ class FoodRepository {
             ]))
           .watch();
 
+  /// Every saved food (for matching described meals), by id.
+  Stream<List<Food>> watchAllFoods() =>
+      (_db.select(_db.foods)..orderBy([(f) => OrderingTerm.asc(f.id)])).watch();
+
   /// The user's own foods, alphabetically.
   Stream<List<Food>> watchCustom() =>
       (_db.select(_db.foods)
@@ -240,30 +262,72 @@ class FoodRepository {
     required double grams,
   }) {
     _checkGrams(grams);
+    return _db.transaction(() => _insertEntry(dayKey, meal, foodId, grams));
+  }
+
+  /// Logs several foods into one meal at once (a described meal): all of
+  /// them or none. [remember] rows (from [DescribeMemory]) are saved in the
+  /// same transaction. Returns the entry ids in order.
+  Future<List<int>> logMany({
+    required String dayKey,
+    required Meal meal,
+    required List<({int foodId, double grams})> items,
+    Map<String, String> remember = const {},
+  }) {
+    for (final i in items) {
+      _checkGrams(i.grams);
+    }
+    for (final k in remember.keys) {
+      if (!k.startsWith(DescribeMemory.keyPrefix)) {
+        throw ArgumentError.value(k, 'remember', 'not a describe key');
+      }
+    }
     return _db.transaction(() async {
-      final food = await foodById(foodId);
-      final m = macrosForGrams(per100gOf(food), grams);
-      final now = _now();
-      final id = await _db
-          .into(_db.foodLogEntries)
-          .insert(
-            FoodLogEntriesCompanion.insert(
-              dayKey: dayKey,
-              meal: meal.index,
-              foodId: foodId,
-              grams: grams,
-              kcal: m.kcal,
-              proteinG: m.proteinG,
-              fatG: m.fatG,
-              carbsG: m.carbsG,
-              createdAt: now,
-            ),
-          );
-      await (_db.update(_db.foods)..where((f) => f.id.equals(foodId))).write(
-        FoodsCompanion(lastUsedAt: Value(now)),
-      );
-      return id;
+      final ids = [
+        for (final i in items)
+          await _insertEntry(dayKey, meal, i.foodId, i.grams),
+      ];
+      for (final e in remember.entries) {
+        await _db
+            .into(_db.keyValues)
+            .insertOnConflictUpdate(
+              KeyValuesCompanion.insert(key: e.key, value: e.value),
+            );
+      }
+      return ids;
     });
+  }
+
+  /// Inserts one entry with its nutrition snapshot and marks the food as
+  /// used. Call inside a transaction.
+  Future<int> _insertEntry(
+    String dayKey,
+    Meal meal,
+    int foodId,
+    double grams,
+  ) async {
+    final food = await foodById(foodId);
+    final m = macrosForGrams(per100gOf(food), grams);
+    final now = _now();
+    final id = await _db
+        .into(_db.foodLogEntries)
+        .insert(
+          FoodLogEntriesCompanion.insert(
+            dayKey: dayKey,
+            meal: meal.index,
+            foodId: foodId,
+            grams: grams,
+            kcal: m.kcal,
+            proteinG: m.proteinG,
+            fatG: m.fatG,
+            carbsG: m.carbsG,
+            createdAt: now,
+          ),
+        );
+    await (_db.update(_db.foods)..where((f) => f.id.equals(foodId))).write(
+      FoodsCompanion(lastUsedAt: Value(now)),
+    );
+    return id;
   }
 
   /// Changes the amount (and optionally the meal) of an entry. The snapshot
@@ -354,6 +418,18 @@ class FoodRepository {
     ),
     createdAt: e.createdAt,
   );
+
+  // ------------------------------------------------------ describe memory
+
+  /// What the describe screen has learned (KeyValues rows `describe.*`).
+  Stream<DescribeMemory> watchDescribeMemory() =>
+      (_db.select(
+        _db.keyValues,
+      )..where((k) => k.key.like('${DescribeMemory.keyPrefix}%'))).watch().map(
+        (rows) => DescribeMemory.fromKeyValues({
+          for (final r in rows) r.key: r.value,
+        }),
+      );
 
   // --------------------------------------------------------------- day status
 

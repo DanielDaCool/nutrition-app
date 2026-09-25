@@ -1024,7 +1024,7 @@ class $FoodsTable extends Foods with TableInfo<$FoodsTable, Food> {
 class Food extends DataClass implements Insertable<Food> {
   final int id;
 
-  /// 'off', 'usda' or 'custom'.
+  /// 'off', 'usda', 'custom' or 'builtin'.
   final String source;
 
   /// Barcode (off), fdcId (usda), null for custom.
