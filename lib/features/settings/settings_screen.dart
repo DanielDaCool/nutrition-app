@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
-import '../../core/day_key.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
@@ -387,7 +386,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
         heightVal != null &&
         heightVal > 0 &&
         _birthDate != null) {
-      final age = ageOn(_birthDate!, dayKeyOf(ref.read(clockProvider)()));
+      final age = ageOn(_birthDate!, now);
       final bmi = trendKg / math.pow(heightVal / 100, 2);
       final bodyFat = deurenbergBodyFatPercent(
         bmi: bmi,
