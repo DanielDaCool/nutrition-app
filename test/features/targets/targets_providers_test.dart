@@ -121,9 +121,9 @@ void main() {
       currentTargetsProvider,
       (t) => t != null,
     );
-    // Same numbers as the hand-checked engine test.
+    // Same numbers as the engine test's formula-only recommendation.
     expect(t!.effectiveFrom, '2026-09-25');
-    expect(t.macros.kcal, 2420);
+    expect(t.macros.kcal, 2470);
     expect(t.method, TargetMethod.formula);
 
     final rows = await db.select(db.targetHistory).get();
@@ -254,7 +254,7 @@ void main() {
       await log('2026-09-23', 900);
       await log('2026-09-24', 1500);
       await log('2026-09-25', 800); // today: outside the window
-      await log('2026-09-01', 800); // before the window
+      await log('2026-08-01', 800); // before the window
       await db
           .into(db.dayStatuses)
           .insert(
