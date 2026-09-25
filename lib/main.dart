@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'app/app.dart';
+import 'app/providers.dart';
+import 'data/db/database.dart';
 
 void main() {
-  runApp(const MainApp());
-}
-
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(body: Center(child: Text('Hello World!'))),
-    );
-  }
+  WidgetsFlutterBinding.ensureInitialized();
+  final db = AppDatabase.defaults();
+  runApp(
+    ProviderScope(
+      overrides: [databaseProvider.overrideWithValue(db)],
+      child: const NutritionApp(),
+    ),
+  );
 }
