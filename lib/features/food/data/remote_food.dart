@@ -47,9 +47,18 @@ class RemoteFood {
   /// Grams in one serving, when the source gives it in grams.
   final double? servingGrams;
 
-  /// Enough data to log it. Missing macros count as 0; missing energy does
-  /// not (the user should enter the label instead).
-  bool get isComplete => kcalPer100g != null;
+  /// The macros the source didn't give: 'protein', 'fat', 'carbs'.
+  List<String> get missingMacros => [
+    if (proteinPer100g == null) 'protein',
+    if (fatPer100g == null) 'fat',
+    if (carbsPer100g == null) 'carbs',
+  ];
+
+  /// Enough data to log it as is: energy plus all three macros (a 0 kcal food
+  /// like water needs no macros). Anything else goes to the label form so a
+  /// missing value is filled in rather than silently saved as 0 g.
+  bool get isComplete =>
+      kcalPer100g != null && (kcalPer100g == 0 || missingMacros.isEmpty);
 
   @override
   String toString() =>
