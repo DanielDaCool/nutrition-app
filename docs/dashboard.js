@@ -107,7 +107,7 @@ function renderWeight(weighIns, days) {
     type: 'line',
     data: {
       labels: days,
-      datasets: [{ label: 'Weight (kg)', data: points, spanGaps: true, borderColor: '#7dd3a8', tension: 0.2 }],
+      datasets: [{ label: 'Weight (kg)', data: points, spanGaps: true, borderColor: '#8C9EFF', tension: 0.2 }],
     },
     options: chartOptions(),
   });
@@ -121,13 +121,13 @@ function renderCalories(foodLog, target, days) {
     data: {
       labels: days,
       datasets: [
-        { label: 'Kcal eaten', data: kcalByDay, backgroundColor: '#7dd3a8' },
+        { label: 'Kcal eaten', data: kcalByDay, backgroundColor: '#8C9EFF' },
         ...(target
           ? [{
               label: 'Target',
               data: days.map(() => target.kcal),
               type: 'line',
-              borderColor: '#e57373',
+              borderColor: '#FF9E7A',
               pointRadius: 0,
               borderDash: [6, 4],
             }]
@@ -164,7 +164,7 @@ function renderSteps(dailySteps, days) {
   stepsChart?.destroy();
   stepsChart = new Chart(document.getElementById('stepsChart'), {
     type: 'bar',
-    data: { labels: days, datasets: [{ label: 'Steps', data: points, backgroundColor: '#8ab4f8' }] },
+    data: { labels: days, datasets: [{ label: 'Steps', data: points, backgroundColor: '#8C9EFF' }] },
     options: chartOptions(),
   });
 }
@@ -195,10 +195,10 @@ function chartOptions() {
   return {
     responsive: true,
     scales: {
-      x: { ticks: { color: '#9a9a9a', maxTicksLimit: 8 }, grid: { color: '#2c2c2c' } },
-      y: { ticks: { color: '#9a9a9a' }, grid: { color: '#2c2c2c' } },
+      x: { ticks: { color: '#A0A4B8', maxTicksLimit: 8 }, grid: { color: '#323647' } },
+      y: { ticks: { color: '#A0A4B8' }, grid: { color: '#323647' } },
     },
-    plugins: { legend: { labels: { color: '#e8e8e8' } } },
+    plugins: { legend: { labels: { color: '#E7E8F0' } } },
   };
 }
 
