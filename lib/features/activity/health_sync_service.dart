@@ -1,3 +1,5 @@
+// Health Connect -> local database sync, plus the status and result types
+// the settings tile and sync controller report.
 import 'package:drift/drift.dart';
 
 import '../../core/day_key.dart';
@@ -8,6 +10,7 @@ import 'health_source.dart';
 /// What the Health Connect settings tile shows.
 enum HealthStatusKind { checking, unavailable, needsPermission, ok, error }
 
+/// Snapshot of Health Connect availability, permissions and sync activity.
 class HealthConnectStatus {
   const HealthConnectStatus(
     this.kind, {
@@ -18,6 +21,7 @@ class HealthConnectStatus {
     this.syncing = false,
   });
 
+  /// Initial status before anything has been checked.
   static const checking = HealthConnectStatus(HealthStatusKind.checking);
 
   final HealthStatusKind kind;
@@ -30,6 +34,7 @@ class HealthConnectStatus {
 
   /// The "read data older than 30 days" permission exists on this phone.
   final bool historyAvailable;
+  /// The history permission is granted, so syncs read back 90 days.
   final bool historyAuthorized;
 
   /// A sync is running right now.
@@ -40,6 +45,7 @@ class HealthConnectStatus {
       availability == HcAvailability.notInstalled ||
       availability == HcAvailability.updateRequired;
 
+  /// Copy with only the [syncing] flag changed.
   HealthConnectStatus copyWith({bool? syncing}) => HealthConnectStatus(
     kind,
     availability: availability,
@@ -50,6 +56,8 @@ class HealthConnectStatus {
   );
 }
 
+/// Outcome of one [HealthSyncService.sync] call. Failures are reported here
+/// rather than thrown.
 class SyncResult {
   const SyncResult(
     this.status, {
@@ -69,9 +77,11 @@ class SyncResult {
   final String? fromDay;
   final String? toDay;
 
+  /// The exception that ended the sync, if any.
   final Object? error;
   final StackTrace? stackTrace;
 
+  /// True when access was OK and the sync ran.
   bool get ok => status.kind == HealthStatusKind.ok;
 }
 
@@ -85,7 +95,10 @@ class HealthSyncService {
     required this.clock,
   });
 
+  /// KeyValues key: last successful sync time (UTC ISO-8601).
   static const lastSyncAtKey = 'hc.lastSyncAt';
+  /// KeyValues key: day key of the last sync; the next sync starts
+  /// [overlapDays] before it.
   static const lastSyncedDayKey = 'hc.lastSyncedDay';
 
   /// Days re-read before the last synced day, to catch late-arriving data.

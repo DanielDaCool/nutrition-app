@@ -1,4 +1,7 @@
 // OWNER: Health Connect agent (C).
+// Riverpod providers for the Health Connect feature: the public activity
+// contract (day/range streams, sync controller) and the status the settings
+// tile shows.
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +36,8 @@ final healthSourceProvider = Provider<HealthSource>(
   (ref) => HealthPackageSource(),
 );
 
+/// The [HealthSyncService] wired to the app database, [healthSourceProvider]
+/// and the injectable clock.
 final healthSyncServiceProvider = Provider<HealthSyncService>(
   (ref) => HealthSyncService(
     db: ref.watch(databaseProvider),
@@ -48,12 +53,15 @@ final healthStatusProvider =
       HealthStatusController.new,
     );
 
+/// Holds the current [HealthConnectStatus]; starts as "checking" until the
+/// first sync reports back.
 class HealthStatusController extends Notifier<HealthConnectStatus> {
   @override
   HealthConnectStatus build() => HealthConnectStatus.checking;
 
   void set(HealthConnectStatus status) => state = status;
 
+  /// Flags whether a sync is running, keeping the rest of the status.
   void setSyncing(bool syncing) => state = state.copyWith(syncing: syncing);
 }
 
@@ -64,6 +72,8 @@ final healthSyncProvider =
       HealthSyncController.new,
     );
 
+/// Drives syncing and the connect flow. Its state is the last successful
+/// sync time, loaded from the `hc.lastSyncAt` KeyValue on build.
 class HealthSyncController extends AsyncNotifier<DateTime?> {
   Future<void>? _inFlight;
 

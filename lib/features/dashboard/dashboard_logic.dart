@@ -12,8 +12,10 @@ class TargetPoint {
     required this.maintenanceKcal,
   });
 
+  /// Day key the target applies from.
   final String effectiveFrom;
   final double kcal;
+  /// Estimated maintenance calories at that check-in.
   final double maintenanceKcal;
 }
 
@@ -37,6 +39,7 @@ TargetPoint? targetOn(List<TargetPoint> targets, String dayKey) {
   return result;
 }
 
+/// One week of intake for the dashboard bar chart.
 class WeeklyIntake {
   const WeeklyIntake({
     required this.weekStart,
@@ -45,10 +48,12 @@ class WeeklyIntake {
     required this.targetKcal,
   });
 
+  /// Monday of the week, as a day key.
   final String weekStart;
 
   /// Average kcal over fully logged days; null when no day was fully logged.
   final double? avgKcal;
+  /// Number of fully logged days that week.
   final int loggedDays;
 
   /// Target in effect that week (at its start, or the first one set during it).
@@ -83,6 +88,7 @@ List<WeeklyIntake> weeklyIntake(
   ];
 }
 
+/// Target at [weekStart], or else the first one that starts during that week.
 TargetPoint? _targetForWeek(List<TargetPoint> targets, String weekStart) {
   final atStart = targetOn(targets, weekStart);
   if (atStart != null) return atStart;
@@ -96,6 +102,7 @@ TargetPoint? _targetForWeek(List<TargetPoint> targets, String weekStart) {
   return null;
 }
 
+/// One day of the steps chart: raw steps and the rolling 7-day average.
 class StepsDay {
   const StepsDay({required this.dayKey, this.steps, this.avg7});
 
@@ -106,6 +113,8 @@ class StepsDay {
   final double? avg7;
 }
 
+/// Sorts [days] by day and adds a trailing 7-day average of the days that
+/// have step data (days without data are skipped, not counted as zero).
 List<StepsDay> stepsWithAverage(List<DayActivity> days) {
   final sorted = [...days]..sort((a, b) => a.dayKey.compareTo(b.dayKey));
   final out = <StepsDay>[];
@@ -130,8 +139,10 @@ List<StepsDay> stepsWithAverage(List<DayActivity> days) {
   return out;
 }
 
+/// True when at least one day has step data.
 bool hasAnySteps(List<DayActivity> days) => days.any((d) => d.steps != null);
 
+/// A count for one Monday-based week ([weekStart] is the Monday).
 class WeeklyCount {
   const WeeklyCount({required this.weekStart, required this.count});
   final String weekStart;
@@ -149,6 +160,7 @@ List<WeeklyCount> workoutsPerWeek(List<DayActivity> days) {
   return [for (final w in weeks) WeeklyCount(weekStart: w, count: byWeek[w]!)];
 }
 
+/// Maintenance kcal from [dayKey] onwards (one step of the series).
 class MaintenancePoint {
   const MaintenancePoint({required this.dayKey, required this.kcal});
   final String dayKey;

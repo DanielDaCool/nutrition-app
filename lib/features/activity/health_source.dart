@@ -49,7 +49,10 @@ class HcWorkout {
   final double? kcal;
 }
 
+/// Read-only access to Health Connect. Methods other than the read calls may
+/// throw platform errors; callers (`HealthSyncService`) catch them.
 abstract interface class HealthSource {
+  /// Whether Health Connect is installed and usable on this phone.
   Future<HcAvailability> availability();
 
   /// True when read access to steps and exercise sessions is granted.
@@ -60,7 +63,9 @@ abstract interface class HealthSource {
 
   /// Whether the "read data older than 30 days" feature exists on this phone.
   Future<bool> isHistoryAvailable();
+  /// Whether the history permission has been granted.
   Future<bool> isHistoryAuthorized();
+  /// Shows the history permission screen; true when granted.
   Future<bool> requestHistoryAuthorization();
 
   /// Total steps in [start, end). Null when the read failed.

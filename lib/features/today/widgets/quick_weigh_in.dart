@@ -1,3 +1,4 @@
+// Today screen's inline weigh-in field.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,8 @@ import '../../weight/weight_logic.dart';
 import '../../weight/weight_providers.dart';
 
 /// Inline weigh-in entry for a day that has none yet.
+///
+/// Saves through [WeightRepository.upsert]; errors show in a snack bar.
 class QuickWeighIn extends ConsumerStatefulWidget {
   const QuickWeighIn({super.key, required this.dayKey});
 

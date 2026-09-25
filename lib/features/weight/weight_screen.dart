@@ -1,4 +1,6 @@
 // OWNER: weight & charts agent (D). Contract stub: keep the class name/constructor.
+// Weight tab: trend summary, trend chart with range chips, and the list of
+// weigh-ins with add, edit and delete (with undo).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +12,7 @@ import 'weight_providers.dart';
 import 'widgets/weigh_in_dialog.dart';
 import 'widgets/weight_chart.dart';
 
+/// Chart range choices on the Weight screen; [days] is null for all data.
 enum WeightRange {
   d30('30 d', 30),
   d90('90 d', 90),
@@ -20,10 +23,12 @@ enum WeightRange {
   final int? days;
 }
 
+/// Selected chart range on the Weight screen (defaults to 30 days).
 final weightRangeProvider = NotifierProvider<WeightRangeNotifier, WeightRange>(
   WeightRangeNotifier.new,
 );
 
+/// Holds the selected [WeightRange].
 class WeightRangeNotifier extends Notifier<WeightRange> {
   @override
   WeightRange build() => WeightRange.d30;
@@ -31,6 +36,7 @@ class WeightRangeNotifier extends Notifier<WeightRange> {
   void set(WeightRange range) => state = range;
 }
 
+/// Weight tab: trend weight, 7/30-day change, chart and weigh-in list.
 class WeightScreen extends ConsumerWidget {
   const WeightScreen({super.key});
 
@@ -120,6 +126,7 @@ class WeightScreen extends ConsumerWidget {
   }
 }
 
+/// Screen content once weigh-ins and trend have loaded.
 class _WeightBody extends StatelessWidget {
   const _WeightBody({
     required this.weighIns,
@@ -230,6 +237,7 @@ class _WeightBody extends StatelessWidget {
   }
 }
 
+/// Current trend weight and its 7- and 30-day change.
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.trend});
 

@@ -1,4 +1,6 @@
 // OWNER: weight & charts agent (D). Contract stub: keep the public names/types.
+// Weigh-in storage and the public weight providers ([weighInsProvider],
+// [weightTrendProvider]) other features read.
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,6 +49,7 @@ class WeightRepository {
     });
   }
 
+  /// Removes the weigh-in for [dayKey], if any.
   Future<void> delete(String dayKey) {
     return (_db.delete(
       _db.weighIns,
@@ -54,6 +57,8 @@ class WeightRepository {
   }
 }
 
+/// The [WeightRepository] on the app database, stamping `createdAt` with the
+/// injectable clock.
 final weightRepositoryProvider = Provider<WeightRepository>(
   (ref) =>
       WeightRepository(ref.watch(databaseProvider), ref.watch(clockProvider)),
@@ -65,6 +70,10 @@ final weighInsProvider = StreamProvider<Map<String, double>>(
 );
 
 /// Daily trend points from the first weigh-in through today.
+///
+/// Days without a weigh-in carry the trend forward (see `computeTrend`).
+/// Empty when there are no weigh-ins. "Today" is read when weigh-ins change,
+/// not on a timer.
 final weightTrendProvider = StreamProvider<List<TrendPoint>>((ref) async* {
   final weighIns = await ref.watch(weighInsProvider.future);
   final today = dayKeyOf(ref.read(clockProvider)());

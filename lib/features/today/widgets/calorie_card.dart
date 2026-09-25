@@ -1,3 +1,5 @@
+// Today screen's calorie card: kcal remaining against the current target and
+// protein/fat/carb progress bars.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +18,7 @@ String formatKcal(double kcal) => _kcalFormat.format(kcal.round());
 class CalorieCard extends ConsumerWidget {
   const CalorieCard({super.key, required this.dayKey});
 
+  /// Day shown (`YYYY-MM-DD`, local time).
   final String dayKey;
 
   @override
@@ -57,6 +60,7 @@ class CalorieCard extends ConsumerWidget {
   }
 }
 
+/// Remaining (or over) kcal, target vs. eaten, and macro bars.
 class _TargetsCard extends StatelessWidget {
   const _TargetsCard({required this.target, required this.eaten});
 
@@ -139,6 +143,7 @@ class _TargetsCard extends StatelessWidget {
   }
 }
 
+/// One macro in grams against its target; turns the error colour when over.
 class _MacroBar extends StatelessWidget {
   const _MacroBar({
     required this.label,

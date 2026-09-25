@@ -1,3 +1,5 @@
+// Drift table-change stream helper used by the weight and dashboard
+// providers.
 import 'dart:async';
 
 import 'package:drift/drift.dart';
@@ -8,6 +10,9 @@ import 'package:drift/drift.dart';
 /// "keep the cache a moment longer" timer behind, which otherwise fails widget
 /// tests that unmount the app ("A Timer is still pending") and blocks
 /// `db.close()` in their tear-down.
+///
+/// Refreshes never overlap: a change during a fetch triggers one more fetch
+/// afterwards. Fetch errors are emitted as stream errors.
 Stream<T> watchTables<T>(
   DatabaseConnectionUser db,
   Iterable<ResultSetImplementation> tables,

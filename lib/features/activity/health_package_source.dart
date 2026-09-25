@@ -1,3 +1,4 @@
+// The real [HealthSource]: a thin adapter over the `health` plugin.
 import 'dart:io' show Platform;
 
 import 'package:health/health.dart' as hp;
@@ -9,6 +10,8 @@ import 'health_source.dart';
 /// On anything other than Android it reports [HcAvailability.unsupported] and
 /// never touches the platform channel.
 class HealthPackageSource implements HealthSource {
+  /// [health] and [isAndroid] are overridable for tests; by default a new
+  /// plugin client is created lazily and the platform is detected.
   HealthPackageSource({hp.Health? health, bool? isAndroid})
     : _healthOverride = health,
       _isAndroid = isAndroid ?? Platform.isAndroid;

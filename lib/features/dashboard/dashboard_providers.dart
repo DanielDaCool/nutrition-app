@@ -1,3 +1,5 @@
+// Dashboard state: the selected range, the date window it maps to, and
+// read-only streams over target history and data extent.
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,7 @@ import '../../core/day_key.dart';
 import '../weight/table_watch.dart';
 import 'dashboard_logic.dart';
 
+/// Dashboard range choices; [days] is null for "All".
 enum DashboardRange {
   weeks4('4 weeks', 28),
   weeks12('12 weeks', 84),
@@ -16,11 +19,13 @@ enum DashboardRange {
   final int? days;
 }
 
+/// Selected dashboard range (defaults to 4 weeks).
 final dashboardRangeProvider =
     NotifierProvider<DashboardRangeNotifier, DashboardRange>(
       DashboardRangeNotifier.new,
     );
 
+/// Holds the selected [DashboardRange].
 class DashboardRangeNotifier extends Notifier<DashboardRange> {
   @override
   DashboardRange build() => DashboardRange.weeks4;
@@ -76,6 +81,9 @@ final earliestDataDayProvider = StreamProvider<String?>((ref) {
 });
 
 /// The dashboard's (from, to) day keys, inclusive; `to` is today.
+///
+/// "All" starts at the earliest data day but always spans at least 28 days.
+/// "Today" is read when the range changes, not on a timer.
 final dashboardWindowProvider = StreamProvider<(String from, String to)>((
   ref,
 ) async* {
