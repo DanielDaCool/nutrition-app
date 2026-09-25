@@ -136,13 +136,31 @@ void main() {
     expect(await waitFor(container, checkInDueProvider, (_) => true), isFalse);
   });
 
-  test('profile without weigh-in: check-in due, no targets yet', () async {
+  test('profile without weigh-in: no targets and no check-in yet', () async {
     await addProfile(repo);
     expect(
       await waitFor(container, currentTargetsProvider, (_) => true),
       isNull,
     );
+    expect(await waitFor(container, checkInDueProvider, (_) => true), isFalse);
+  });
+
+  test('not due without weigh-ins even when the target is old', () async {
+    now = sunday;
+    await addProfile(repo);
+    await addTarget(db, '2026-09-13');
+    expect(await repo.checkInDue(), isFalse);
+  });
+
+  test('a missed check-in day stays due until it is done', () async {
+    // Check-in day was Sunday 20th; it is now Friday 25th.
+    await addProfile(repo);
+    await addWeighIn(db, '2026-09-24', 90);
+    await addTarget(db, '2026-09-13');
     expect(await waitFor(container, checkInDueProvider, (_) => true), isTrue);
+
+    await repo.keepCurrentTarget(); // skip, stored as today
+    expect(await waitFor(container, checkInDueProvider, (d) => !d), isFalse);
   });
 
   test('check-in is due on the check-in weekday', () async {
@@ -159,6 +177,7 @@ void main() {
 
   test('check-in is not due on other weekdays', () async {
     await addProfile(repo, weekday: DateTime.sunday);
+    await addWeighIn(db, '2026-09-24', 90);
     await addTarget(db, '2026-09-20');
     expect(await waitFor(container, checkInDueProvider, (_) => true), isFalse);
   });
@@ -275,4 +294,26 @@ void main() {
       expect(input.previousMaintenanceKcal, 2900);
     },
   );
+
+  group('check-in date logic', () {
+    test('last check-in day is the latest matching weekday', () {
+      // 2026-09-25 is a Friday.
+      expect(lastCheckInDay('2026-09-25', DateTime.friday), '2026-09-25');
+      expect(lastCheckInDay('2026-09-25', DateTime.sunday), '2026-09-20');
+      expect(lastCheckInDay('2026-09-25', DateTime.saturday), '2026-09-19');
+      expect(lastCheckInDay('2026-09-25', DateTime.monday), '2026-09-21');
+    });
+
+    test('due only when the target started before the last check-in day', () {
+      bool due(String from) => isCheckInDue(
+        today: '2026-09-25',
+        currentEffectiveFrom: from,
+        checkInWeekday: DateTime.sunday,
+      );
+      expect(due('2026-09-13'), isTrue); // missed Sunday 20th
+      expect(due('2026-09-19'), isTrue);
+      expect(due('2026-09-20'), isFalse); // done on the day
+      expect(due('2026-09-22'), isFalse); // done late
+    });
+  });
 }
