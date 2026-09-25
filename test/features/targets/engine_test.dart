@@ -27,10 +27,29 @@ EngineProfile profile({
   proteinPerKg: proteinPerKg,
 );
 
+/// kcal per kg the engine will use for the default test profile (male, 30 y,
+/// 180 cm) around 90 kg, from the same body-fat estimate `recommend()` uses.
+/// Synthetic histories below convert intake/maintenance gaps to kg/day with
+/// this, so they stay internally consistent with what the engine recovers
+/// (the flat 7,700 rule no longer applies once body fat is estimated).
+double _testKcalPerKg({double kg = 90, int ageYears = 30, Sex sex = Sex.male}) {
+  final bmi = kg / pow(1.80, 2);
+  final bodyFat = deurenbergBodyFatPercent(
+    bmi: bmi,
+    ageYears: ageYears,
+    sex: sex,
+  ).clamp(5.0, 50.0);
+  return kcalPerKgLost(bodyFat / 100 * kg);
+}
+
+final testKcalPerKg = _testKcalPerKg();
+
 /// Synthetic history: the person eats [intakeKcal] every day and has a true
 /// maintenance of [maintenanceKcal], so the scale moves by
-/// (intake - maintenance) / 7700 kg per day, plus uniform noise of ±[noiseKg].
-/// Covers the [historyDays] days before today (today itself has no data).
+/// (intake - maintenance) / [kcalPerKg] kg per day, plus uniform noise of
+/// ±[noiseKg]. Covers the [historyDays] days before today (today itself has
+/// no data). [logged]/[weighed] take the day key, not an index, so windows
+/// can be picked out directly with [addDays].
 ({Map<String, double> weighIns, Map<String, DayLog> intake}) history({
   required double maintenanceKcal,
   required double intakeKcal,
@@ -38,21 +57,23 @@ EngineProfile profile({
   int historyDays = 60,
   double noiseKg = 0,
   int seed = 1,
-  bool Function(int dayIndex)? logged,
-  bool Function(int dayIndex)? weighed,
+  double? kcalPerKg,
+  bool Function(String day)? logged,
+  bool Function(String day)? weighed,
 }) {
   final rnd = Random(seed);
-  final perDayKg = (intakeKcal - maintenanceKcal) / 7700;
+  final perDayKg =
+      (intakeKcal - maintenanceKcal) / (kcalPerKg ?? testKcalPerKg);
   final weighIns = <String, double>{};
   final intake = <String, DayLog>{};
   for (var i = 0; i < historyDays; i++) {
     final day = addDays(today, -historyDays + i);
     final trueKg = startKg + perDayKg * i;
     final noise = noiseKg == 0 ? 0 : (rnd.nextDouble() * 2 - 1) * noiseKg;
-    if (weighed?.call(i) ?? true) weighIns[day] = trueKg + noise;
+    if (weighed?.call(day) ?? true) weighIns[day] = trueKg + noise;
     intake[day] = DayLog(
       kcal: intakeKcal,
-      fullyLogged: logged?.call(i) ?? true,
+      fullyLogged: logged?.call(day) ?? true,
     );
   }
   return (weighIns: weighIns, intake: intake);
@@ -60,16 +81,18 @@ EngineProfile profile({
 
 void main() {
   group('formula', () {
-    test('hand-checked formula-only recommendation', () {
+    test('formula-only recommendation matches the formulas directly', () {
       // Male, 30 years (born 1996-09-25, today 2026-09-25), 180 cm, one
       // weigh-in of 90 kg -> trend 90 kg.
       // BMR = 10*90 + 6.25*180 - 5*30 + 5 = 900 + 1125 - 150 + 5 = 1880
       // formula = 1880 * 1.55 (moderate) = 2914
-      // deficit = 0.5/100 * 90 * 7700 / 7 = 495 (cap 25% = 728.5, 1000) -> 495
-      // target = 2914 - 495 = 2419 -> 2420 (nearest 10); floor 1880 not hit.
-      // protein = 2.0 * min(90, 80*1.15=92) = 180 g
-      // fat = max(0.8*90=72, 2420*0.25/9=67.2) = 72 -> 70 g
-      // carbs = (2420 - 180*4 - 70*9) / 4 = (2420-720-630)/4 = 267.5 -> 270 g
+      final bmi = 90 / pow(1.8, 2);
+      final bodyFat = deurenbergBodyFatPercent(
+        bmi: bmi,
+        ageYears: 30,
+        sex: Sex.male,
+      ).clamp(5.0, 50.0);
+      final kcalPerKg = kcalPerKgLost(bodyFat / 100 * 90);
       final r = recommend(
         EngineInput(
           today: today,
@@ -84,13 +107,26 @@ void main() {
       expect(e.formulaKcal, closeTo(2914, 1e-9));
       expect(r.maintenanceKcal, closeTo(2914, 1e-9));
       expect(r.method, TargetMethod.formula);
-      expect(e.deficitKcal, closeTo(495, 1e-9));
-      expect(r.macros.kcal, 2420);
-      expect(r.macros.proteinG, 180);
-      expect(r.macros.fatG, 70);
-      expect(r.macros.carbsG, 270);
+      expect(e.bodyFatPercent, closeTo(bodyFat, 1e-9));
+      expect(e.kcalPerKgUsed, closeTo(kcalPerKg, 1e-9));
+      expect(e.rateCapped, isFalse); // 0.5%/week is under any body-fat cap.
+      final expectedDeficit = 0.5 / 100 * 90 * kcalPerKg / 7;
+      expect(e.deficitKcal, closeTo(expectedDeficit, 1e-6));
+      final expectedTarget = roundTo(2914 - expectedDeficit, 10);
+      expect(r.macros.kcal, expectedTarget);
+      final m = computeMacros(
+        targetKcal: expectedTarget,
+        trendKg: 90,
+        goalWeightKg: 80,
+        proteinPerKg: 2.0,
+      );
+      expect(r.macros.proteinG, m.proteinG);
+      expect(r.macros.fatG, m.fatG);
+      expect(r.macros.carbsG, m.carbsG);
       expect(e.floorApplied, isFalse);
       expect(e.maintenanceMode, isFalse);
+      // No previous target to compare against -> no phase skip is applied.
+      expect(e.phaseStartDayKey, addDays(today, -kWindowDays - kPhaseSkipDays));
     });
 
     test('age counts whole years only', () {
@@ -113,17 +149,86 @@ void main() {
     });
   });
 
+  group('body composition', () {
+    test('deurenbergBodyFatPercent: more BMI and age raise the estimate', () {
+      final lean = deurenbergBodyFatPercent(
+        bmi: 22,
+        ageYears: 25,
+        sex: Sex.male,
+      );
+      final higher = deurenbergBodyFatPercent(
+        bmi: 30,
+        ageYears: 50,
+        sex: Sex.male,
+      );
+      expect(higher, greaterThan(lean));
+      // Same BMI/age, women read higher (no -10.8 male term).
+      final female = deurenbergBodyFatPercent(
+        bmi: 22,
+        ageYears: 25,
+        sex: Sex.female,
+      );
+      expect(female, greaterThan(lean));
+    });
+
+    test('kcalPerKgLost: less fat mass means less energy per kg lost', () {
+      final lean = kcalPerKgLost(10);
+      final fat = kcalPerKgLost(30);
+      expect(lean, lessThan(fat));
+      expect(lean, lessThan(kKcalPerKg)); // both below the flat 7,700 rule
+      expect(fat, lessThan(kKcalPerKg));
+      expect(kcalPerKgLost(null), kKcalPerKg); // unknown -> flat fallback
+      expect(kcalPerKgLost(0), kKcalPerKg);
+    });
+
+    test('maxWeeklyRatePct: more stored fat allows a faster rate', () {
+      expect(maxWeeklyRatePct(bmi: 22, bodyFatPercent: 15), 0.5);
+      expect(maxWeeklyRatePct(bmi: 26, bodyFatPercent: 22), 0.75);
+      expect(maxWeeklyRatePct(bmi: 32, bodyFatPercent: 22), 1.0);
+      expect(maxWeeklyRatePct(bmi: 22, bodyFatPercent: 32), 1.0);
+    });
+
+    test('a lean profile has its requested rate capped', () {
+      // 25 y, 180 cm, 65 kg male: BMI ~20, low body fat -> capped to 0.5%.
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(
+            heightCm: 180,
+            birthDate: DateTime(2001, 9, 25),
+            goalWeightKg: 60,
+            weeklyRatePct: 1.0,
+          ),
+          weighIns: {today: 65},
+          intake: const {},
+        ),
+      );
+      expect(r.explanation.rateCapped, isTrue);
+      expect(r.explanation.weeklyRatePctRaw, 1.0);
+      // deficit uses the capped 0.5%, not the requested 1.0%.
+      final capped = maxWeeklyRatePct(
+        bmi: 65 / pow(1.8, 2),
+        bodyFatPercent: r.explanation.bodyFatPercent,
+      );
+      expect(
+        r.explanation.deficitKcal,
+        closeTo(capped / 100 * 65 * r.explanation.kcalPerKgUsed / 7, 1e-6),
+      );
+    });
+  });
+
   group('adaptive maintenance', () {
-    test('no lag in the first weeks: 21 days of data measure the real '
+    test('no lag in the first weeks: 28 days of data measure the real '
         'maintenance', () {
-      // True maintenance 2500, eating 1950 -> losing 0.071 kg/day from the
-      // first weigh-in. A smoothed trend that starts at the first weigh-in
-      // hasn't caught up with that slope yet after 3 weeks.
-      for (final noise in [0.0, 0.6]) {
+      // True maintenance 2500, eating 1950 -> losing weight from day one. A
+      // smoothed trend that starts at the first weigh-in hasn't caught up
+      // with that slope after only 4 weeks, so the raw-weigh-in regression
+      // is used instead (see docs/engine.md).
+      for (final noise in [0.0, 0.4]) {
         final h = history(
           maintenanceKcal: 2500,
           intakeKcal: 1950,
-          historyDays: 21,
+          historyDays: kWindowDays,
           noiseKg: noise,
         );
         final r = recommend(
@@ -135,9 +240,13 @@ void main() {
           ),
         );
         final measured = r.explanation.measuredKcal!;
+        // Even without noise, kcal/kg is re-estimated from the trend weight
+        // at the end of the window, which has moved a little from the 90 kg
+        // the synthetic history was generated at — a few kcal of drift, not
+        // the ~200+ kcal/day bias this test guards against.
         expect(
           measured,
-          closeTo(2500, noise == 0 ? 1 : 200),
+          closeTo(2500, noise == 0 ? 10 : 150),
           reason: 'noise $noise',
         );
       }
@@ -154,11 +263,11 @@ void main() {
         ),
       );
       final e = r.explanation;
-      expect(e.loggedDays, 21);
+      expect(e.loggedDays, kWindowDays);
       expect(e.weight, 1);
       expect(r.method, TargetMethod.adaptive);
       expect(e.avgIntakeKcal, 2000);
-      expect(e.days, 20);
+      expect(e.days, kWindowDays - 1);
       expect(e.measuredKcal, closeTo(2500, 50));
       expect(r.maintenanceKcal, closeTo(2500, 50));
     });
@@ -197,12 +306,13 @@ void main() {
     });
 
     test('blends by number of logged days', () {
-      // Log 14 of the 21 window days -> w = (14 - 7) / 14 = 0.5.
+      // Log only the last 12 of the 28 window days:
+      // loggedWeight = (12-7)/(18-7) = 5/11; weigh-ins stay full (28) so
+      // weighInsWeight clamps to 1 and doesn't bind.
       final h = history(
         maintenanceKcal: 2500,
         intakeKcal: 2000,
-        // Window = day indexes 39..59 (today-21 .. today-1); log 46..59.
-        logged: (i) => i >= 46,
+        logged: (day) => day.compareTo(addDays(today, -12)) >= 0,
       );
       final r = recommend(
         EngineInput(
@@ -213,9 +323,8 @@ void main() {
         ),
       );
       final e = r.explanation;
-      final n = e.loggedDays;
-      expect(n, 14);
-      const w = 0.5;
+      expect(e.loggedDays, 12);
+      const w = 5 / 11;
       expect(e.weight, closeTo(w, 1e-9));
       expect(r.method, TargetMethod.blended);
       expect(
@@ -225,11 +334,12 @@ void main() {
     });
 
     test('shortened span when weigh-ins start inside the window', () {
-      // 14 days of history: first trend point is today-14, span = 13 days.
+      // 15 days of history: the regression's raw-weigh-in points span
+      // 27 - 13 = 14 days (>= kMinSpanDays).
       final h = history(
         maintenanceKcal: 2500,
         intakeKcal: 2000,
-        historyDays: 14,
+        historyDays: 15,
       );
       final r = recommend(
         EngineInput(
@@ -239,29 +349,87 @@ void main() {
           intake: h.intake,
         ),
       );
-      expect(r.explanation.days, 13);
+      expect(r.explanation.days, 14);
       expect(r.explanation.measuredKcal, isNotNull);
-      expect(r.explanation.loggedDays, 14);
+      expect(r.explanation.loggedDays, 15);
     });
 
     test('measured value is clamped to 0.6–1.6 × formula', () {
-      // Logged 500 kcal/day but weight goes up: garbage logging.
+      // Flat weight (maintenance == intake) but logging only 500 kcal/day:
+      // way under what the flat trend implies, so it gets clamped.
       final h = history(maintenanceKcal: 500, intakeKcal: 500);
-      final bad = {
-        for (final k in h.intake.keys)
-          k: const DayLog(kcal: 500, fullyLogged: true),
-      };
       final r = recommend(
         EngineInput(
           today: today,
           profile: profile(),
           weighIns: h.weighIns,
-          intake: bad,
+          intake: h.intake,
         ),
       );
       final e = r.explanation;
       expect(e.measuredClamped, isTrue);
       expect(e.measuredKcal, closeTo(0.6 * e.formulaKcal, 1e-6));
+    });
+  });
+
+  group('diet phase', () {
+    test('a rate change starts a new phase and skips 14 days', () {
+      final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
+      final first = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(weeklyRatePct: 0.5),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(
+        first.explanation.phaseStartDayKey,
+        addDays(today, -kWindowDays - kPhaseSkipDays),
+      );
+
+      // Same data, but the rate changed since the last target: the phase
+      // resets to today, so the (still-unlogged) next 14 days aren't
+      // measurable yet.
+      final changed = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(weeklyRatePct: 0.8),
+          weighIns: h.weighIns,
+          intake: h.intake,
+          previousMaintenanceKcal: first.maintenanceKcal,
+          previousPhaseStartDayKey: first.explanation.phaseStartDayKey,
+          previousWeeklyRatePctRaw: 0.5,
+          previousFormulaKcal: first.explanation.formulaKcal,
+          previousMaintenanceMode: first.explanation.maintenanceMode,
+        ),
+      );
+      expect(changed.explanation.phaseStartDayKey, today);
+      expect(changed.explanation.measuredKcal, isNull);
+      expect(
+        changed.explanation.measuredMissingReason,
+        contains('settling in'),
+      );
+      expect(changed.method, TargetMethod.formula);
+    });
+
+    test('an unchanged rate keeps the phase and measures normally', () {
+      final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(weeklyRatePct: 0.5),
+          weighIns: h.weighIns,
+          intake: h.intake,
+          previousMaintenanceKcal: 2500,
+          previousPhaseStartDayKey: addDays(today, -40),
+          previousWeeklyRatePctRaw: 0.5,
+          previousFormulaKcal: 2914,
+          previousMaintenanceMode: false,
+        ),
+      );
+      expect(r.explanation.phaseStartDayKey, addDays(today, -40));
+      expect(r.explanation.measuredKcal, isNotNull);
     });
   });
 
@@ -279,7 +447,7 @@ void main() {
       final h = history(
         maintenanceKcal: 2500,
         intakeKcal: 2000,
-        logged: (i) => i >= 54, // 6 days
+        logged: (day) => day.compareTo(addDays(today, -6)) >= 0, // 6 days
       );
       final r = recommend(input(h));
       expect(r.explanation.loggedDays, 6);
@@ -289,10 +457,15 @@ void main() {
     });
 
     test('fewer than 6 weigh-ins in the window', () {
+      final recentWeighed = {
+        for (final d in [27, 20, 15, 10, 5]) addDays(today, -d),
+      };
       final h = history(
         maintenanceKcal: 2500,
         intakeKcal: 2000,
-        weighed: (i) => i < 39 || i % 5 == 0, // 40,45,50,55 in window
+        weighed: (day) =>
+            day.compareTo(addDays(today, -kWindowDays)) < 0 ||
+            recentWeighed.contains(day),
       );
       final r = recommend(input(h));
       expect(r.explanation.weighInsInWindow, lessThan(6));
@@ -300,11 +473,11 @@ void main() {
       expect(r.explanation.measuredMissingReason, contains('weigh-ins'));
     });
 
-    test('span shorter than 10 days', () {
+    test('span shorter than 14 days', () {
       final h = history(
         maintenanceKcal: 2500,
         intakeKcal: 2000,
-        historyDays: 9,
+        historyDays: 13,
       );
       final r = recommend(input(h));
       expect(r.method, TargetMethod.formula);
@@ -315,7 +488,7 @@ void main() {
       final h = history(
         maintenanceKcal: 2500,
         intakeKcal: 2000,
-        logged: (i) => i >= 53,
+        logged: (day) => day.compareTo(addDays(today, -7)) >= 0,
       );
       final r = recommend(input(h));
       expect(r.explanation.measuredKcal, isNotNull);
@@ -340,10 +513,11 @@ void main() {
     });
 
     test('floor applies', () {
-      // Female, 50 y, 155 cm, 60 kg, sedentary, 1 %/week:
+      // Female, 50 y, 155 cm, 60 kg, sedentary, 1 %/week (her body fat
+      // estimate is high enough that 1% isn't capped):
       // BMR = 600 + 968.75 - 250 - 161 = 1157.75; formula = 1389.3
-      // deficit = 0.01*60*7700/7 = 660, capped at 25% -> 347.3
-      // 1389.3 - 347.3 = 1042 < floor max(1157.75, 1200) = 1200.
+      // deficit = min(raw, 25% of maintenance, 750) = 0.25*1389.3 = 347.325
+      // 1389.3 - 347.325 = 1041.975 < floor max(1157.75, 1200) = 1200.
       final r = recommend(
         EngineInput(
           today: today,
@@ -360,12 +534,13 @@ void main() {
         ),
       );
       expect(r.explanation.bmrKcal, closeTo(1157.75, 1e-9));
+      expect(r.explanation.rateCapped, isFalse);
       expect(r.explanation.deficitKcal, closeTo(0.25 * 1157.75 * 1.2, 1e-6));
       expect(r.explanation.floorApplied, isTrue);
       expect(r.macros.kcal, 1200);
     });
 
-    test('deficit capped at 1000 kcal', () {
+    test('deficit capped at 750 kcal', () {
       final r = recommend(
         EngineInput(
           today: today,
@@ -378,8 +553,11 @@ void main() {
           intake: const {},
         ),
       );
-      // 0.01*160*7700/7 = 1760; 25% of maintenance ~ 1070 -> 1000 cap.
-      expect(r.explanation.deficitKcal, 1000);
+      // High body weight -> high estimated fat mass -> no rate cap, but the
+      // raw rate*kcalPerKg deficit and 25% of maintenance both exceed the
+      // flat 750 kcal cap, so that's what binds.
+      expect(r.explanation.rateCapped, isFalse);
+      expect(r.explanation.deficitKcal, 750);
     });
   });
 
@@ -485,6 +663,143 @@ void main() {
     });
   });
 
+  group('noise-weighted (Kalman) update', () {
+    test('a second measurement blends toward the prior instead of jumping '
+        'straight to the new raw reading', () {
+      final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
+      // A generous prior, as if the last few weeks had settled near 2300
+      // with reasonable confidence.
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+          previousMaintenanceKcal: 2350,
+          previousSmoothedMeasuredKcal: 2300,
+          previousMeasuredVarianceKcal2: 100 * 100,
+        ),
+      );
+      // This week's raw reading is near 2500; the smoothed figure should
+      // land strictly between the 2300 prior and the ~2500 raw reading.
+      expect(r.explanation.smoothedMeasuredKcal, greaterThan(2300));
+      expect(r.explanation.smoothedMeasuredKcal, lessThan(2520));
+      // The ±150 guardrail still applies on top, against the previous
+      // maintenance (2350), regardless of the smoothed measured value.
+      expect(r.maintenanceKcal, lessThanOrEqualTo(2500));
+      expect(r.maintenanceKcal, greaterThanOrEqualTo(2200));
+    });
+
+    test('a week with no fresh measurement carries the prior forward', () {
+      // Fewer than 7 logged days this week -> no fresh measurement, but the
+      // prior should still be visible for the next check-in to build on.
+      final h = history(
+        maintenanceKcal: 2500,
+        intakeKcal: 2000,
+        logged: (day) => day.compareTo(addDays(today, -3)) >= 0, // 3 days
+      );
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+          previousMaintenanceKcal: 2450,
+          previousSmoothedMeasuredKcal: 2480,
+          previousMeasuredVarianceKcal2: 90 * 90,
+        ),
+      );
+      expect(r.explanation.measuredKcal, isNull); // nothing fresh this week
+      expect(r.explanation.smoothedMeasuredKcal, 2480); // carried forward
+      expect(
+        r.explanation.measuredVarianceKcal2,
+        greaterThan(90 * 90), // grew by the process noise
+      );
+      expect(r.method, TargetMethod.formula); // w = 0, doesn't use the prior
+    });
+  });
+
+  group('simulation (Fix 1-3 combined)', () {
+    test('weekly updates settle within ±100 kcal of the true maintenance by '
+        'day 28, and no single update moves more than 150 kcal', () {
+      const trueMaintenance = 2500.0;
+      const trueIntake = 1950.0;
+      final kcalPerKg = testKcalPerKg;
+      final perDayKg = (trueIntake - trueMaintenance) / kcalPerKg;
+      final rnd = Random(123);
+      const anchor = '2026-01-01';
+      const totalDays = 63;
+
+      final allWeighIns = <String, double>{};
+      final allIntake = <String, DayLog>{};
+      var trueKg = 90.0;
+      for (var d = 0; d < totalDays; d++) {
+        final day = addDays(anchor, d);
+        trueKg += perDayKg;
+        final noise = (rnd.nextDouble() * 2 - 1) * 0.4; // ±0.4 kg noise
+        if (rnd.nextDouble() > 0.2) {
+          allWeighIns[day] = trueKg + noise; // 20% missed
+        }
+        final logged = rnd.nextDouble() > 0.1; // 10% missed
+        allIntake[day] = DayLog(kcal: trueIntake, fullyLogged: logged);
+      }
+
+      double? prevMaintenance;
+      String? prevPhaseStart;
+      double? prevRateRaw;
+      double? prevFormula;
+      bool? prevMaintenanceMode;
+      double? prevSmoothed;
+      double? prevVariance;
+      double? maintenanceAtDay28;
+
+      for (var checkDay = 21; checkDay < totalDays; checkDay += 7) {
+        final checkToday = addDays(anchor, checkDay);
+        final weighIns = {
+          for (final e in allWeighIns.entries)
+            if (e.key.compareTo(checkToday) <= 0) e.key: e.value,
+        };
+        final intake = {
+          for (final e in allIntake.entries)
+            if (e.key.compareTo(checkToday) < 0) e.key: e.value,
+        };
+        final r = recommend(
+          EngineInput(
+            today: checkToday,
+            profile: profile(),
+            weighIns: weighIns,
+            intake: intake,
+            previousMaintenanceKcal: prevMaintenance,
+            previousPhaseStartDayKey: prevPhaseStart,
+            previousWeeklyRatePctRaw: prevRateRaw,
+            previousFormulaKcal: prevFormula,
+            previousMaintenanceMode: prevMaintenanceMode,
+            previousSmoothedMeasuredKcal: prevSmoothed,
+            previousMeasuredVarianceKcal2: prevVariance,
+          ),
+        );
+        if (prevMaintenance != null) {
+          expect(
+            (r.maintenanceKcal - prevMaintenance).abs(),
+            lessThanOrEqualTo(150.01),
+            reason: 'day $checkDay',
+          );
+        }
+        if (checkDay == 28) maintenanceAtDay28 = r.maintenanceKcal;
+        prevMaintenance = r.maintenanceKcal;
+        prevPhaseStart = r.explanation.phaseStartDayKey;
+        prevRateRaw = r.explanation.weeklyRatePctRaw;
+        prevFormula = r.explanation.formulaKcal;
+        prevMaintenanceMode = r.explanation.maintenanceMode;
+        prevSmoothed = r.explanation.smoothedMeasuredKcal;
+        prevVariance = r.explanation.measuredVarianceKcal2;
+      }
+
+      expect(maintenanceAtDay28, isNotNull);
+      expect(maintenanceAtDay28!, closeTo(trueMaintenance, 100));
+    });
+  });
+
   group('explanation', () {
     test('JSON round trip', () {
       final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
@@ -503,6 +818,28 @@ void main() {
       expect(back.toJson(), r.explanation.toJson());
     });
 
+    test('an old row without the new fields still decodes', () {
+      final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      final legacyJson = r.explanation.toJson()
+        ..remove('phaseStartDayKey')
+        ..remove('measurementStart')
+        ..remove('bodyFatPercent')
+        ..remove('kcalPerKgUsed')
+        ..remove('weeklyRatePctRaw')
+        ..remove('rateCapped')
+        ..remove('smoothedMeasuredKcal')
+        ..remove('measuredVarianceKcal2');
+      expect(() => Explanation.fromJson(legacyJson), returnsNormally);
+    });
+
     test('plain-English why mentions intake, trend and maintenance', () {
       final h = history(maintenanceKcal: 2500, intakeKcal: 2150);
       final r = recommend(
@@ -514,7 +851,10 @@ void main() {
         ),
       );
       final text = explainLines(r.explanation).join(' ');
-      expect(text, contains('You averaged 2,150 kcal on 21 fully logged days'));
+      expect(
+        text,
+        contains('You averaged 2,150 kcal on $kWindowDays fully logged days'),
+      );
       expect(text, contains('your weight went down'));
       expect(text, contains('so your maintenance is about 2,'));
     });

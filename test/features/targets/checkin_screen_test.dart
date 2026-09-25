@@ -122,8 +122,8 @@ void main() {
     expect(find.text('2,100 kcal'), findsOneWidget);
     expect(
       find.textContaining(
-        'You averaged 2,000 kcal on 21 fully logged days '
-        'and your weight went down 1.3 kg in 20 days',
+        'You averaged 2,000 kcal on 28 fully logged days '
+        'and your weight went down 1.7 kg in 27 days',
       ),
       findsOneWidget,
     );
@@ -141,8 +141,8 @@ void main() {
     final saved = rows!.last;
     expect(saved.effectiveFrom, '2026-09-27');
     expect(saved.method, TargetMethod.adaptive.index);
-    expect(saved.maintenanceKcal, closeTo(2500, 50));
-    expect(saved.explanationJson, contains('"loggedDays":21'));
+    expect(saved.maintenanceKcal, closeTo(2444, 1));
+    expect(saved.explanationJson, contains('"loggedDays":28'));
     expect(find.text('New targets saved'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
