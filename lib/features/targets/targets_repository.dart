@@ -218,12 +218,31 @@ class TargetsRepository {
     }
 
     final previous = await latestTarget(d, before: true);
+    Explanation? previousExplanation;
+    final json = previous?.explanationJson;
+    if (json != null) {
+      try {
+        previousExplanation = Explanation.fromJson(
+          jsonDecode(json) as Map<String, Object?>,
+        );
+      } on Object {
+        // Not a real explanation (e.g. the check-in "skip" marker, or a
+        // row from before this engine version). Phase/Kalman state falls
+        // back to null below, which starts a fresh phase and prior.
+      }
+    }
     return EngineInput(
       today: d,
       profile: toEngineProfile(profile),
       weighIns: weighIns,
       intake: intake,
       previousMaintenanceKcal: previous?.maintenanceKcal,
+      previousPhaseStartDayKey: previousExplanation?.phaseStartDayKey,
+      previousWeeklyRatePctRaw: previousExplanation?.weeklyRatePctRaw,
+      previousFormulaKcal: previousExplanation?.formulaKcal,
+      previousMaintenanceMode: previousExplanation?.maintenanceMode,
+      previousSmoothedMeasuredKcal: previousExplanation?.smoothedMeasuredKcal,
+      previousMeasuredVarianceKcal2: previousExplanation?.measuredVarianceKcal2,
     );
   }
 
