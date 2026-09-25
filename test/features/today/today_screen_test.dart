@@ -28,6 +28,8 @@ void main() {
     DailyTargets? targets,
     Macros eaten = Macros.zero,
     bool checkInDue = false,
+    DateTime Function()? clock,
+    DayIntake Function(String dayKey)? intakeFor,
   }) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
@@ -36,17 +38,20 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(db),
-          clockProvider.overrideWithValue(() => DateTime(2026, 9, 25, 12)),
+          clockProvider.overrideWithValue(
+            clock ?? () => DateTime(2026, 9, 25, 12),
+          ),
           currentTargetsProvider.overrideWith((ref) => Stream.value(targets)),
           checkInDueProvider.overrideWith((ref) => Stream.value(checkInDue)),
           dayIntakeProvider.overrideWith(
             (ref, dayKey) => Stream.value(
-              DayIntake(
-                dayKey: dayKey,
-                total: eaten,
-                byMeal: const {},
-                fullyLogged: false,
-              ),
+              intakeFor?.call(dayKey) ??
+                  DayIntake(
+                    dayKey: dayKey,
+                    total: dayKey == '2026-09-25' ? eaten : Macros.zero,
+                    byMeal: const {},
+                    fullyLogged: false,
+                  ),
             ),
           ),
         ],
@@ -161,12 +166,223 @@ void main() {
     final rows = await db.select(db.weighIns).get();
     expect(rows.single.dayKey, '2026-09-25');
     expect(rows.single.weightKg, 81.7);
-    // The day has a weigh-in now, so the quick row disappears.
+    // The day has a weigh-in now, so a compact summary replaces the field.
     expect(field, findsNothing);
+    expect(find.text('Saved 81.7 kg'), findsOneWidget);
+    expect(find.text('81.7 kg · trend 81.7'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('checkInBanner')));
     await tester.pumpAndSettle();
     expect(find.text('Weekly check-in'), findsOneWidget);
     await unmount(tester);
+  });
+
+  Future<void> addWeighIn(String day, double kg) => db
+      .into(db.weighIns)
+      .insert(
+        WeighInsCompanion.insert(
+          dayKey: day,
+          weightKg: kg,
+          createdAt: DateTime(2026, 9, 25),
+        ),
+      );
+
+  double topOf(WidgetTester tester, Finder f) => tester.getTopLeft(f).dy;
+
+  testWidgets('morning weigh-in sits above the calorie card, with undo', (
+    tester,
+  ) async {
+    await addWeighIn('2026-09-18', 83.0);
+    await addWeighIn('2026-09-24', 82.4);
+    await pumpToday(tester, targets: targets);
+
+    final card = find.byKey(const Key('quickWeighInCard'));
+    expect(card, findsOneWidget);
+    expect(find.text('Last: 82.4'), findsOneWidget);
+    expect(
+      topOf(tester, card),
+      lessThan(topOf(tester, find.byKey(const Key('kcalRemaining')))),
+    );
+
+    // Comma works, and Done on the keyboard saves.
+    await tester.enterText(find.byKey(const Key('quickWeighInField')), '82,1');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    for (var i = 0; i < 4; i++) {
+      await tester.pump();
+    }
+    expect(find.text('Saved 82.1 kg'), findsOneWidget);
+    final row = find.byKey(const Key('weighInSummaryRow'));
+    expect(row, findsOneWidget);
+    expect(card, findsNothing);
+    expect(
+      topOf(tester, row),
+      lessThan(topOf(tester, find.byKey(const Key('kcalRemaining')))),
+    );
+    // Trend: 83.0, +0.1*(82.4-83.0)=82.94, +0.1*(82.1-82.94)=82.856.
+    expect(find.text('82.1 kg · trend 82.9 · −0.1 this week'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.text('Undo'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump();
+    }
+    final rows = await db.select(db.weighIns).get();
+    expect(rows.map((r) => r.dayKey), isNot(contains('2026-09-25')));
+    expect(find.byKey(const Key('quickWeighInCard')), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('tapping the weigh-in summary opens the edit dialog', (
+    tester,
+  ) async {
+    await addWeighIn('2026-09-25', 82.4);
+    await pumpToday(tester, targets: targets);
+    await tester.tap(find.byKey(const Key('weighInSummaryRow')));
+    await tester.pumpAndSettle();
+    expect(find.text("Update today's weigh-in"), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('weighInKgField')), '82.0');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    final rows = await db.select(db.weighIns).get();
+    expect(rows.single.weightKg, 82.0);
+    await unmount(tester);
+  });
+
+  testWidgets('past days show a bar that jumps back to today', (tester) async {
+    await pumpToday(tester, targets: targets);
+    expect(find.byKey(const Key('pastDayBar')), findsNothing);
+
+    await tester.tap(find.byTooltip('Previous day'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Previous day'));
+    await tester.pump();
+    expect(find.text('Viewing Wed 23 Sep'), findsOneWidget);
+
+    await tester.tap(find.text('Back to today'));
+    await tester.pump();
+    expect(find.byKey(const Key('pastDayBar')), findsNothing);
+    expect(find.text('Today'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('jumps to the new day when resumed after midnight', (
+    tester,
+  ) async {
+    var now = DateTime(2026, 9, 25, 23, 50);
+    await pumpToday(tester, targets: targets, clock: () => now);
+    expect(find.text('Today'), findsOneWidget);
+
+    final binding = tester.binding;
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+    ]) {
+      binding.handleAppLifecycleStateChanged(state);
+    }
+    now = DateTime(2026, 9, 26, 7, 30);
+    for (final state in [
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      binding.handleAppLifecycleStateChanged(state);
+    }
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.byKey(const Key('pastDayBar')), findsNothing);
+    // Yesterday (the 25th) is reachable with the back arrow.
+    await tester.tap(find.byTooltip('Previous day'));
+    await tester.pump();
+    expect(find.text('Yesterday'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('stays on a past day when resumed after midnight', (
+    tester,
+  ) async {
+    var now = DateTime(2026, 9, 25, 23, 50);
+    await pumpToday(tester, targets: targets, clock: () => now);
+    await tester.tap(find.byTooltip('Previous day'));
+    await tester.pump();
+
+    now = DateTime(2026, 9, 26, 7, 30);
+    for (final state in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
+    await tester.pump();
+    expect(find.text('Viewing Thu 24 Sep'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  group('yesterday prompt', () {
+    DayIntake intake(String dayKey, {required bool logged}) => DayIntake(
+      dayKey: dayKey,
+      total: dayKey == '2026-09-24'
+          ? const Macros(kcal: 1800, proteinG: 0, fatG: 0, carbsG: 0)
+          : Macros.zero,
+      byMeal: const {},
+      fullyLogged: logged,
+    );
+
+    testWidgets('Yes marks yesterday fully logged and hides the prompt', (
+      tester,
+    ) async {
+      await pumpToday(
+        tester,
+        targets: targets,
+        intakeFor: (d) => intake(d, logged: false),
+      );
+      expect(find.text('Was yesterday complete?'), findsOneWidget);
+
+      await tester.tap(find.text('Yes, mark it'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+      expect(find.byKey(const Key('yesterdayPrompt')), findsNothing);
+      final status = await db.select(db.dayStatuses).getSingle();
+      expect(status.dayKey, '2026-09-24');
+      expect(status.fullyLogged, isTrue);
+      expect(find.text('Yesterday marked as complete'), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('Not really just hides it', (tester) async {
+      await pumpToday(
+        tester,
+        targets: targets,
+        intakeFor: (d) => intake(d, logged: false),
+      );
+      await tester.tap(find.text('Not really'));
+      await tester.pump();
+      expect(find.byKey(const Key('yesterdayPrompt')), findsNothing);
+      expect(await db.select(db.dayStatuses).get(), isEmpty);
+      await unmount(tester);
+    });
+
+    testWidgets('not shown when yesterday is already complete or empty', (
+      tester,
+    ) async {
+      await pumpToday(
+        tester,
+        targets: targets,
+        intakeFor: (d) => intake(d, logged: true),
+      );
+      expect(find.byKey(const Key('yesterdayPrompt')), findsNothing);
+      await unmount(tester);
+
+      await pumpToday(tester, targets: targets);
+      expect(find.byKey(const Key('yesterdayPrompt')), findsNothing);
+      await unmount(tester);
+    });
   });
 }
