@@ -20,15 +20,24 @@ const double kMaxMaintenanceChangeKcal = 150;
 
 /// Minimum data needed for a measured maintenance estimate.
 const int kMinSpanDays = 10;
+
+/// Days the weight trend must run before the adaptive window starts before
+/// its difference is used for the weight change (the lag is < 5% by then);
+/// until then a regression through the raw weigh-ins is used.
+const kTrendWarmupDays = 30;
+
 /// Minimum fully-logged days in the window for a measured estimate.
 const int kMinLoggedDays = 7;
+
 /// Minimum weigh-ins in the window for a measured estimate.
 const int kMinWeighIns = 6;
 
 /// Carb floor (g) kept by lowering fat toward [kMinFatPerKg].
 const double kMinCarbsG = 50;
+
 /// Lowest fat (g per kg of trend weight) when protecting the carb floor.
 const double kMinFatPerKg = 0.6;
+
 /// Default fat (g per kg of trend weight), unless 25% of kcal is more.
 const double kFatPerKg = 0.8;
 
@@ -122,6 +131,7 @@ class Explanation {
   final double trendKg;
   final int ageYears;
   final double bmrKcal;
+
   /// Formula maintenance: BMR × activity factor.
   final double formulaKcal;
 
@@ -139,12 +149,13 @@ class Explanation {
   final double? avgIntakeKcal;
   final double? trendDeltaKg;
 
-  /// Span in days between the two trend points used.
+  /// Days the weight change was measured over.
   final int? days;
 
   /// Fully-logged days in the window (n).
   final int loggedDays;
   final int weighInsInWindow;
+
   /// First and last day keys of the adaptive window (inclusive).
   final String windowStart;
   final String windowEnd;
@@ -152,14 +163,18 @@ class Explanation {
   /// Blended maintenance before the ±150 kcal change limit.
   final double unlimitedMaintenanceKcal;
   final double? previousMaintenanceKcal;
+
   /// True when the ±[kMaxMaintenanceChangeKcal] limit changed the result.
   final bool changeLimited;
   final double maintenanceKcal;
+
   /// Daily deficit from the weekly loss rate (0 in maintenance mode).
   final double deficitKcal;
+
   /// Minimum target: max(BMR, 1500 men / 1200 women).
   final double floorKcal;
   final bool floorApplied;
+
   /// True when trend weight is at or below goal, so target = maintenance.
   final bool maintenanceMode;
 
@@ -323,6 +338,20 @@ class _Measured {
   final int? days;
 }
 
+/// Least-squares slope (kg per day) through [points] of (day, kg). Needs at
+/// least two distinct days.
+double weightSlopeKgPerDay(List<(double, double)> points) {
+  final n = points.length;
+  final meanX = points.map((p) => p.$1).reduce((a, b) => a + b) / n;
+  final meanY = points.map((p) => p.$2).reduce((a, b) => a + b) / n;
+  var sxy = 0.0, sxx = 0.0;
+  for (final (x, y) in points) {
+    sxy += (x - meanX) * (y - meanY);
+    sxx += (x - meanX) * (x - meanX);
+  }
+  return sxx == 0 ? 0 : sxy / sxx;
+}
+
 /// Computes the recommended daily targets for [EngineInput.today].
 ///
 /// Throws [ArgumentError] when there is no weigh-in on or before today.
@@ -368,22 +397,41 @@ Recommendation recommend(EngineInput input) {
       .length;
 
   _Measured measure() {
-    final endTrend = trendByDay[windowEnd];
-    if (endTrend == null) {
-      return _Measured(reason: 'no weigh-ins before yesterday');
-    }
-    String startDay;
-    if (trendByDay.containsKey(windowStart)) {
-      startDay = windowStart;
+    // The smoothed trend lags ~10 days behind a steady loss and needs about a
+    // month to catch up, so in the first weeks a trend difference makes the
+    // measured maintenance far too low. Until the trend has run for
+    // [kTrendWarmupDays] before the window, the weight change is the
+    // least-squares slope through the raw weigh-ins (unbiased, a bit
+    // noisier); after that, the trend difference (unbiased by then and
+    // steadier).
+    final firstWeighIn = weighIns.keys.reduce(
+      (a, b) => a.compareTo(b) < 0 ? a : b,
+    );
+    final useTrend = daysBetween(firstWeighIn, windowStart) >= kTrendWarmupDays;
+
+    final double kgPerDay;
+    final int span;
+    if (useTrend) {
+      span = daysBetween(windowStart, windowEnd);
+      kgPerDay = (trendByDay[windowEnd]! - trendByDay[windowStart]!) / span;
     } else {
-      // Trend starts inside the window: use its first point.
-      startDay = trend.first.dayKey;
-    }
-    final span = daysBetween(startDay, windowEnd);
-    if (span < kMinSpanDays) {
-      return _Measured(
-        reason: 'weight trend covers only $span days (need $kMinSpanDays)',
-      );
+      final points = [
+        for (final e in weighIns.entries)
+          if (e.key.compareTo(windowStart) >= 0 &&
+              e.key.compareTo(windowEnd) <= 0)
+            (daysBetween(windowStart, e.key).toDouble(), e.value),
+      ];
+      if (points.isEmpty) {
+        return _Measured(reason: 'no weigh-ins in the last $kWindowDays days');
+      }
+      final xs = points.map((p) => p.$1);
+      span = (xs.reduce(math.max) - xs.reduce(math.min)).round();
+      if (span < kMinSpanDays) {
+        return _Measured(
+          reason: 'weigh-ins cover only $span days (need $kMinSpanDays)',
+        );
+      }
+      kgPerDay = weightSlopeKgPerDay(points);
     }
     if (n < kMinLoggedDays) {
       return _Measured(
@@ -400,15 +448,14 @@ Recommendation recommend(EngineInput input) {
       );
     }
     final avgIntake = loggedKcal.reduce((a, b) => a + b) / n;
-    final delta = endTrend - trendByDay[startDay]!;
-    final raw = avgIntake - delta * kKcalPerKg / span;
+    final raw = avgIntake - kgPerDay * kKcalPerKg;
     final lo = 0.6 * formula, hi = 1.6 * formula;
     final value = raw.clamp(lo, hi).toDouble();
     return _Measured(
       value: value,
       clamped: value != raw,
       avgIntake: avgIntake,
-      deltaKg: delta,
+      deltaKg: kgPerDay * span,
       days: span,
     );
   }
