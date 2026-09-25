@@ -4,14 +4,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
+import '../../../core/day_key.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
 import '../data/barcode_lookup.dart';
+import '../data/food_repository.dart';
 import '../data/remote_food.dart';
 import '../food_providers.dart';
+import '../nutrition_math.dart';
 import '../widgets/error_retry.dart';
 import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
+import '../widgets/undo_snack.dart';
 import 'barcode_scan_screen.dart';
 import 'custom_food_screen.dart';
 import 'describe_food_screen.dart';
@@ -87,6 +92,34 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     if (mounted) await _openPortion(food);
   }
 
+  /// Logs [grams] of [food] right away (the amount from last time) and
+  /// confirms with Undo. Stays open to add more.
+  Future<void> _quickAdd(Food food, double grams) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(foodRepositoryProvider);
+    try {
+      final id = await repo.logFood(
+        dayKey: widget.dayKey,
+        meal: widget.meal,
+        foodId: food.id,
+        grams: grams,
+      );
+      showAddedSnack(
+        messenger,
+        repo,
+        addedMessage(
+          food.name,
+          grams,
+          macrosForGrams(per100gOf(food), grams).kcal,
+          widget.meal,
+        ),
+        [id],
+      );
+    } catch (e, st) {
+      _showError('Could not add it.', e, st);
+    }
+  }
+
   void _showError(String what, Object error, StackTrace st) {
     final message = friendlyError(error, st);
     if (!mounted) return;
@@ -151,7 +184,13 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       length: 4,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Add to ${mealLabel(widget.meal)}'),
+          title: Text(
+            withDay(
+              'Add to ${mealLabel(widget.meal)}',
+              widget.dayKey,
+              dayKeyOf(ref.read(clockProvider)()),
+            ),
+          ),
           actions: [
             IconButton(
               key: const Key('new-food-button'),
@@ -209,18 +248,22 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
                   _FoodList(
                     provider: recentFoodsProvider,
                     empty: 'Foods you log will show up here.',
+                    emptyAction: ('Type what you ate', _describe),
                     onTap: _openPortion,
+                    onQuickAdd: _quickAdd,
                   ),
                   _FoodList(
                     provider: favoriteFoodsProvider,
-                    empty: 'Tap the star on a food to keep it here.',
+                    empty:
+                        'Tap the star on a food to keep it here for '
+                        'quick adding.',
                     onTap: _openPortion,
+                    onQuickAdd: _quickAdd,
                   ),
                   _FoodList(
                     provider: customFoodsProvider,
-                    empty:
-                        'Foods you create, e.g. from a label, show up '
-                        'here. Tap + to add one.',
+                    empty: 'Foods you create, e.g. from a label, show up here.',
+                    emptyAction: ('New food', () => _createFood()),
                     onTap: _openPortion,
                     onEdit: _editFood,
                   ),
@@ -236,46 +279,94 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
 }
 
 /// A list of local foods from [provider]. With [onEdit], rows show an edit
-/// button instead of the favorite star.
+/// button; with [onQuickAdd], foods logged before show their last amount and
+/// a button that logs it again at once.
 class _FoodList extends ConsumerWidget {
   const _FoodList({
     required this.provider,
     required this.empty,
+    this.emptyAction,
     required this.onTap,
     this.onEdit,
+    this.onQuickAdd,
   });
 
   final StreamProvider<List<Food>> provider;
   final String empty;
+
+  /// Button shown under [empty] that fixes the empty state.
+  final (String, VoidCallback)? emptyAction;
   final void Function(Food) onTap;
   final void Function(Food)? onEdit;
+  final void Function(Food, double grams)? onQuickAdd;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final lastGrams = onQuickAdd == null
+        ? const <int, double>{}
+        : ref.watch(lastGramsByFoodProvider).value ?? const <int, double>{};
     return switch (ref.watch(provider)) {
       AsyncData(:final value) when value.isEmpty => Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Text(empty, textAlign: TextAlign.center),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(empty, textAlign: TextAlign.center),
+              if (emptyAction case (final label, final onPressed)) ...[
+                const SizedBox(height: 16),
+                FilledButton.tonal(
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                  onPressed: onPressed,
+                  child: Text(label),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
       AsyncData(:final value) => ListView.builder(
         itemCount: value.length,
         itemBuilder: (context, i) {
           final f = value[i];
+          final last = lastGrams[f.id];
           return ListTile(
-            title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            minTileHeight: 56,
+            title: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    f.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (f.isFavorite && onEdit == null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(Icons.star, size: 16, color: scheme.primary),
+                  ),
+              ],
+            ),
             subtitle: Text(
-              foodSubtitle(f),
+              last == null ? foodSubtitle(f) : lastTimeLine(f, last),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            trailing: onEdit == null
-                ? (f.isFavorite ? const Icon(Icons.star, size: 18) : null)
-                : IconButton(
+            trailing: onEdit != null
+                ? IconButton(
                     tooltip: 'Edit',
                     icon: const Icon(Icons.edit_outlined),
                     onPressed: () => onEdit!(f),
+                  )
+                : last == null
+                ? null
+                : IconButton(
+                    key: Key('quick-add-${f.id}'),
+                    tooltip: 'Add ${fmtNum(last)} g',
+                    icon: Icon(Icons.add_circle, color: scheme.primary),
+                    onPressed: () => onQuickAdd!(f, last),
                   ),
             onTap: () => onTap(f),
           );

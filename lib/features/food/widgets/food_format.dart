@@ -79,5 +79,15 @@ String withDay(String title, String dayKey, String todayKey) {
   return day == null ? title : '$title · $day';
 }
 
+/// "Added Greek yogurt · 150 g · 146 kcal to Breakfast".
+String addedMessage(String foodName, double grams, double kcal, Meal meal) =>
+    'Added $foodName · ${fmtNum(grams)} g · ${fmtKcal(kcal)} '
+    'to ${mealLabel(meal)}';
+
+/// "150 g last time · 248 kcal" for a food's last logged amount.
+String lastTimeLine(Food f, double grams) =>
+    '${fmtNum(grams)} g last time · '
+    '${fmtKcal(f.kcalPer100g * grams / 100)}';
+
 /// "1 item" / "4 items".
 String itemsLabel(int n) => n == 1 ? '1 item' : '$n items';
