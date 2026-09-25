@@ -80,7 +80,7 @@ void main() {
 
     testWidgets('shows an empty state', (tester) async {
       await pump(tester, const ActivityCard(dayKey: '2026-09-25'));
-      expect(find.text('No activity synced for this day'), findsOneWidget);
+      expect(find.text('No activity yet'), findsOneWidget);
       await unmount(tester);
     });
 
