@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/remote_food.dart';
 import '../food_providers.dart';
+import 'error_retry.dart';
 
 /// Which remote database the Search tab queries.
 enum SearchSource { off, usda }
@@ -156,14 +157,11 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
           );
         },
       ),
-      AsyncError(:final error) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            error is FoodApiException ? error.message : 'Search failed.',
-            textAlign: TextAlign.center,
-          ),
-        ),
+      AsyncError(:final error, :final stackTrace) => ErrorRetry(
+        error: error,
+        stackTrace: stackTrace,
+        message: 'Search didn\'t work.',
+        onRetry: _search,
       ),
       _ => const Center(child: CircularProgressIndicator()),
     };

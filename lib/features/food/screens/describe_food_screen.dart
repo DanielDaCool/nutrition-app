@@ -19,6 +19,7 @@ import '../describe/meal_text_parser.dart';
 import '../describe/unit_weights.dart';
 import '../food_providers.dart';
 import '../nutrition_math.dart';
+import '../widgets/error_retry.dart';
 import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
 import 'custom_food_screen.dart';
@@ -307,10 +308,13 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
         ),
       );
       if (mounted) Navigator.of(context).pop(true);
-    } catch (e) {
+    } catch (e, st) {
+      final message = friendlyError(e, st);
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(SnackBar(content: Text('Could not add: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not add it. $message')),
+      );
     }
   }
 
@@ -379,7 +383,15 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
   ) {
     if (engine == null) {
       if (engineValue.hasError) {
-        return _Message('Could not load your foods: ${engineValue.error}');
+        return ErrorRetry(
+          error: engineValue.error!,
+          stackTrace: engineValue.stackTrace,
+          message: 'Could not load your foods.',
+          onRetry: () {
+            ref.invalidate(allFoodsProvider);
+            ref.invalidate(describeMemoryProvider);
+          },
+        );
       }
       return const SizedBox.shrink();
     }
@@ -945,9 +957,19 @@ class _OnlineSearchPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     Future<void> pick(RemoteFood remote) async {
       final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
       final Food? food;
       if (remote.isComplete) {
-        food = await ref.read(foodRepositoryProvider).upsertRemote(remote);
+        try {
+          food = await ref.read(foodRepositoryProvider).upsertRemote(remote);
+        } catch (e, st) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Could not save it. ${friendlyError(e, st)}'),
+            ),
+          );
+          return;
+        }
       } else {
         food = await navigator.push<Food>(
           MaterialPageRoute(builder: (_) => CustomFoodScreen(draft: remote)),

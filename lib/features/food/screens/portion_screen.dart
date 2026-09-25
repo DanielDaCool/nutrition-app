@@ -90,11 +90,12 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
             grams: grams,
           );
       if (mounted) Navigator.of(context).pop(true);
-    } catch (e) {
+    } catch (e, st) {
+      final message = friendlyError(e, st);
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not add: $e')));
+          .showSnackBar(SnackBar(content: Text('Could not add it. $message')));
     }
   }
 

@@ -75,20 +75,25 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
           MobileScanner(
             controller: _controller,
             onDetect: _onDetect,
-            errorBuilder: (context, error) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  error.errorCode == MobileScannerErrorCode.permissionDenied
-                      ? 'Camera permission is needed to scan. You can type '
-                            'the barcode instead.'
-                      : 'Camera unavailable (${error.errorCode.name}). You '
-                            'can type the barcode instead.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white),
+            errorBuilder: (context, error) {
+              debugPrint('food: camera error ${error.errorCode.name}');
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    error.errorCode == MobileScannerErrorCode.permissionDenied
+                        ? 'Camera permission is needed to scan. You can type '
+                              'the barcode instead.'
+                        : 'The camera isn\'t available right now. You can '
+                              'type the barcode instead.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           Align(
             alignment: Alignment.bottomCenter,

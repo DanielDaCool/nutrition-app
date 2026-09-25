@@ -9,6 +9,7 @@ import '../../../domain/models.dart';
 import '../data/barcode_lookup.dart';
 import '../data/remote_food.dart';
 import '../food_providers.dart';
+import '../widgets/error_retry.dart';
 import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
 import 'barcode_scan_screen.dart';
@@ -76,8 +77,21 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       await _createFood(draft: remote);
       return;
     }
-    final food = await ref.read(foodRepositoryProvider).upsertRemote(remote);
+    final Food food;
+    try {
+      food = await ref.read(foodRepositoryProvider).upsertRemote(remote);
+    } catch (e, st) {
+      _showError('Could not save it.', e, st);
+      return;
+    }
     if (mounted) await _openPortion(food);
+  }
+
+  void _showError(String what, Object error, StackTrace st) {
+    final message = friendlyError(error, st);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('$what $message')));
   }
 
   Future<void> _scan() async {
@@ -94,6 +108,9 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     final BarcodeResult result;
     try {
       result = await ref.read(barcodeLookupProvider).lookup(code);
+    } catch (e, st) {
+      _showError('Could not look up that barcode.', e, st);
+      return;
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -264,7 +281,12 @@ class _FoodList extends ConsumerWidget {
           );
         },
       ),
-      AsyncError(:final error) => Center(child: Text('Error: $error')),
+      AsyncError(:final error, :final stackTrace) => ErrorRetry(
+        error: error,
+        stackTrace: stackTrace,
+        message: 'Could not load your foods.',
+        onRetry: () => ref.invalidate(provider),
+      ),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }
