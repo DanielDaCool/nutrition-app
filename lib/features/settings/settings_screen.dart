@@ -12,6 +12,7 @@ import '../../app/providers.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
+import '../sync/pc_dashboard_tile.dart';
 import '../targets/checkin_screen.dart';
 import '../targets/engine/engine.dart';
 import '../targets/engine/explain.dart';
@@ -63,6 +64,8 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(),
           const HealthConnectSettingsTile(),
           const ExportDataTile(),
+          const Divider(),
+          const PcDashboardTile(),
         ],
       ),
     );
