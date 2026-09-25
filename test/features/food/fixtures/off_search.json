@@ -1,0 +1,39 @@
+{
+  "count": 3,
+  "page": 1,
+  "page_count": 3,
+  "page_size": 24,
+  "products": [
+    {
+      "brands": "Tnuva",
+      "code": "7290004131074",
+      "nutriments": {
+        "carbohydrates_100g": 3.5,
+        "energy-kcal_100g": 97,
+        "fat_100g": 5,
+        "proteins_100g": 11
+      },
+      "product_name": "Cottage cheese 5%",
+      "serving_quantity": 250,
+      "serving_size": "250 g"
+    },
+    {
+      "code": "7290000000024",
+      "nutriments": {"energy-kcal_100g": 50},
+      "product_name": ""
+    },
+    {
+      "brands": "Strauss",
+      "code": "7290011498870",
+      "nutriments": {
+        "energy_100g": 418.4,
+        "proteins_100g": 10
+      },
+      "product_name_en": "Greek Yogurt 0%",
+      "serving_quantity": 150,
+      "serving_quantity_unit": "ml",
+      "serving_size": "150 ml"
+    }
+  ],
+  "skip": 0
+}

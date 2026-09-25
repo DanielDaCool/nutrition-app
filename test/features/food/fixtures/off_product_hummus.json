@@ -1,0 +1,34 @@
+{
+  "code": "7290000066318",
+  "product": {
+    "brands": "Sabra,Strauss",
+    "code": "7290000066318",
+    "generic_name": "",
+    "nutriments": {
+      "carbohydrates": 14,
+      "carbohydrates_100g": 14,
+      "carbohydrates_unit": "g",
+      "energy": 1180,
+      "energy-kcal": 282,
+      "energy-kcal_100g": 282,
+      "energy-kcal_unit": "kcal",
+      "energy-kj": 1180,
+      "energy-kj_100g": 1180,
+      "energy_100g": 1180,
+      "fat": 22,
+      "fat_100g": 22,
+      "proteins": 7.5,
+      "proteins_100g": 7.5,
+      "salt_100g": 1.1,
+      "sugars_100g": 0.5
+    },
+    "product_name": "חומוס אחלה",
+    "product_name_en": "Hummus Salad",
+    "product_name_he": "חומוס אחלה",
+    "serving_quantity": "50",
+    "serving_quantity_unit": "g",
+    "serving_size": "50 g"
+  },
+  "status": 1,
+  "status_verbose": "product found"
+}

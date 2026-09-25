@@ -1,0 +1,278 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:drift/drift.dart' hide isNotNull, isNull;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/day_key.dart';
+import 'package:nutrition_app/data/db/database.dart';
+import 'package:nutrition_app/domain/models.dart';
+import 'package:nutrition_app/features/targets/targets_providers.dart';
+import 'package:nutrition_app/features/targets/targets_repository.dart';
+
+import '../../helpers/test_db.dart';
+
+/// Friday.
+final friday = DateTime(2026, 9, 25, 9);
+
+/// Sunday (default check-in weekday).
+final sunday = DateTime(2026, 9, 27, 9);
+
+Future<void> addProfile(TargetsRepository repo, {int weekday = 7}) =>
+    repo.saveProfile(
+      sex: Sex.male,
+      birthDate: DateTime(1996, 9, 25),
+      heightCm: 180,
+      activityLevel: ActivityLevel.moderate,
+      goalWeightKg: 80,
+      weeklyRatePct: 0.5,
+      proteinPerKg: 2.0,
+      checkInWeekday: weekday,
+    );
+
+Future<void> addWeighIn(AppDatabase db, String day, double kg) => db
+    .into(db.weighIns)
+    .insertOnConflictUpdate(
+      WeighInsCompanion.insert(
+        dayKey: day,
+        weightKg: kg,
+        createdAt: startOfDay(day),
+      ),
+    );
+
+Future<void> addTarget(AppDatabase db, String day, {double kcal = 2400}) => db
+    .into(db.targetHistory)
+    .insert(
+      TargetHistoryCompanion.insert(
+        effectiveFrom: day,
+        kcal: kcal,
+        proteinG: 180,
+        fatG: 70,
+        carbsG: 270,
+        maintenanceKcal: 2900,
+        method: TargetMethod.formula.index,
+        createdAt: startOfDay(day),
+      ),
+    );
+
+/// Waits until [provider] emits a value matching [matcher].
+Future<T> waitFor<T>(
+  ProviderContainer c,
+  StreamProvider<T> provider,
+  bool Function(T) matcher,
+) async {
+  final done = Completer<T>();
+  final sub = c.listen<AsyncValue<T>>(provider, (_, next) {
+    final v = next.value;
+    if (next.hasValue && matcher(v as T) && !done.isCompleted) {
+      done.complete(v);
+    }
+  }, fireImmediately: true);
+  try {
+    return await done.future.timeout(const Duration(seconds: 5));
+  } finally {
+    sub.close();
+  }
+}
+
+void main() {
+  late AppDatabase db;
+  late DateTime now;
+  late ProviderContainer container;
+  late TargetsRepository repo;
+
+  setUp(() {
+    db = openTestDatabase();
+    now = friday;
+    container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        clockProvider.overrideWithValue(() => now),
+      ],
+    );
+    repo = container.read(targetsRepositoryProvider);
+  });
+
+  tearDown(() async {
+    container.dispose();
+    await db.close();
+  });
+
+  test('no profile: no targets and no check-in', () async {
+    expect(
+      await waitFor(container, currentTargetsProvider, (_) => true),
+      isNull,
+    );
+    expect(await waitFor(container, checkInDueProvider, (_) => true), isFalse);
+  });
+
+  test('first target is auto-created after saving a profile', () async {
+    // Listen before anything exists, then add data: the stream must react.
+    expect(
+      await waitFor(container, currentTargetsProvider, (_) => true),
+      isNull,
+    );
+    await addWeighIn(db, '2026-09-25', 90);
+    await addProfile(repo);
+
+    final t = await waitFor<DailyTargets?>(
+      container,
+      currentTargetsProvider,
+      (t) => t != null,
+    );
+    // Same numbers as the hand-checked engine test.
+    expect(t!.effectiveFrom, '2026-09-25');
+    expect(t.macros.kcal, 2420);
+    expect(t.method, TargetMethod.formula);
+
+    final rows = await db.select(db.targetHistory).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.effectiveFrom, '2026-09-25');
+    final why = jsonDecode(rows.single.explanationJson!) as Map;
+    expect(why['formulaKcal'], closeTo(2914, 1e-6));
+
+    // First target starts today, and today is not the check-in day.
+    expect(await waitFor(container, checkInDueProvider, (_) => true), isFalse);
+  });
+
+  test('profile without weigh-in: check-in due, no targets yet', () async {
+    await addProfile(repo);
+    expect(
+      await waitFor(container, currentTargetsProvider, (_) => true),
+      isNull,
+    );
+    expect(await waitFor(container, checkInDueProvider, (_) => true), isTrue);
+  });
+
+  test('check-in is due on the check-in weekday', () async {
+    now = sunday;
+    await addProfile(repo); // Sunday
+    await addWeighIn(db, '2026-09-19', 90);
+    await addTarget(db, '2026-09-20');
+    expect(await waitFor(container, checkInDueProvider, (_) => true), isTrue);
+
+    final rec = await repo.recommendToday();
+    await repo.saveRecommendation(rec!);
+    expect(await waitFor(container, checkInDueProvider, (d) => !d), isFalse);
+  });
+
+  test('check-in is not due on other weekdays', () async {
+    await addProfile(repo, weekday: DateTime.sunday);
+    await addTarget(db, '2026-09-20');
+    expect(await waitFor(container, checkInDueProvider, (_) => true), isFalse);
+  });
+
+  test('accepting saves a TargetHistory row effective today', () async {
+    now = sunday;
+    await addProfile(repo);
+    await addWeighIn(db, '2026-09-19', 90);
+    await addTarget(db, '2026-09-20', kcal: 2000);
+
+    final rec = await repo.recommendToday();
+    // Previous maintenance 2900, formula ~2914: within ±150, not limited.
+    expect(rec!.explanation.previousMaintenanceKcal, 2900);
+    await repo.saveRecommendation(rec);
+    await repo.saveRecommendation(rec); // same day again: replaced, not added
+
+    final rows = await (db.select(
+      db.targetHistory,
+    )..orderBy([(t) => OrderingTerm.asc(t.effectiveFrom)])).get();
+    expect(rows.map((r) => r.effectiveFrom), ['2026-09-20', '2026-09-27']);
+    expect(rows.last.kcal, rec.macros.kcal);
+    expect(rows.last.explanationJson, isNotNull);
+
+    final t = await waitFor<DailyTargets?>(
+      container,
+      currentTargetsProvider,
+      (t) => t?.effectiveFrom == '2026-09-27',
+    );
+    expect(t!.macros.kcal, rec.macros.kcal);
+  });
+
+  test('skip keeps the current numbers and ends the check-in', () async {
+    now = sunday;
+    await addProfile(repo);
+    await addWeighIn(db, '2026-09-19', 90);
+    await addTarget(db, '2026-09-20', kcal: 2000);
+    await repo.keepCurrentTarget();
+    final rows = await db.select(db.targetHistory).get();
+    expect(rows, hasLength(2));
+    expect(rows.map((r) => r.kcal), [2000, 2000]);
+    expect(await repo.checkInDue(), isFalse);
+  });
+
+  test('future-dated targets are ignored', () async {
+    await addProfile(repo);
+    await addWeighIn(db, '2026-09-25', 90);
+    await addTarget(db, '2026-09-20', kcal: 2000);
+    await addTarget(db, '2026-10-01', kcal: 1800);
+    final t = await waitFor<DailyTargets?>(
+      container,
+      currentTargetsProvider,
+      (t) => t != null,
+    );
+    expect(t!.macros.kcal, 2000);
+  });
+
+  test(
+    'loadInput sums logged kcal per day and reads fully-logged flags',
+    () async {
+      await addProfile(repo);
+      await addWeighIn(db, '2026-09-20', 91);
+      await addWeighIn(db, '2026-09-24', 90);
+      await addWeighIn(db, '2026-09-26', 89); // after today: ignored
+      final foodId = await db
+          .into(db.foods)
+          .insert(
+            FoodsCompanion.insert(
+              source: 'custom',
+              name: 'Test food',
+              kcalPer100g: 100,
+              proteinPer100g: 1,
+              fatPer100g: 1,
+              carbsPer100g: 1,
+              createdAt: friday,
+            ),
+          );
+      Future<void> log(String day, double kcal) => db
+          .into(db.foodLogEntries)
+          .insert(
+            FoodLogEntriesCompanion.insert(
+              dayKey: day,
+              meal: Meal.lunch.index,
+              foodId: foodId,
+              grams: 100,
+              kcal: kcal,
+              proteinG: 0,
+              fatG: 0,
+              carbsG: 0,
+              createdAt: friday,
+            ),
+          );
+      await log('2026-09-23', 1200);
+      await log('2026-09-23', 900);
+      await log('2026-09-24', 1500);
+      await log('2026-09-25', 800); // today: outside the window
+      await log('2026-09-01', 800); // before the window
+      await db
+          .into(db.dayStatuses)
+          .insert(
+            DayStatusesCompanion.insert(
+              dayKey: '2026-09-23',
+              fullyLogged: const Value(true),
+            ),
+          );
+      await addTarget(db, '2026-09-20');
+
+      final input = (await repo.loadInput())!;
+      expect(input.today, '2026-09-25');
+      expect(input.weighIns.keys, ['2026-09-20', '2026-09-24']);
+      expect(input.intake.keys.toSet(), {'2026-09-23', '2026-09-24'});
+      expect(input.intake['2026-09-23']!.kcal, 2100);
+      expect(input.intake['2026-09-23']!.fullyLogged, isTrue);
+      expect(input.intake['2026-09-24']!.fullyLogged, isFalse);
+      expect(input.previousMaintenanceKcal, 2900);
+    },
+  );
+}
