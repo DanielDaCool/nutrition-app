@@ -43,11 +43,16 @@ class ParsedItem {
   double? get grams => estimate?.grams;
   String? get gramsExplanation => estimate?.explanation;
 
-  /// Worth a second look: no confident food or a guessed weight.
+  /// Worth a second look: no confident food, a guessed weight, or an amount
+  /// big enough that it's probably misread ("10 bamba" as ten bags).
   bool get needsLook =>
       match == null ||
       !match!.isConfident ||
-      estimate?.confidence == WeightConfidence.guess;
+      estimate?.confidence == WeightConfidence.guess ||
+      (macros?.kcal ?? 0) > suspiciousKcal;
+
+  /// One item above this many kcal gets a "check this" hint.
+  static const suspiciousKcal = 1000.0;
 
   /// Nutrition of [grams] of the matched food.
   Macros? get macros => match == null || estimate == null
@@ -100,6 +105,9 @@ class DescribeEngine {
   }
 
   ParsedItem _item(String key, ParsedPhrase p) {
+    final percent = _asPercent(p);
+    if (percent != null) return _item(key, percent);
+
     final matches = matcher.rank(
       p.foodText,
       learnedKey: memory.foodFor(p.foodText),
@@ -113,10 +121,47 @@ class DescribeEngine {
       phrase: p,
       matches: matches,
       match: match,
-      estimate: match == null
-          ? null
-          : gramsFor(match.candidate, p.quantity, p.unit),
+      estimate: match == null ? null : _estimate(match.candidate, p),
     );
+  }
+
+  /// "cottage 3" / "milk 1": a bare number after the food is its fat % when
+  /// a food with that % exists, e.g. "Cottage cheese 3%".
+  ParsedPhrase? _asPercent(ParsedPhrase p) {
+    if (!p.numberAfterFood || p.foodText.contains('%')) return null;
+    final n = p.quantity;
+    if (n <= 0 || n > 40) return null;
+    final pct = '${n == n.roundToDouble() ? n.round() : n}%';
+    final text = '${p.foodText} $pct';
+    final ranked = matcher.rank(text, learnedKey: memory.foodFor(text));
+    if (ranked.isEmpty || !ranked.first.isConfident) return null;
+    if (!ranked.first.candidate.name.toLowerCase().contains(pct)) return null;
+    return ParsedPhrase(
+      original: p.original,
+      quantity: 1,
+      unit: null,
+      foodText: text,
+      quantityGiven: false,
+    );
+  }
+
+  /// Grams for [p]; "25 almonds" counts pieces when the food has a known
+  /// piece weight, otherwise a bare number of 20+ stays grams.
+  GramsEstimate _estimate(FoodCandidate food, ParsedPhrase p) {
+    if (p.gramsAssumed && !p.numberAfterFood && _looksPlural(p.foodText)) {
+      final pieces = gramsFor(food, p.quantity, MeasureUnit.piece);
+      if (pieces.confidence != WeightConfidence.guess) return pieces;
+    }
+    return gramsFor(food, p.quantity, p.unit);
+  }
+
+  static bool _looksPlural(String foodText) {
+    final last = foodText.split(' ').last;
+    return last.length > 3 &&
+        last.endsWith('s') &&
+        !last.endsWith('ss') &&
+        !last.endsWith('us') &&
+        singularize(last) != last;
   }
 
   /// Grams for [quantity] [unit] of [food], using what the user taught.

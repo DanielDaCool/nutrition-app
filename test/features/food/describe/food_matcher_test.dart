@@ -97,6 +97,38 @@ void main() {
   });
 
   group('DescribeEngine', () {
+    test('a bare number after the food can be its fat %', () {
+      final e = DescribeEngine(_builtins, DescribeMemory.empty);
+      final item = e.parse('cottage 3').items.single;
+      expect(item.match!.candidate.name, 'Cottage cheese 3%');
+      expect(item.phrase.quantityGiven, isFalse);
+      // No such % -> it stays a count.
+      final eggs = e.parse('eggs 2').items.single;
+      expect(eggs.grams, 100);
+    });
+
+    test('"25 almonds" counts nuts, "rice 150" is grams', () {
+      final e = DescribeEngine(_builtins, DescribeMemory.empty);
+      final almonds = e.parse('25 almonds').items.single;
+      expect(almonds.grams, closeTo(25 * 1.3, 1e-9));
+      expect(almonds.gramsExplanation, '25 pieces × 1.3 g');
+      expect(e.parse('rice 150').items.single.grams, 150);
+      expect(e.parse('150 rice').items.single.grams, 150);
+    });
+
+    test('condiments with no amount get a small serving', () {
+      final e = DescribeEngine(_builtins, DescribeMemory.empty);
+      final r = e.parse('half a pita with tahini and honey');
+      expect(r.items[1].grams, 30);
+      expect(r.items[2].grams, 21);
+    });
+
+    test('huge amounts ask for a second look', () {
+      final e = DescribeEngine(_builtins, DescribeMemory.empty);
+      expect(e.parse('10 bamba').items.single.needsLook, isTrue);
+      expect(e.parse('1 bamba').items.single.needsLook, isFalse);
+    });
+
     test('the example sentence', () {
       final e = DescribeEngine(_builtins, DescribeMemory.empty);
       final r = e.parse('5 spoons of cottage cheese 5% and 2 eggs for lunch');
