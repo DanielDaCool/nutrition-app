@@ -6,7 +6,9 @@ import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
+import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
 import 'package:nutrition_app/features/settings/setup_screen.dart';
+import 'package:nutrition_app/features/weight/weight_providers.dart';
 
 import '../features/activity/fake_health_source.dart';
 import '../helpers/test_db.dart';
@@ -57,6 +59,54 @@ Future<void> seedProfile(AppDatabase db) => db
     );
 
 void main() {
+  testWidgets(
+    'a day rollover while backgrounded refreshes weight and dashboard',
+    (tester) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() => seedProfile(db));
+      var clock = DateTime(2026, 9, 25, 23, 50);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            clockProvider.overrideWithValue(() => clock),
+            healthSourceProvider.overrideWithValue(FakeHealthSource()),
+          ],
+          child: const NutritionApp(),
+        ),
+      );
+      await settle(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(NavigationBar)),
+      );
+      final beforeWindow = await container.read(dashboardWindowProvider.future);
+      final beforeTrend = await container.read(weightTrendProvider.future);
+      expect(beforeWindow.$2, '2026-09-25');
+
+      clock = DateTime(2026, 9, 26, 7, 30);
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await settle(tester);
+
+      final afterWindow = await container.read(dashboardWindowProvider.future);
+      expect(afterWindow.$2, '2026-09-26');
+      // The trend provider was invalidated too (new instance, same data).
+      final afterTrend = await container.read(weightTrendProvider.future);
+      expect(afterTrend, beforeTrend);
+      await unmount(tester);
+    },
+  );
+
   testWidgets('app starts and switches tabs', (tester) async {
     tallScreen(tester);
     final db = openTestDatabase();
