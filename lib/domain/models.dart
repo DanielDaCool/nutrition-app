@@ -2,8 +2,10 @@
 /// feature can change its queries without breaking the screens that use it.
 library;
 
+/// Meal slot of a food log entry. Stored by `.index`: only append values.
 enum Meal { breakfast, lunch, dinner, snack }
 
+/// Biological sex for the BMR formula. Stored by `.index`: only append values.
 enum Sex { male, female }
 
 /// Multipliers applied to BMR (Mifflin-St Jeor) for the starting estimate.
@@ -14,6 +16,7 @@ enum ActivityLevel {
   active(1.725);
 
   const ActivityLevel(this.factor);
+  /// Multiplier applied to BMR to get the formula maintenance (kcal/day).
   final double factor;
 }
 
@@ -29,6 +32,8 @@ enum TargetMethod {
   adaptive,
 }
 
+/// Calories plus protein/fat/carbs, in kcal and grams. Used both for amounts
+/// eaten and for targets; add with `+`.
 class Macros {
   const Macros({
     required this.kcal,
@@ -37,6 +42,7 @@ class Macros {
     required this.carbsG,
   });
 
+  /// All zero; handy as the starting value when summing.
   static const zero = Macros(kcal: 0, proteinG: 0, fatG: 0, carbsG: 0);
 
   final double kcal;
@@ -90,6 +96,7 @@ class DayIntake {
   final bool fullyLogged;
 }
 
+/// One workout session as synced from Health Connect.
 class WorkoutSummary {
   const WorkoutSummary({
     required this.id,
@@ -99,10 +106,12 @@ class WorkoutSummary {
     this.sourceApp,
   });
 
+  /// Health Connect record id.
   final String id;
   final String title;
   final DateTime start;
   final DateTime end;
+  /// Package or name of the app that wrote the workout, if known.
   final String? sourceApp;
 
   Duration get duration => end.difference(start);

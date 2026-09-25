@@ -1,3 +1,6 @@
+// Weight trend smoothing (exponential moving average over daily weigh-ins).
+// Pure Dart: shared by the weight screens and the calorie engine.
+
 import '../core/day_key.dart';
 import 'models.dart';
 

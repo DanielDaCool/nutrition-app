@@ -1,3 +1,6 @@
+// Drift table definitions for the whole app. After changing this file run
+// `dart run build_runner build` to regenerate database.g.dart.
+
 import 'package:drift/drift.dart';
 
 // Day-based rows use `dayKey` (YYYY-MM-DD, local time) — see lib/core/day_key.dart.
@@ -15,6 +18,7 @@ class Profiles extends Table {
 
   /// Desired loss per week as % of body weight (e.g. 0.5).
   RealColumn get weeklyRatePct => real().withDefault(const Constant(0.5))();
+  /// Protein grams per kg of reference body weight.
   RealColumn get proteinPerKg => real().withDefault(const Constant(2.0))();
 
   /// DateTime.weekday of the weekly check-in (7 = Sunday).
@@ -73,12 +77,14 @@ class FoodLogEntries extends Table {
   DateTimeColumn get createdAt => dateTime()();
 }
 
+/// A named group of foods the user can log in one go.
 class SavedMeals extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
   DateTimeColumn get createdAt => dateTime()();
 }
 
+/// One food and amount (grams) in a saved meal; deleted with its meal.
 class SavedMealItems extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get savedMealId =>
@@ -141,6 +147,7 @@ class Workouts extends Table {
 @DataClassName('TargetRecord')
 class TargetHistory extends Table {
   IntColumn get id => integer().autoIncrement()();
+  /// Day key from which this target applies; one row per day.
   TextColumn get effectiveFrom => text()();
   RealColumn get kcal => real()();
   RealColumn get proteinG => real()();
