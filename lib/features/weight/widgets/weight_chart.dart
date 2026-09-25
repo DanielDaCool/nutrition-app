@@ -8,20 +8,27 @@ import 'package:intl/intl.dart';
 
 import '../../../core/day_key.dart';
 import '../../../domain/models.dart';
+import '../weight_logic.dart';
 
-/// Trend line with optional raw weigh-ins as dots. x = days since first point.
+/// Trend line with optional raw weigh-ins as dots and an optional dashed goal
+/// line. x = days since first point.
 class WeightChart extends StatelessWidget {
   const WeightChart({
     super.key,
     required this.points,
     this.showWeighIns = true,
     this.height = 220,
+    this.goalKg,
   });
 
   final List<TrendPoint> points;
+
   /// Draw the raw scale weights as dots next to the trend line.
   final bool showWeighIns;
   final double height;
+
+  /// Goal weight drawn as a dashed, labelled line (null = none).
+  final double? goalKg;
 
   @override
   Widget build(BuildContext context) {
@@ -50,13 +57,18 @@ class WeightChart extends StatelessWidget {
         maxY = math.max(maxY, s);
       }
     }
+    final goal = goalKg;
+    if (goal != null) {
+      minY = math.min(minY, goal);
+      maxY = math.max(maxY, goal);
+    }
     minY = (minY - 0.5).floorToDouble();
     maxY = (maxY + 0.5).ceilToDouble();
     final maxX = math.max(1.0, trendSpots.last.x);
     final xInterval = math.max(1.0, (maxX / 4).ceilToDouble());
     final yInterval = _niceInterval(maxY - minY);
 
-    final labelStyle = textTheme.labelSmall?.copyWith(
+    final labelStyle = textTheme.labelMedium?.copyWith(
       color: scheme.onSurfaceVariant,
     );
 
@@ -74,7 +86,26 @@ class WeightChart extends StatelessWidget {
               drawVerticalLine: false,
               horizontalInterval: yInterval,
               getDrawingHorizontalLine: (_) =>
-                  FlLine(color: scheme.outlineVariant, strokeWidth: 0.5),
+                  FlLine(color: scheme.outlineVariant, strokeWidth: 1),
+            ),
+            extraLinesData: ExtraLinesData(
+              horizontalLines: [
+                if (goal != null)
+                  HorizontalLine(
+                    y: goal,
+                    color: scheme.secondary,
+                    strokeWidth: 1.5,
+                    dashArray: const [6, 4],
+                    label: HorizontalLineLabel(
+                      show: true,
+                      alignment: Alignment.topRight,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: scheme.secondary,
+                      ),
+                      labelResolver: (_) => goalLabel(goal),
+                    ),
+                  ),
+              ],
             ),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
@@ -85,7 +116,7 @@ class WeightChart extends StatelessWidget {
                 axisNameSize: 18,
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 40,
+                  reservedSize: 44,
                   interval: yInterval,
                   getTitlesWidget: (value, meta) => SideTitleWidget(
                     meta: meta,
@@ -101,7 +132,7 @@ class WeightChart extends StatelessWidget {
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 24,
+                  reservedSize: 26,
                   interval: xInterval,
                   // The last date label would sit on the edge and get clipped.
                   maxIncluded: false,
@@ -135,7 +166,7 @@ class WeightChart extends StatelessWidget {
               LineChartBarData(
                 spots: trendSpots,
                 color: scheme.primary,
-                barWidth: 2.5,
+                barWidth: 3,
                 isCurved: false,
                 dotData: const FlDotData(show: false),
               ),
@@ -147,10 +178,10 @@ class WeightChart extends StatelessWidget {
                   dotData: FlDotData(
                     getDotPainter: (spot, xPct, bar, index) =>
                         FlDotCirclePainter(
-                          radius: 3,
-                          color: scheme.tertiary.withValues(alpha: 0.8),
-                          strokeWidth: 0,
-                          strokeColor: Colors.transparent,
+                          radius: 4.5,
+                          color: scheme.tertiary,
+                          strokeWidth: 1.5,
+                          strokeColor: scheme.surface,
                         ),
                   ),
                 ),
@@ -175,18 +206,23 @@ double _niceInterval(double span) {
 String shortDateLabel(String dayKey) =>
     DateFormat('d MMM').format(startOfDay(dayKey));
 
-/// Placeholder shown instead of a chart that has no data.
+/// Placeholder shown instead of a chart that has no data, with an optional
+/// button that fixes it.
 class ChartEmptyState extends StatelessWidget {
   const ChartEmptyState({
     super.key,
     required this.message,
     this.height = 160,
     this.icon = Icons.show_chart,
+    this.action,
   });
 
   final String message;
   final double height;
   final IconData icon;
+
+  /// E.g. a button that adds the missing data.
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +233,7 @@ class ChartEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: scheme.outline, size: 32),
+            Icon(icon, color: scheme.onSurfaceVariant, size: 32),
             const SizedBox(height: 8),
             Text(
               message,
@@ -205,6 +241,7 @@ class ChartEmptyState extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
+            if (action != null) ...[const SizedBox(height: 12), action!],
           ],
         ),
       ),

@@ -54,16 +54,77 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('empty database shows every empty state without errors', (
+  Future<void> addProfileAndWeighIn() async {
+    await db
+        .into(db.profiles)
+        .insert(
+          ProfilesCompanion.insert(
+            sex: 0,
+            birthDate: DateTime(1990),
+            heightCm: 180,
+            activityLevel: 1,
+            goalWeightKg: 78,
+            updatedAt: DateTime(2026, 9, 1),
+          ),
+        );
+    await db
+        .into(db.weighIns)
+        .insert(
+          WeighInsCompanion.insert(
+            dayKey: '2026-09-25',
+            weightKg: 82,
+            createdAt: DateTime(2026, 9, 25),
+          ),
+        );
+  }
+
+  testWidgets('empty database shows one setup card, not empty charts', (
     tester,
   ) async {
     await pumpDashboard(tester);
     expect(tester.takeException(), isNull);
-    expect(find.text('No weigh-ins in this range yet'), findsOneWidget);
+    expect(find.text('Finish setup'), findsOneWidget);
+    expect(find.text('Set up your profile'), findsOneWidget);
+    expect(find.text('Add your first weigh-in'), findsOneWidget);
+    expect(find.textContaining('No fully logged days'), findsNothing);
+    expect(find.textContaining('No step data'), findsNothing);
+    expect(find.textContaining('No workouts in this range'), findsNothing);
+    expect(find.textContaining('No maintenance estimate yet'), findsNothing);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+
+    // The weigh-in step opens the dialog and saves.
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.enterText(find.byKey(const Key('weighInKgField')), '82.4');
+    await tester.tap(find.text('Save'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect((await db.select(db.weighIns).get()).single.weightKg, 82.4);
+    expect(find.text('Add your first weigh-in'), findsOneWidget); // done ✓
+    expect(find.widgetWithText(FilledButton, 'Add'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('after setup, empty sections explain and offer a fix', (
+    tester,
+  ) async {
+    await addProfileAndWeighIn();
+    await pumpDashboard(tester, brightness: Brightness.dark);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Finish setup'), findsNothing);
+    expect(
+      find.text('Your trend appears after a few weigh-ins'),
+      findsOneWidget,
+    );
+    expect(find.text('Add weigh-in'), findsOneWidget);
     expect(find.textContaining('No fully logged days'), findsOneWidget);
     expect(find.textContaining('No step data'), findsOneWidget);
-    expect(find.text('No workouts in this range'), findsOneWidget);
+    expect(find.byKey(const Key('connectHealthConnect')), findsOneWidget);
+    expect(find.textContaining('No workouts in this range'), findsOneWidget);
     expect(find.textContaining('No maintenance estimate yet'), findsOneWidget);
+    expect(find.text('Open settings'), findsOneWidget);
 
     for (final label in ['12 weeks', 'All', '4 weeks']) {
       await tester.tap(find.text(label));
@@ -146,10 +207,19 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('No weigh-ins in this range yet'), findsNothing);
       expect(find.textContaining('No step data'), findsNothing);
-      expect(find.text('No workouts in this range'), findsNothing);
+      expect(find.textContaining('No workouts in this range'), findsNothing);
       expect(find.textContaining('No maintenance estimate'), findsNothing);
       expect(find.text('kcal/day'), findsNWidgets(2));
       expect(find.text('steps'), findsOneWidget);
+      // Headline numbers on each card.
+      expect(find.textContaining(RegExp(r'^Trend \d+\.\d kg · ')), findsOne);
+      expect(find.textContaining(RegExp(r'^Avg [\d,]+/day$')), findsOne);
+      expect(
+        find.textContaining(RegExp(r'^Avg 2,050 of [\d,]+ kcal$')),
+        findsOne,
+      );
+      expect(find.textContaining(RegExp(r'^\d+ workouts · ')), findsOne);
+      expect(find.text('Now 2,550 kcal/day'), findsOneWidget);
 
       await tester.tap(find.text('All'));
       for (var i = 0; i < 5; i++) {
