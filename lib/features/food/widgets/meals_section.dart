@@ -10,8 +10,8 @@ import '../../../core/day_key.dart';
 import '../../../domain/models.dart';
 import '../data/food_repository.dart';
 import '../food_providers.dart';
-import '../nutrition_math.dart';
 import '../screens/add_food_screen.dart';
+import 'entry_edit_sheet.dart';
 import 'error_retry.dart';
 import 'food_format.dart';
 import 'undo_snack.dart';
@@ -293,9 +293,43 @@ class _MealBlockState extends ConsumerState<_MealBlock> {
             ),
           ),
         for (final item in items)
-          _ItemTile(item: item, onDismissed: () => _delete(item)),
+          LoggedItemTile(
+            item: item,
+            onTap: () => _edit(item),
+            onDismissed: () => _delete(item),
+          ),
       ],
     );
+  }
+
+  /// Opens the edit sheet: new grams and/or another meal, or delete.
+  Future<void> _edit(LoggedItem item) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final choice = await showEntryEditSheet(context, item);
+    if (choice == null || !mounted) return;
+    switch (choice) {
+      case EntryDelete():
+        await _delete(item);
+      case EntrySave(:final grams, :final meal):
+        final moved = meal != item.meal;
+        if (!moved && grams == item.grams) return;
+        try {
+          await ref
+              .read(foodRepositoryProvider)
+              .updateEntry(item.id, grams: grams, meal: moved ? meal : null);
+          if (moved) {
+            showInfoSnack(
+              messenger,
+              'Moved ${item.foodName} to ${mealLabel(meal)}',
+            );
+          }
+        } catch (e, st) {
+          showInfoSnack(
+            messenger,
+            'Could not save it. ${friendlyError(e, st)}',
+          );
+        }
+    }
   }
 
   /// Deletes the entry at once and offers Undo, which re-inserts the same
@@ -310,101 +344,5 @@ class _MealBlockState extends ConsumerState<_MealBlock> {
       if (mounted) setState(() => _dismissed.remove(item.id));
       repo.restoreEntry(removed);
     });
-  }
-}
-
-/// A logged entry: tap to change grams, swipe left to delete.
-class _ItemTile extends ConsumerWidget {
-  const _ItemTile({required this.item, required this.onDismissed});
-
-  final LoggedItem item;
-  final VoidCallback onDismissed;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Dismissible(
-      key: ValueKey('entry-${item.id}'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Theme.of(context).colorScheme.errorContainer,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: const Icon(Icons.delete_outline),
-      ),
-      onDismissed: (_) => onDismissed(),
-      child: ListTile(
-        contentPadding: const EdgeInsets.only(left: 32, right: 16),
-        title: Text(
-          item.foodName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text('${fmtNum(item.grams)} g · ${macroLine(item.macros)}'),
-        trailing: Text(fmtKcal(item.macros.kcal)),
-        onTap: () => _editGrams(context, ref),
-      ),
-    );
-  }
-
-  Future<void> _editGrams(BuildContext context, WidgetRef ref) async {
-    final grams = await showDialog<double>(
-      context: context,
-      builder: (_) => GramsDialog(title: item.foodName, initial: item.grams),
-    );
-    if (grams == null) return;
-    await ref.read(foodRepositoryProvider).updateEntry(item.id, grams: grams);
-  }
-}
-
-/// Asks for a new amount in grams.
-class GramsDialog extends StatefulWidget {
-  const GramsDialog({super.key, required this.title, required this.initial});
-
-  final String title;
-  final double initial;
-
-  @override
-  State<GramsDialog> createState() => _GramsDialogState();
-}
-
-class _GramsDialogState extends State<GramsDialog> {
-  late final _controller = TextEditingController(text: fmtNum(widget.initial));
-  String? _error;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    final v = parseAmount(_controller.text);
-    if (v == null || v <= 0) {
-      setState(() => _error = 'Enter an amount above 0');
-      return;
-    }
-    Navigator.of(context).pop(v);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-      content: TextField(
-        key: const Key('grams-field'),
-        controller: _controller,
-        autofocus: true,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(suffixText: 'g', errorText: _error),
-        onSubmitted: (_) => _save(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _save, child: const Text('Save')),
-      ],
-    );
   }
 }

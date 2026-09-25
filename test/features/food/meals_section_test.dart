@@ -136,6 +136,72 @@ void main() {
     await tearDownTree(tester);
   });
 
+  Future<void> logBanana() async {
+    final f = await repo.createCustom(
+      const CustomFoodInput(
+        name: 'Banana',
+        per100g: Macros(kcal: 89, proteinG: 1.1, fatG: 0.3, carbsG: 23),
+      ),
+    );
+    await repo.logFood(
+      dayKey: _day,
+      meal: Meal.snack,
+      foodId: f.id,
+      grams: 120,
+    );
+  }
+
+  testWidgets('edit sheet: grams preselected, move to another meal', (
+    tester,
+  ) async {
+    await tester.runAsync(logBanana);
+    await pumpSection(tester);
+    await tester.tap(find.text('Banana'));
+    await settle(tester);
+
+    final field = tester.widget<TextField>(
+      find.byKey(const Key('grams-field')),
+    );
+    expect(field.controller!.text, '120');
+    expect(
+      field.controller!.selection,
+      const TextSelection(baseOffset: 0, extentOffset: 3),
+    );
+    await tester.tap(find.byKey(const Key('move-lunch')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('save-entry')));
+    await settle(tester);
+
+    final e = await tester.runAsync(() => db.select(db.foodLogEntries).get());
+    expect(e!.single.meal, Meal.lunch.index);
+    expect(e.single.grams, 120);
+    expect(find.text('Moved Banana to Lunch'), findsOneWidget);
+    await tearDownTree(tester);
+  });
+
+  testWidgets('edit sheet: Delete removes with Undo', (tester) async {
+    await tester.runAsync(logBanana);
+    await pumpSection(tester);
+    await tester.tap(find.text('Banana'));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('delete-entry')));
+    await settle(tester);
+
+    expect(find.text('Banana'), findsNothing);
+    expect(
+      await tester.runAsync(() => db.select(db.foodLogEntries).get()),
+      isEmpty,
+    );
+    await tester.tap(find.text('Undo'));
+    await settle(tester);
+    expect(find.text('Banana'), findsOneWidget);
+    expect(
+      await tester.runAsync(() => db.select(db.foodLogEntries).get()),
+      hasLength(1),
+    );
+    await tearDownTree(tester);
+  });
+
   testWidgets('swipe to delete', (tester) async {
     await tester.runAsync(() async {
       final f = await repo.createCustom(
