@@ -11,6 +11,12 @@ Everything is stored on the phone. There's no account, no server and no login.
 - **Food logging.** Search Open Food Facts (packaged products) or USDA (generic foods like
   chicken breast or rice), scan a barcode, or add a food from its label. Foods you've used show up
   under Recent and Favorites, so after a couple of weeks most logging is a few taps.
+- **Describe what you ate.** Type a meal the way you'd say it ("5 spoons of cottage cheese 5% and
+  2 eggs", "chicken breast 200g, 1 cup rice") and it's understood as you type: each food with its
+  grams, calories and how the grams were worked out, ready to add in one tap. It's free and works
+  offline (a built-in list of about 120 common and Israeli foods plus your own foods, no account
+  or API key), and it learns: pick a different food or fix the grams once and next time your words
+  and your spoon size are used.
 - **Daily weigh-ins.** One weigh-in per day. The app smooths them into a trend line, so water and
   salt swings don't hide real progress.
 - **Adaptive targets.** Each week (Sunday by default) the check-in compares what you ate on fully
