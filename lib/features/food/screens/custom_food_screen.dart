@@ -47,6 +47,11 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
   LabelBasis _basis = LabelBasis.per100g;
   bool _saving = false;
 
+  /// Macros the draft's source didn't give; they must be filled in here.
+  List<String> get _missing => widget.existing == null && widget.draft != null
+      ? widget.draft!.missingMacros
+      : const [];
+
   /// Reached from a barcode that wasn't found (changes the title only).
   bool get _isLabelFlow => widget.barcode != null && widget.existing == null;
 
@@ -267,6 +272,21 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
                 ),
               ],
             ),
+            if (_missing.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Card(
+                key: const Key('missing-macros'),
+                color: theme.colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    'The source has no ${_missing.join(' or ')} for this '
+                    'food. Fill in the missing values from the label.',
+                    style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             numberField(
               const Key('kcal-field'),
@@ -281,15 +301,23 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
               _protein,
               'Protein $unit',
               'g',
+              required: _missing.contains('protein'),
             ),
             const SizedBox(height: 12),
-            numberField(const Key('fat-field'), _fat, 'Fat $unit', 'g'),
+            numberField(
+              const Key('fat-field'),
+              _fat,
+              'Fat $unit',
+              'g',
+              required: _missing.contains('fat'),
+            ),
             const SizedBox(height: 12),
             numberField(
               const Key('carbs-field'),
               _carbs,
               'Carbohydrates $unit',
               'g',
+              required: _missing.contains('carbs'),
             ),
             if (perServing && per100g != null) ...[
               const SizedBox(height: 8),

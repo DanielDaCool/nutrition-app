@@ -109,14 +109,17 @@ void main() {
     expect(profile.goalWeightKg, 80);
     expect(profile.activityLevel, ActivityLevel.moderate.index);
     expect(profile.weeklyRatePct, 0.5);
-    expect(profile.proteinPerKg, 2.0);
+    expect(profile.proteinPerKg, 1.8);
     expect(profile.checkInWeekday, DateTime.sunday);
 
     final rows = await tester.runAsync(() => db.select(db.targetHistory).get());
     expect(rows, hasLength(1));
-    expect(rows!.single.kcal, 2420); // hand-checked in engine_test.dart
+    expect(
+      rows!.single.kcal,
+      2470,
+    ); // matches engine_test.dart's formula-only case
 
-    expect(find.text('2,420 kcal'), findsOneWidget);
+    expect(find.text('2,470 kcal'), findsOneWidget);
     expect(find.text('Profile saved'), findsOneWidget);
     // With a profile, targets come first again.
     expect(

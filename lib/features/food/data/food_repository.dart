@@ -94,7 +94,7 @@ class FoodRepository {
   /// already has one. Favorite flag and last-used time are kept.
   Future<Food> upsertRemote(RemoteFood r) {
     if (!r.isComplete) {
-      throw ArgumentError('Food "${r.name}" has no energy value');
+      throw ArgumentError('Food "${r.name}" is missing nutrition values');
     }
     return _db.transaction(() async {
       final existing =
