@@ -33,7 +33,7 @@ class Profiles extends Table {
 class Foods extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  /// 'off', 'usda' or 'custom'.
+  /// 'off', 'usda', 'custom' or 'builtin'.
   TextColumn get source => text()();
 
   /// Barcode (off), fdcId (usda), null for custom.
