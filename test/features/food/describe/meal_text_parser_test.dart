@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/food/describe/meal_text_parser.dart';
 
 typedef _P = (double quantity, MeasureUnit? unit, String food);
@@ -98,23 +97,21 @@ void main() {
     expect(p[1].quantityGiven, isTrue);
   });
 
-  test('meal words set the meal and are removed', () {
+  test('meal words are dropped, not read as food', () {
     final cases = {
-      '2 eggs for breakfast': Meal.breakfast,
-      'at lunch i had rice': Meal.lunch,
-      'pasta for dinner': Meal.dinner,
-      'supper: soup': Meal.dinner,
-      'apple as a snack': Meal.snack,
-      'bamba snacks': Meal.snack,
+      '2 eggs for breakfast': 'breakfast',
+      'at lunch i had rice': 'lunch',
+      'pasta for dinner': 'dinner',
+      'supper: soup': 'supper',
+      'apple as a snack': 'snack',
     };
-    cases.forEach((text, meal) {
+    cases.forEach((text, word) {
       final r = parseMealText(text);
-      expect(r.suggestedMeal, meal, reason: text);
+      expect(r.phrases, isNotEmpty, reason: text);
       for (final p in r.phrases) {
-        expect(p.foodText, isNot(contains(meal.name)), reason: text);
+        expect(p.foodText, isNot(contains(word)), reason: text);
       }
     });
-    expect(parseMealText('2 eggs').suggestedMeal, isNull);
   });
 
   test('keeps named foods with "with" together', () {

@@ -30,11 +30,11 @@ const _examples = [
   '5 spoons of cottage cheese 5% and 2 eggs',
   '2 eggs and a slice of bread with hummus',
   'chicken breast 200g, 1 cup rice',
-  'coffee with milk and a banana for breakfast',
+  'coffee with milk and a banana',
 ];
 
-/// Type what you ate and add it to [meal] of [dayKey] (the text can switch
-/// the meal, e.g. "for dinner"). Pops with `true` after adding.
+/// Type what you ate and add it to [meal] of [dayKey]. Pops with `true`
+/// after adding.
 class DescribeFoodScreen extends ConsumerStatefulWidget {
   const DescribeFoodScreen({
     super.key,
@@ -110,7 +110,6 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
   /// The text that was last parsed (lags [_text] by [describeDebounce]).
   String _parsedText = '';
   final _edits = <String, _Edit>{};
-  Meal? _pickedMeal;
   bool _saving = false;
 
   // Parse cache: re-parse only when the text or the engine changes.
@@ -182,9 +181,6 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
     }
     return rows;
   }
-
-  Meal _meal(ParseResult result) =>
-      _pickedMeal ?? result.suggestedMeal ?? widget.meal;
 
   // ------------------------------------------------------------- actions
 
@@ -326,10 +322,10 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
     final engine = engineValue.value;
     final result = engine == null ? ParseResult.empty : _parse(engine);
     final rows = engine == null ? const <_Row>[] : _rows(engine, result);
-    final meal = _meal(result);
+    final meal = widget.meal;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Describe what you ate')),
+      appBar: AppBar(title: Text('Type what you ate · ${mealLabel(meal)}')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -359,11 +355,6 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
               ),
               onChanged: _onTextChanged,
             ),
-          ),
-          _MealChips(
-            selected: meal,
-            fromText: _pickedMeal == null && result.suggestedMeal != null,
-            onSelected: (m) => setState(() => _pickedMeal = m),
           ),
           if (engineValue.isLoading && engine == null)
             const LinearProgressIndicator(),
@@ -509,46 +500,6 @@ class _EmptyHelp extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _MealChips extends StatelessWidget {
-  const _MealChips({
-    required this.selected,
-    required this.fromText,
-    required this.onSelected,
-  });
-
-  final Meal selected;
-
-  /// The meal was picked up from the text ("for breakfast").
-  final bool fromText;
-  final void Function(Meal) onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Row(
-        children: [
-          for (final m in Meal.values)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                key: Key('meal-${m.name}'),
-                label: Text(mealLabel(m)),
-                selected: m == selected,
-                avatar: m == selected && fromText
-                    ? const Icon(Icons.auto_awesome, size: 16)
-                    : null,
-                tooltip: m == selected && fromText ? 'From your text' : null,
-                onSelected: (_) => onSelected(m),
-              ),
-            ),
-        ],
-      ),
     );
   }
 }

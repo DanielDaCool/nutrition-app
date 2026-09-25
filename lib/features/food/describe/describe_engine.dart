@@ -57,18 +57,11 @@ class ParsedItem {
 
 /// The whole text, understood.
 class ParseResult {
-  const ParseResult({
-    required this.items,
-    this.suggestedMeal,
-    this.unrecognized = const [],
-  });
+  const ParseResult({required this.items, this.unrecognized = const []});
 
   static const empty = ParseResult(items: []);
 
   final List<ParsedItem> items;
-
-  /// The meal the text mentions ("for breakfast").
-  final Meal? suggestedMeal;
 
   /// Parts with an amount but no food words, e.g. "200g".
   final List<String> unrecognized;
@@ -103,11 +96,7 @@ class DescribeEngine {
       final n = seen[base] = (seen[base] ?? 0) + 1;
       items.add(_item('$base#$n', p));
     }
-    return ParseResult(
-      items: items,
-      suggestedMeal: parsed.suggestedMeal,
-      unrecognized: unrecognized,
-    );
+    return ParseResult(items: items, unrecognized: unrecognized);
   }
 
   ParsedItem _item(String key, ParsedPhrase p) {
