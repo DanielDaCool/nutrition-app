@@ -2,6 +2,7 @@
 // pushes a full data export to a private gist the dashboard reads.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'pc_sync_repository.dart';
@@ -110,6 +111,20 @@ class _PcDashboardTileState extends ConsumerState<PcDashboardTile> {
                   )
                 : null,
             onTap: _busy ? null : _sync,
+          ),
+        if (gistId != null)
+          ListTile(
+            key: const Key('gistIdTile'),
+            leading: const SizedBox(width: 24),
+            title: const Text('Gist id'),
+            subtitle: Text(gistId, style: const TextStyle(fontFamily: 'monospace')),
+            trailing: const Icon(Icons.copy, size: 18),
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: gistId));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Gist id copied')),
+              );
+            },
           ),
       ],
     );
