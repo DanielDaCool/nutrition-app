@@ -375,6 +375,69 @@ class FoodRepository {
     return e;
   });
 
+  /// Deletes several entries at once (undo of an add or a copied meal).
+  Future<void> deleteEntries(List<int> entryIds) =>
+      (_db.delete(_db.foodLogEntries)..where((t) => t.id.isIn(entryIds))).go();
+
+  /// Copies what was logged in [fromMeal] of [fromDay] into [toMeal] of
+  /// [toDay] (same foods and grams, fresh nutrition snapshots). Returns the
+  /// new entry ids, empty when there was nothing to copy.
+  Future<List<int>> copyMeal({
+    required String fromDay,
+    required Meal fromMeal,
+    required String toDay,
+    required Meal toMeal,
+  }) async {
+    final source =
+        await (_db.select(_db.foodLogEntries)
+              ..where(
+                (t) => t.dayKey.equals(fromDay) & t.meal.equals(fromMeal.index),
+              )
+              ..orderBy([
+                (t) => OrderingTerm.asc(t.createdAt),
+                (t) => OrderingTerm.asc(t.id),
+              ]))
+            .get();
+    if (source.isEmpty) return const [];
+    return logMany(
+      dayKey: toDay,
+      meal: toMeal,
+      items: [for (final e in source) (foodId: e.foodId, grams: e.grams)],
+    );
+  }
+
+  /// Grams of the most recent log entry of [foodId], or null if it was never
+  /// logged (or every entry was deleted).
+  Future<double?> lastGrams(int foodId) async {
+    final e =
+        await (_db.select(_db.foodLogEntries)
+              ..where((t) => t.foodId.equals(foodId))
+              ..orderBy([
+                (t) => OrderingTerm.desc(t.createdAt),
+                (t) => OrderingTerm.desc(t.id),
+              ])
+              ..limit(1))
+            .getSingleOrNull();
+    return e?.grams;
+  }
+
+  /// Last logged grams per food id, for every food that has an entry.
+  /// Re-emits when entries change.
+  Stream<Map<int, double>> watchLastGrams() {
+    final e = _db.foodLogEntries;
+    // Newest first: the first row seen per food is its latest entry.
+    final q = _db.selectOnly(e)
+      ..addColumns([e.foodId, e.grams])
+      ..orderBy([OrderingTerm.desc(e.createdAt), OrderingTerm.desc(e.id)]);
+    return q.watch().map((rows) {
+      final out = <int, double>{};
+      for (final r in rows) {
+        out.putIfAbsent(r.read(e.foodId)!, () => r.read(e.grams)!);
+      }
+      return out;
+    });
+  }
+
   /// Puts back an entry removed with [deleteEntry].
   Future<void> restoreEntry(FoodLogEntry e) =>
       _db.into(_db.foodLogEntries).insertOnConflictUpdate(e);

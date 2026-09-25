@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/day_key.dart';
 import '../weight_logic.dart';
+import 'weight_input.dart';
 
 /// What the weigh-in dialog returns: the chosen day and weight in kg.
 class WeighInInput {
@@ -15,11 +16,18 @@ class WeighInInput {
 
 /// Add/edit dialog. [today] caps the date picker; the date can't be in the
 /// future. Returns null when cancelled.
+///
+/// In add mode [lastKg] prefills the field (selected, so typing replaces it).
+/// [existing] (dayKey -> kg) lets the dialog warn when the chosen day
+/// already has a weigh-in. [title] overrides the default title.
 Future<WeighInInput?> showWeighInDialog(
   BuildContext context, {
   required String today,
   String? initialDayKey,
   double? initialKg,
+  double? lastKg,
+  Map<String, double> existing = const {},
+  String? title,
 }) {
   return showDialog<WeighInInput>(
     context: context,
@@ -27,6 +35,9 @@ Future<WeighInInput?> showWeighInDialog(
       today: today,
       initialDayKey: initialDayKey,
       initialKg: initialKg,
+      lastKg: lastKg,
+      existing: existing,
+      title: title,
     ),
   );
 }
@@ -38,6 +49,9 @@ class WeighInDialog extends StatefulWidget {
     required this.today,
     this.initialDayKey,
     this.initialKg,
+    this.lastKg,
+    this.existing = const {},
+    this.title,
   });
 
   /// Latest selectable day; later days are clamped to it.
@@ -45,16 +59,34 @@ class WeighInDialog extends StatefulWidget {
   final String? initialDayKey;
   final double? initialKg;
 
+  /// Prefill for add mode (usually the last weigh-in).
+  final double? lastKg;
+
+  /// All weigh-ins, to warn before replacing one.
+  final Map<String, double> existing;
+  final String? title;
+
   @override
   State<WeighInDialog> createState() => _WeighInDialogState();
 }
 
 class _WeighInDialogState extends State<WeighInDialog> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _kg = TextEditingController(
-    text: widget.initialKg?.toStringAsFixed(1) ?? '',
-  );
+  late final TextEditingController _kg = _initialController();
   late String _dayKey = _clamp(widget.initialDayKey ?? widget.today);
+
+  bool get _editing => widget.initialKg != null;
+
+  TextEditingController _initialController() {
+    final kg = widget.initialKg ?? widget.lastKg;
+    final text = kg == null ? '' : formatKg(kg);
+    return TextEditingController.fromValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection(baseOffset: 0, extentOffset: text.length),
+      ),
+    );
+  }
 
   String _clamp(String day) =>
       day.compareTo(widget.today) > 0 ? widget.today : day;
@@ -83,21 +115,29 @@ class _WeighInDialogState extends State<WeighInDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final editing = widget.initialKg != null;
+    final theme = Theme.of(context);
+    // Warn when saving would replace a different weigh-in.
+    final replaced = _editing && _dayKey == widget.initialDayKey
+        ? null
+        : widget.existing[_dayKey];
     return AlertDialog(
-      title: Text(editing ? 'Edit weigh-in' : 'Add weigh-in'),
+      title: Text(
+        widget.title ?? (_editing ? 'Edit weigh-in' : 'Add weigh-in'),
+      ),
       content: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextFormField(
               key: const Key('weighInKgField'),
               controller: _kg,
               autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType: weightKeyboardType,
+              inputFormatters: const [WeightInputFormatter()],
+              textInputAction: TextInputAction.done,
+              style: theme.textTheme.headlineSmall,
               decoration: const InputDecoration(
                 labelText: 'Weight',
                 suffixText: 'kg',
@@ -110,9 +150,30 @@ class _WeighInDialogState extends State<WeighInDialog> {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.calendar_today_outlined),
               title: Text(formatDayLong(_dayKey, widget.today)),
-              subtitle: const Text('Date'),
+              subtitle: const Text('Tap to change the date'),
               onTap: _pickDate,
             ),
+            if (replaced != null)
+              Row(
+                key: const Key('weighInReplaceWarning'),
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: theme.colorScheme.tertiary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This day already has ${formatKg(replaced)} kg. '
+                      'Saving replaces it.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.tertiary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),

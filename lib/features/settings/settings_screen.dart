@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
-import '../../core/day_key.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
@@ -19,26 +18,51 @@ import '../targets/engine/explain.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
 import 'data_export.dart';
+import 'error_retry.dart';
 
 /// The Settings tab of the home shell.
+///
+/// Until a profile exists the profile form comes first, since nothing else
+/// works without it.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider);
+    final missingProfile = profile.hasValue && profile.value == null;
+    const profileSection = [
+      _SectionHeader('Profile', key: Key('profileHeader')),
+      ProfileForm(key: Key('profileForm')),
+    ];
+    const targetsSection = [
+      CurrentTargetsCard(key: Key('targetsCard')),
+      CheckInTile(key: Key('checkInTile')),
+    ];
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
-        children: const [
-          CurrentTargetsCard(),
-          CheckInTile(),
-          Divider(),
-          _SectionHeader('Profile'),
-          ProfileForm(),
-          Divider(),
-          HealthConnectSettingsTile(),
-          ExportDataTile(),
+        children: [
+          if (missingProfile) ...[
+            const Padding(
+              key: Key('startHere'),
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Text(
+                'Start here: fill in your profile to get your daily targets.',
+              ),
+            ),
+            ...profileSection,
+            const Divider(),
+            ...targetsSection,
+          ] else ...[
+            ...targetsSection,
+            const Divider(),
+            ...profileSection,
+          ],
+          const Divider(),
+          const HealthConnectSettingsTile(),
+          const ExportDataTile(),
         ],
       ),
     );
@@ -46,7 +70,7 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.text);
+  const _SectionHeader(this.text, {super.key});
   final String text;
 
   @override
@@ -70,12 +94,22 @@ class CurrentTargetsCard extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: targets.when(
           loading: () => const LinearProgressIndicator(),
-          error: (e, _) => Text('Could not load targets: $e'),
+          error: (e, _) {
+            debugPrint('Loading targets failed: $e');
+            return ErrorRetry(
+              message: "Couldn't load your targets",
+              onRetry: () => ref.invalidate(currentTargetsProvider),
+            );
+          },
           data: (t) {
             if (t == null) {
-              return const Text(
-                'No targets yet. Save your profile below and log a weigh-in '
-                'to get your daily targets.',
+              final hasProfile = ref.watch(profileProvider).value != null;
+              return Text(
+                hasProfile
+                    ? 'No targets yet. Log your weight on Today and your '
+                          'daily targets show up here.'
+                    : 'No targets yet. Fill in your profile and log your '
+                          'weight to get your daily targets.',
               );
             }
             final m = t.macros;
@@ -117,12 +151,19 @@ class CheckInTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final due = ref.watch(checkInDueProvider).value ?? false;
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: Icon(due ? Icons.notification_important : Icons.event_repeat),
+      leading: Badge(
+        isLabelVisible: due,
+        child: Icon(
+          due ? Icons.notification_important : Icons.event_repeat,
+          color: due ? scheme.primary : null,
+        ),
+      ),
       title: const Text('Weekly check-in'),
       subtitle: Text(
         due
-            ? 'A new recommendation is waiting'
+            ? 'Your check-in is ready, tap to review'
             : 'Review your targets any time',
       ),
       trailing: const Icon(Icons.chevron_right),
@@ -149,9 +190,38 @@ const _weekdays = [
   'Sunday',
 ];
 
+/// Whole years between [birthDate] and [now].
+int ageOn(DateTime birthDate, DateTime now) {
+  var age = now.year - birthDate.year;
+  if (now.month < birthDate.month ||
+      (now.month == birthDate.month && now.day < birthDate.day)) {
+    age--;
+  }
+  return age;
+}
+
 /// Profile & goal settings, saved to the single Profiles row (id = 1).
+///
+/// Also used by the first-run setup: [extra] widgets (e.g. a weigh-in field)
+/// go inside the same [Form] above the save button, so their validators run
+/// with the profile's, and [onSaved] runs after the profile is stored instead
+/// of the default "Profile saved" snackbar.
 class ProfileForm extends ConsumerStatefulWidget {
-  const ProfileForm({super.key});
+  const ProfileForm({
+    super.key,
+    this.saveLabel = 'Save profile',
+    this.extra = const [],
+    this.onSaved,
+  });
+
+  /// Text on the save button.
+  final String saveLabel;
+
+  /// Extra form fields shown above the save button.
+  final List<Widget> extra;
+
+  /// Runs after the profile is saved; replaces the default snackbar.
+  final Future<void> Function()? onSaved;
 
   @override
   ConsumerState<ProfileForm> createState() => _ProfileFormState();
@@ -205,7 +275,11 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
       initialDate: _birthDate ?? DateTime(now.year - 30, now.month, now.day),
       firstDate: DateTime(now.year - 100),
       lastDate: DateTime(now.year - 13, now.month, now.day),
+      initialEntryMode: DatePickerEntryMode.input,
       helpText: 'Birth date',
+      fieldHintText: 'MM/DD/YYYY',
+      errorFormatText: 'Type it like 09/25/1996',
+      errorInvalidText: 'Pick a date at least 13 years ago',
     );
     if (picked != null) {
       setState(() {
@@ -218,10 +292,12 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
   Future<void> _save() async {
     final formOk = _formKey.currentState!.validate();
     if (_birthDate == null) {
-      setState(() => _birthError = 'Pick your birth date');
+      setState(() => _birthError = 'Add your birth date');
     }
     if (!formOk || _birthDate == null) return;
     setState(() => _saving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final hasWeighIn = ref.read(weighInsProvider).value?.isNotEmpty ?? false;
     try {
       await ref
           .read(targetsRepositoryProvider)
@@ -235,15 +311,34 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
             proteinPerKg: _proteinPerKg,
             checkInWeekday: _weekday,
           );
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Profile saved')));
+      final onSaved = widget.onSaved;
+      if (onSaved != null) {
+        await onSaved();
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              hasWeighIn
+                  ? 'Profile saved'
+                  : 'Profile saved. Next: log your weight on Today to get '
+                        'your targets.',
+            ),
+          ),
+        );
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not save: $e')));
-      }
+    } catch (e, s) {
+      debugPrint('Saving profile failed: $e\n$s');
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text("Couldn't save your profile"),
+          action: SnackBarAction(
+            label: 'Try again',
+            onPressed: () {
+              if (mounted) _save();
+            },
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -266,14 +361,19 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
       );
     }
     if (profile.hasError && !_loaded) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('Could not load profile: ${profile.error}'),
+      debugPrint('Loading profile failed: ${profile.error}');
+      return ErrorRetry(
+        message: "Couldn't load your profile",
+        onRetry: () => ref.invalidate(profileProvider),
       );
     }
     _load(profile.value);
 
+    ref.watch(weighInsProvider); // read by _save for the snackbar text
+    final now = ref.read(clockProvider)();
     final trendKg = ref.watch(weightTrendProvider).value?.lastOrNull?.trendKg;
+    final goalKg = _parse(_goal.text);
+    final atGoal = trendKg != null && goalKg != null && trendKg <= goalKg;
     final rateKg = trendKg == null ? null : trendKg * _ratePct / 100;
     final theme = Theme.of(context);
 
@@ -286,7 +386,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
         heightVal != null &&
         heightVal > 0 &&
         _birthDate != null) {
-      final age = ageOn(_birthDate!, dayKeyOf(ref.read(clockProvider)()));
+      final age = ageOn(_birthDate!, now);
       final bmi = trendKg / math.pow(heightVal / 100, 2);
       final bodyFat = deurenbergBodyFatPercent(
         bmi: bmi,
@@ -321,13 +421,14 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               subtitle: Text(
                 _birthError ??
                     (_birthDate == null
-                        ? 'Not set'
-                        : DateFormat.yMMMd('en_US').format(_birthDate!)),
+                        ? 'Tap to type it'
+                        : '${DateFormat.yMMMd('en_US').format(_birthDate!)}'
+                              ' · ${ageOn(_birthDate!, now)} years old'),
                 style: _birthError == null
                     ? null
                     : TextStyle(color: theme.colorScheme.error),
               ),
-              trailing: const Icon(Icons.calendar_today),
+              trailing: const Icon(Icons.edit_calendar_outlined),
               onTap: _pickBirthDate,
             ),
             TextFormField(
@@ -340,6 +441,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
+              textInputAction: TextInputAction.next,
               validator: _range('height', 100, 250),
             ),
             const SizedBox(height: 12),
@@ -393,12 +495,19 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
+              textInputAction: widget.extra.isEmpty
+                  ? TextInputAction.done
+                  : TextInputAction.next,
+              onChanged: (_) => setState(() {}),
               validator: _range('goal weight', 30, 300),
             ),
             const SizedBox(height: 16),
             Text(
-              'Weekly loss rate: ${_ratePct.toStringAsFixed(2)} % per week'
-              '${rateKg == null ? '' : ' (≈ ${rateKg.toStringAsFixed(2)} kg/week)'}',
+              atGoal
+                  ? "You're at your goal, targets will hold your weight"
+                  : 'Weekly loss rate: ${_ratePct.toStringAsFixed(2)} % per '
+                        'week${rateKg == null ? '' : ' (≈ ${rateKg.toStringAsFixed(2)} kg/week)'}',
+              key: const Key('rateText'),
             ),
             Slider(
               key: const Key('weeklyRate'),
@@ -448,11 +557,15 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               ],
               onChanged: (d) => setState(() => _weekday = d ?? _weekday),
             ),
+            ...widget.extra,
             const SizedBox(height: 16),
             FilledButton(
               key: const Key('saveProfile'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
               onPressed: _saving ? null : _save,
-              child: const Text('Save profile'),
+              child: Text(widget.saveLabel),
             ),
             const SizedBox(height: 8),
           ],
@@ -478,10 +591,20 @@ class _ExportDataTileState extends ConsumerState<ExportDataTile> {
     setState(() => _busy = true);
     try {
       await shareExport(ref.read(databaseProvider), ref.read(clockProvider)());
-    } catch (e) {
+    } catch (e, s) {
+      debugPrint('Export failed: $e\n$s');
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Export failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("Couldn't export your data"),
+            action: SnackBarAction(
+              label: 'Try again',
+              onPressed: () {
+                if (mounted) _export();
+              },
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);

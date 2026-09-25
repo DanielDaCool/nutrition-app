@@ -7,6 +7,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
+import '../../../core/day_key.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
 import '../data/describe_foods.dart';
@@ -19,8 +21,10 @@ import '../describe/meal_text_parser.dart';
 import '../describe/unit_weights.dart';
 import '../food_providers.dart';
 import '../nutrition_math.dart';
+import '../widgets/error_retry.dart';
 import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
+import '../widgets/undo_snack.dart';
 import 'custom_food_screen.dart';
 
 /// How long typing must pause before the text is parsed again.
@@ -293,24 +297,26 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
           if (g != null) remember[g.key] = g.value;
         }
       }
-      await repo.logMany(
+      final ids = await repo.logMany(
         dayKey: widget.dayKey,
         meal: meal,
         items: items,
         remember: remember,
       );
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Added ${_itemsLabel(items.length)} to ${mealLabel(meal)}',
-          ),
-        ),
-      );
       if (mounted) Navigator.of(context).pop(true);
-    } catch (e) {
+      showAddedSnack(
+        messenger,
+        repo,
+        'Added ${itemsLabel(items.length)} to ${mealLabel(meal)}',
+        ids,
+      );
+    } catch (e, st) {
+      final message = friendlyError(e, st);
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(SnackBar(content: Text('Could not add: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not add it. $message')),
+      );
     }
   }
 
@@ -325,7 +331,15 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
     final meal = widget.meal;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Type what you ate · ${mealLabel(meal)}')),
+      appBar: AppBar(
+        title: Text(
+          withDay(
+            'Type what you ate · ${mealLabel(meal)}',
+            widget.dayKey,
+            dayKeyOf(ref.read(clockProvider)()),
+          ),
+        ),
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -379,7 +393,15 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
   ) {
     if (engine == null) {
       if (engineValue.hasError) {
-        return _Message('Could not load your foods: ${engineValue.error}');
+        return ErrorRetry(
+          error: engineValue.error!,
+          stackTrace: engineValue.stackTrace,
+          message: 'Could not load your foods.',
+          onRetry: () {
+            ref.invalidate(allFoodsProvider);
+            ref.invalidate(describeMemoryProvider);
+          },
+        );
       }
       return const SizedBox.shrink();
     }
@@ -441,8 +463,6 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
 
 String _capitalize(String s) =>
     s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
-
-String _itemsLabel(int n) => n == 1 ? '1 item' : '$n items';
 
 /// "5 tbsp", "2 eggs" style amount; "portion" when nothing was said.
 String _amountLabel(double quantity, MeasureUnit? unit) {
@@ -777,7 +797,7 @@ class _BottomBar extends StatelessWidget {
                   key: const Key('describe-add'),
                   onPressed: addable.isEmpty || saving ? null : onAdd,
                   child: Text(
-                    'Add ${_itemsLabel(addable.length)} to ${mealLabel(meal)}',
+                    'Add ${itemsLabel(addable.length)} to ${mealLabel(meal)}',
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -945,9 +965,19 @@ class _OnlineSearchPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     Future<void> pick(RemoteFood remote) async {
       final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
       final Food? food;
       if (remote.isComplete) {
-        food = await ref.read(foodRepositoryProvider).upsertRemote(remote);
+        try {
+          food = await ref.read(foodRepositoryProvider).upsertRemote(remote);
+        } catch (e, st) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Could not save it. ${friendlyError(e, st)}'),
+            ),
+          );
+          return;
+        }
       } else {
         food = await navigator.push<Food>(
           MaterialPageRoute(builder: (_) => CustomFoodScreen(draft: remote)),

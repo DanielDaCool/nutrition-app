@@ -198,6 +198,142 @@ void main() {
     await finish(tester);
   });
 
+  group('last amount, undo and day titles', () {
+    Future<Food> yogurt() => repo.createCustom(
+      const CustomFoodInput(
+        name: 'Greek yogurt',
+        per100g: Macros(kcal: 97, proteinG: 9, fatG: 5, carbsG: 4),
+        servingName: '1 cup',
+        servingGrams: 150,
+      ),
+    );
+
+    testWidgets('prefills servings from last time, selected; Add confirms '
+        'with Undo', (tester) async {
+      final food = await tester.runAsync(() async {
+        final f = await yogurt();
+        await repo.logFood(
+          dayKey: '2026-09-20',
+          meal: Meal.breakfast,
+          foodId: f.id,
+          grams: 300,
+        );
+        return f;
+      });
+      await pump(
+        tester,
+        _Launcher(
+          (_) => PortionScreen(
+            food: food!,
+            dayKey: '2026-09-25',
+            meal: Meal.breakfast,
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await settle(tester);
+
+      expect(find.text('Add to Breakfast'), findsOneWidget);
+      final field = tester.widget<TextField>(
+        find.byKey(const Key('amount-field')),
+      );
+      expect(field.controller!.text, '2');
+      expect(
+        field.controller!.selection,
+        const TextSelection(baseOffset: 0, extentOffset: 1),
+      );
+      expect(find.text('= 300 g · Same as last time'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('add-button')));
+      await settle(tester);
+      expect(find.byType(PortionScreen), findsNothing);
+      expect(
+        find.text('Added Greek yogurt · 300 g · 291 kcal to Breakfast'),
+        findsOneWidget,
+      );
+      expect(
+        await tester.runAsync(() => db.select(db.foodLogEntries).get()),
+        hasLength(2),
+      );
+      await tester.tap(find.text('Undo'));
+      await settle(tester);
+      expect(
+        await tester.runAsync(() => db.select(db.foodLogEntries).get()),
+        hasLength(1),
+      );
+      await finish(tester);
+    });
+
+    testWidgets('uneven last amount is prefilled in grams; other day in '
+        'title', (tester) async {
+      final food = await tester.runAsync(() async {
+        final f = await yogurt();
+        await repo.logFood(
+          dayKey: '2026-09-20',
+          meal: Meal.breakfast,
+          foodId: f.id,
+          grams: 130,
+        );
+        return f;
+      });
+      await pump(
+        tester,
+        PortionScreen(food: food!, dayKey: '2026-09-24', meal: Meal.lunch),
+      );
+      expect(find.text('Add to Lunch · Yesterday'), findsOneWidget);
+      final field = tester.widget<TextField>(
+        find.byKey(const Key('amount-field')),
+      );
+      expect(field.controller!.text, '130');
+      expect(find.text('g'), findsOneWidget); // grams suffix
+      await finish(tester);
+    });
+
+    testWidgets('Recent shows last time and quick-adds it with Undo', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        final f = await yogurt();
+        await repo.logFood(
+          dayKey: '2026-09-24',
+          meal: Meal.breakfast,
+          foodId: f.id,
+          grams: 150,
+        );
+      });
+      await pump(
+        tester,
+        _Launcher(
+          (_) => const AddFoodScreen(dayKey: '2026-09-23', meal: Meal.snack),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await settle(tester);
+      expect(find.text('Add to Snacks · Wed 23 Sep'), findsOneWidget);
+      expect(find.text('150 g last time · 146 kcal'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Add 150 g'));
+      await settle(tester);
+      expect(
+        find.text('Added Greek yogurt · 150 g · 146 kcal to Snacks'),
+        findsOneWidget,
+      );
+      // Stays open to add more.
+      expect(find.byType(AddFoodScreen), findsOneWidget);
+      var entries = await tester.runAsync(
+        () => db.select(db.foodLogEntries).get(),
+      );
+      expect(entries!.last.dayKey, '2026-09-23');
+      expect(entries.last.meal, Meal.snack.index);
+
+      await tester.tap(find.text('Undo'));
+      await settle(tester);
+      entries = await tester.runAsync(() => db.select(db.foodLogEntries).get());
+      expect(entries, hasLength(1));
+      await finish(tester);
+    });
+  });
+
   group('AddFoodScreen', () {
     testWidgets('unknown barcode offers Add from label with the barcode', (
       tester,
@@ -219,6 +355,41 @@ void main() {
       expect(find.byType(CustomFoodScreen), findsOneWidget);
       expect(find.text('7290000000017'), findsOneWidget);
       expect(requests.single.url.path, '/api/v2/product/7290000000017');
+      await finish(tester);
+    });
+
+    testWidgets('Search tab finds common foods as you type; picking one '
+        'saves it and opens the portion screen', (tester) async {
+      await pump(
+        tester,
+        const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+        client: mock(
+          (_) => http.Response.bytes(
+            utf8.encode(fixtureText('usda_search.json')),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          ),
+        ),
+      );
+      await tester.tap(find.text('Search'));
+      await settle(tester);
+      await tester.enterText(find.byKey(const Key('search-field')), 'banan');
+      await settle(tester);
+      expect(requests, isEmpty);
+      expect(find.text('Your foods'), findsOneWidget);
+      expect(find.byKey(const Key('local-builtin:banana')), findsOneWidget);
+
+      // Online search only on the button.
+      await tester.tap(find.byKey(const Key('search-online-button')));
+      await settle(tester);
+      expect(requests, hasLength(1));
+
+      await tester.tap(find.byKey(const Key('local-builtin:banana')));
+      await settle(tester);
+      expect(find.byType(PortionScreen), findsOneWidget);
+      final foods = await tester.runAsync(() => db.select(db.foods).get());
+      expect(foods!.single.source, 'builtin');
+      expect(foods.single.name, 'Banana');
       await finish(tester);
     });
 
@@ -251,4 +422,24 @@ void main() {
       await finish(tester);
     });
   });
+}
+
+/// A home screen with an "open" button that pushes [builder], so screens
+/// that pop (and their snackbars) behave like in the app.
+class _Launcher extends StatelessWidget {
+  const _Launcher(this.builder);
+
+  final WidgetBuilder builder;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: TextButton(
+        onPressed: () =>
+            Navigator.of(context)
+                .push(MaterialPageRoute<void>(builder: builder)),
+        child: const Text('open'),
+      ),
+    ),
+  );
 }

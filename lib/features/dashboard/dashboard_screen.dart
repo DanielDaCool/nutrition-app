@@ -6,10 +6,14 @@ import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/day_key.dart';
 import '../activity/activity_providers.dart';
 import '../food/food_providers.dart';
+import '../settings/settings_screen.dart';
+import '../targets/targets_providers.dart';
+import '../weight/weigh_in_actions.dart';
 import '../weight/weight_logic.dart';
 import '../weight/weight_providers.dart';
 import '../weight/widgets/weight_chart.dart';
@@ -17,48 +21,83 @@ import 'dashboard_logic.dart';
 import 'dashboard_providers.dart';
 
 /// Range chips plus one chart card per section for [dashboardWindowProvider].
+///
+/// Until the profile and a first weigh-in exist, a "Finish setup" card sits
+/// on top and sections without data are left out. Pull down to refresh
+/// (also syncs Health Connect).
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
+
+  Future<void> _refresh(WidgetRef ref) async {
+    ref.invalidate(earliestDataDayProvider);
+    ref.invalidate(dashboardWindowProvider);
+    ref.invalidate(weightTrendProvider);
+    try {
+      await ref.read(healthSyncProvider.notifier).syncNow();
+    } catch (e) {
+      debugPrint('Dashboard refresh sync failed: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(dashboardRangeProvider);
     final window = ref.watch(dashboardWindowProvider);
+    final profile = ref.watch(profileProvider);
+    final weighIns = ref.watch(weighInsProvider);
+    final needsProfile = profile.hasValue && profile.value == null;
+    final needsWeighIn = weighIns.hasValue && weighIns.value!.isEmpty;
+    final setupIncomplete = needsProfile || needsWeighIn;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final r in DashboardRange.values)
-                ChoiceChip(
-                  label: Text(r.label),
-                  selected: r == range,
-                  onSelected: (_) =>
-                      ref.read(dashboardRangeProvider.notifier).set(r),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ...switch (window.value) {
-            final w? => [
-              _WeightSection(window: w),
-              _IntakeSection(window: w),
-              _StepsSection(window: w),
-              _WorkoutsSection(window: w),
-              _MaintenanceSection(window: w),
-            ],
-            null when window.hasError => [_ErrorText(window.error!)],
-            null => const [
-              SizedBox(
-                height: 200,
-                child: Center(child: CircularProgressIndicator()),
+      body: RefreshIndicator(
+        onRefresh: () => _refresh(ref),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(12),
+          children: [
+            if (setupIncomplete)
+              _FinishSetupCard(
+                needsProfile: needsProfile,
+                needsWeighIn: needsWeighIn,
               ),
-            ],
-          },
-        ],
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final r in DashboardRange.values)
+                  ChoiceChip(
+                    label: Text(r.label),
+                    selected: r == range,
+                    onSelected: (_) =>
+                        ref.read(dashboardRangeProvider.notifier).set(r),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...switch (window.value) {
+              final w? => [
+                _WeightSection(window: w, hideWhenEmpty: setupIncomplete),
+                _IntakeSection(window: w, hideWhenEmpty: setupIncomplete),
+                _StepsSection(window: w, hideWhenEmpty: setupIncomplete),
+                _WorkoutsSection(window: w, hideWhenEmpty: setupIncomplete),
+                _MaintenanceSection(window: w, hideWhenEmpty: setupIncomplete),
+              ],
+              null when window.hasError => [
+                _ErrorText(
+                  window.error!,
+                  onRetry: () => ref.invalidate(dashboardWindowProvider),
+                ),
+              ],
+              null => const [
+                SizedBox(
+                  height: 200,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ],
+            },
+          ],
+        ),
       ),
     );
   }
@@ -67,16 +106,91 @@ class DashboardScreen extends ConsumerWidget {
 /// Inclusive (from, to) day keys.
 typedef _Window = (String from, String to);
 
-/// Card with a title, optional subtitle, chart and optional legend.
+void _openSettings(BuildContext context) =>
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
+
+/// What's missing before the charts can show anything useful.
+class _FinishSetupCard extends ConsumerWidget {
+  const _FinishSetupCard({
+    required this.needsProfile,
+    required this.needsWeighIn,
+  });
+
+  final bool needsProfile;
+  final bool needsWeighIn;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    Widget step({
+      required bool done,
+      required String title,
+      required String subtitle,
+      required String button,
+      required VoidCallback onPressed,
+    }) => ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        done ? Icons.check_circle : Icons.radio_button_unchecked,
+        color: done ? scheme.primary : scheme.onSurfaceVariant,
+      ),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: done
+          ? null
+          : FilledButton(onPressed: onPressed, child: Text(button)),
+    );
+
+    return Card(
+      key: const Key('finishSetupCard'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Finish setup', style: theme.textTheme.titleLarge),
+            Text(
+              'Two quick steps and your charts fill in.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            step(
+              done: !needsProfile,
+              title: 'Set up your profile',
+              subtitle: 'Height, goal weight and activity',
+              button: 'Open',
+              onPressed: () => _openSettings(context),
+            ),
+            step(
+              done: !needsWeighIn,
+              title: 'Add your first weigh-in',
+              subtitle: 'Morning, before breakfast',
+              button: 'Add',
+              onPressed: () => openWeighInDialog(context, ref),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Card with a title, optional headline number, subtitle, chart and legend.
 class _Section extends StatelessWidget {
   const _Section({
     required this.title,
     required this.child,
+    this.headline,
     this.subtitle,
     this.legend,
   });
 
   final String title;
+  final String? headline;
   final String? subtitle;
   final Widget child;
   final Widget? legend;
@@ -91,6 +205,14 @@ class _Section extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: theme.textTheme.titleMedium),
+            if (headline != null)
+              Text(
+                headline!,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             if (subtitle != null)
               Text(
                 subtitle!,
@@ -108,128 +230,191 @@ class _Section extends StatelessWidget {
   }
 }
 
-/// Renders loading / error for [value], or [builder] once data exists.
-Widget _async<T>(AsyncValue<T> value, Widget Function(T data) builder) {
-  final data = value.value;
-  if (data != null) return builder(data);
-  if (value.hasError) return _ErrorText(value.error!);
+/// Loading / error placeholder for a section whose data isn't ready.
+Widget? _pending(AsyncValue<Object?> value, VoidCallback onRetry) {
+  if (value.hasValue) return null;
+  if (value.hasError) return _ErrorText(value.error!, onRetry: onRetry);
   return const SizedBox(
     height: 160,
     child: Center(child: CircularProgressIndicator()),
   );
 }
 
+/// Short friendly error with Try again; the details go to the log.
 class _ErrorText extends StatelessWidget {
-  const _ErrorText(this.error);
+  const _ErrorText(this.error, {required this.onRetry});
   final Object error;
+  final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 120,
-    child: Center(
-      child: Text(
-        'Could not load data: $error',
-        style: TextStyle(color: Theme.of(context).colorScheme.error),
-      ),
-    ),
-  );
-}
-
-class _WeightSection extends ConsumerWidget {
-  const _WeightSection({required this.window});
-  final _Window window;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final trend = ref.watch(weightTrendProvider);
-    return _Section(
-      title: 'Weight trend',
-      child: _async(
-        trend,
-        (points) => WeightChart(
-          points: trendSince(points, window.$1),
-          showWeighIns: false,
-          height: 200,
+  Widget build(BuildContext context) {
+    debugPrint('Dashboard failed to load: $error');
+    return SizedBox(
+      height: 120,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Couldn't load this chart.",
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.tonal(
+              onPressed: onRetry,
+              child: const Text('Try again'),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _IntakeSection extends ConsumerWidget {
-  const _IntakeSection({required this.window});
+class _WeightSection extends ConsumerWidget {
+  const _WeightSection({required this.window, required this.hideWhenEmpty});
   final _Window window;
+  final bool hideWhenEmpty;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trend = ref.watch(weightTrendProvider);
+    final goalKg = ref.watch(profileProvider).value?.goalWeightKg;
+    final count = ref.watch(weighInsProvider).value?.length ?? 0;
+    final pending = _pending(trend, () => ref.invalidate(weighInsProvider));
+    if (pending != null) return _Section(title: 'Weight', child: pending);
+
+    final points = trendSince(trend.value!, window.$1);
+    if (points.isEmpty && hideWhenEmpty) return const SizedBox.shrink();
+    final addButton = FilledButton.tonalIcon(
+      onPressed: () => openWeighInDialog(context, ref),
+      icon: const Icon(Icons.add),
+      label: const Text('Add weigh-in'),
+    );
+    return _Section(
+      title: 'Weight',
+      headline: weightHeadline(points),
+      child: count < 2
+          ? ChartEmptyState(
+              message: 'Your trend appears after a few weigh-ins',
+              action: addButton,
+            )
+          : points.isEmpty
+          ? ChartEmptyState(
+              message: 'No weigh-ins in this range yet',
+              action: addButton,
+            )
+          : WeightChart(
+              points: points,
+              showWeighIns: false,
+              height: 200,
+              goalKg: goalKg,
+            ),
+    );
+  }
+}
+
+class _IntakeSection extends ConsumerWidget {
+  const _IntakeSection({required this.window, required this.hideWhenEmpty});
+  final _Window window;
+  final bool hideWhenEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final intake = ref.watch(intakeRangeProvider(window));
     final targets = ref.watch(targetHistoryProvider);
+    const title = 'Average intake per week';
+    final pending =
+        _pending(intake, () => ref.invalidate(intakeRangeProvider(window))) ??
+        _pending(targets, () => ref.invalidate(targetHistoryProvider));
+    if (pending != null) return _Section(title: title, child: pending);
+
+    final days = intake.value!;
+    final targetPoints = targets.value!;
+    final weeks = weeklyIntake(days, targetPoints);
+    final empty = weeks.every((w) => w.avgKcal == null);
+    if (empty && hideWhenEmpty) return const SizedBox.shrink();
     return _Section(
-      title: 'Average intake per week',
+      title: title,
+      headline: intakeHeadline(days, targetPoints),
       subtitle: 'Fully logged days only, vs. the target that week',
-      legend: _Legend(
-        items: [('Intake', scheme.primary), ('Target', scheme.outline)],
-      ),
-      child: _async(intake, (days) {
-        return _async(targets, (targetPoints) {
-          final weeks = weeklyIntake(days, targetPoints);
-          if (weeks.every((w) => w.avgKcal == null)) {
-            return const ChartEmptyState(
+      legend: empty
+          ? null
+          : _Legend(
+              items: [('Intake', scheme.primary), ('Target', scheme.tertiary)],
+            ),
+      child: empty
+          ? const ChartEmptyState(
               icon: Icons.restaurant_outlined,
               message:
                   'No fully logged days in this range.\n'
-                  'Mark a day as fully logged to see it here.',
-            );
-          }
-          return _WeekBars(
-            weekStarts: [for (final w in weeks) w.weekStart],
-            series: [
-              [for (final w in weeks) w.avgKcal],
-              [for (final w in weeks) w.targetKcal],
-            ],
-            colors: [scheme.primary, scheme.outline],
-            unit: 'kcal/day',
-            tooltip: (week, series, value) =>
-                '${series == 0 ? 'Intake' : 'Target'} ${value.round()} kcal'
-                '${series == 0 ? '\n${weeks[week].loggedDays} logged days' : ''}',
-          );
-        });
-      }),
+                  'Mark a day as complete on Today to see it here.',
+            )
+          : _WeekBars(
+              weekStarts: [for (final w in weeks) w.weekStart],
+              series: [
+                [for (final w in weeks) w.avgKcal],
+                [for (final w in weeks) w.targetKcal],
+              ],
+              colors: [scheme.primary, scheme.tertiary],
+              unit: 'kcal/day',
+              tooltip: (week, series, value) =>
+                  '${series == 0 ? 'Intake' : 'Target'} ${value.round()} kcal'
+                  '${series == 0 ? '\n${weeks[week].loggedDays} logged days' : ''}',
+            ),
     );
   }
 }
 
 class _StepsSection extends ConsumerWidget {
-  const _StepsSection({required this.window});
+  const _StepsSection({required this.window, required this.hideWhenEmpty});
   final _Window window;
+  final bool hideWhenEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final activity = ref.watch(activityRangeProvider(window));
+    const title = 'Steps per day';
+    final pending = _pending(
+      activity,
+      () => ref.invalidate(activityRangeProvider(window)),
+    );
+    if (pending != null) return _Section(title: title, child: pending);
+
+    final days = activity.value!;
+    final empty = !hasAnySteps(days);
+    if (empty && hideWhenEmpty) return const SizedBox.shrink();
     return _Section(
-      title: 'Steps per day',
-      legend: _Legend(
-        items: [
-          ('Steps', scheme.primary.withValues(alpha: 0.5)),
-          ('7-day average', scheme.tertiary),
-        ],
-      ),
-      child: _async(activity, (days) {
-        if (!hasAnySteps(days)) {
-          return const ChartEmptyState(
-            icon: Icons.directions_walk,
-            message:
-                'No step data in this range.\n'
-                'Connect Health Connect in Settings.',
-          );
-        }
-        return _StepsChart(days: stepsWithAverage(days));
-      }),
+      title: title,
+      headline: stepsHeadline(days),
+      legend: empty
+          ? null
+          : _Legend(
+              items: [
+                ('Steps', scheme.primary),
+                ('7-day average', scheme.tertiary),
+              ],
+            ),
+      child: empty
+          ? ChartEmptyState(
+              icon: Icons.directions_walk,
+              message: 'No step data in this range yet.',
+              action: FilledButton.tonalIcon(
+                key: const Key('connectHealthConnect'),
+                onPressed: () =>
+                    ref.read(healthSyncProvider.notifier).connect(),
+                icon: const Icon(Icons.favorite_outline),
+                label: const Text('Connect Health Connect'),
+              ),
+            )
+          : _StepsChart(days: stepsWithAverage(days)),
     );
   }
 }
+
+final _stepsFormat = NumberFormat.decimalPattern('en_US');
 
 /// Daily step bars with the 7-day average line; x = day index in [days].
 class _StepsChart extends StatelessWidget {
@@ -247,6 +432,11 @@ class _StepsChart extends StatelessWidget {
     }
     final maxY = _niceMax(maxSteps);
     final n = days.length;
+    // Bars drawn so far, in order; the average line comes last.
+    final barDays = [
+      for (var i = 0; i < n; i++)
+        if ((days[i].steps ?? 0) > 0) i,
+    ];
     return SizedBox(
       height: 200,
       child: LayoutBuilder(
@@ -254,7 +444,8 @@ class _StepsChart extends StatelessWidget {
           // Bars are drawn as thick vertical line segments, so they can share
           // one LineChart with the average line (fl_chart can't mix chart types).
           final plotWidth = math.max(1.0, constraints.maxWidth - 60);
-          final barWidth = (plotWidth / n * 0.7).clamp(1.0, 14.0);
+          final slot = plotWidth / n;
+          final barWidth = (slot * 0.7).clamp(1.0, 14.0);
           return Padding(
             padding: const EdgeInsets.only(right: 12, top: 8),
             child: LineChart(
@@ -263,7 +454,54 @@ class _StepsChart extends StatelessWidget {
                 maxX: n - 0.5,
                 minY: 0,
                 maxY: maxY,
-                lineTouchData: const LineTouchData(enabled: false),
+                lineTouchData: LineTouchData(
+                  // Match by x only, so touching anywhere on a bar works.
+                  distanceCalculator: (touch, spot) => (touch - spot).dx.abs(),
+                  touchSpotThreshold: math.max(4.0, slot / 2),
+                  getTouchedSpotIndicator: (bar, indexes) => [
+                    for (final _ in indexes)
+                      TouchedSpotIndicatorData(
+                        FlLine(color: scheme.outline, strokeWidth: 1),
+                        const FlDotData(show: false),
+                      ),
+                  ],
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => scheme.inverseSurface,
+                    getTooltipItems: (spots) {
+                      final style = TextStyle(
+                        color: scheme.onInverseSurface,
+                        fontSize: 12,
+                      );
+                      var dayShown = false;
+                      return [
+                        for (final s in spots)
+                          () {
+                            final i = s.x.round();
+                            if (i < 0 || i >= n) return null;
+                            final isAverage = s.barIndex == barDays.length;
+                            final lines = <String>[];
+                            if (!dayShown) {
+                              dayShown = true;
+                              lines.add(shortDateLabel(addDays(first, i)));
+                              final steps = days[i].steps;
+                              if (steps != null) {
+                                lines.add(
+                                  '${_stepsFormat.format(steps)} steps',
+                                );
+                              }
+                            }
+                            if (isAverage) {
+                              lines.add(
+                                'Avg ${_stepsFormat.format(s.y.round())}',
+                              );
+                            }
+                            if (lines.isEmpty) return null;
+                            return LineTooltipItem(lines.join('\n'), style);
+                          }(),
+                      ];
+                    },
+                  ),
+                ),
                 borderData: FlBorderData(show: false),
                 gridData: _grid(scheme, maxY / 4),
                 titlesData: _titles(
@@ -281,17 +519,16 @@ class _StepsChart extends StatelessWidget {
                   },
                 ),
                 lineBarsData: [
-                  for (var i = 0; i < n; i++)
-                    if ((days[i].steps ?? 0) > 0)
-                      LineChartBarData(
-                        spots: [
-                          FlSpot(i.toDouble(), 0),
-                          FlSpot(i.toDouble(), days[i].steps!.toDouble()),
-                        ],
-                        color: scheme.primary.withValues(alpha: 0.5),
-                        barWidth: barWidth,
-                        dotData: const FlDotData(show: false),
-                      ),
+                  for (final i in barDays)
+                    LineChartBarData(
+                      spots: [
+                        FlSpot(i.toDouble(), 0),
+                        FlSpot(i.toDouble(), days[i].steps!.toDouble()),
+                      ],
+                      color: scheme.primary,
+                      barWidth: barWidth,
+                      dotData: const FlDotData(show: false),
+                    ),
                   LineChartBarData(
                     spots: [
                       for (var i = 0; i < n; i++)
@@ -301,7 +538,7 @@ class _StepsChart extends StatelessWidget {
                           FlSpot.nullSpot,
                     ],
                     color: scheme.tertiary,
-                    barWidth: 2.5,
+                    barWidth: 3,
                     dotData: const FlDotData(show: false),
                   ),
                 ],
@@ -315,61 +552,88 @@ class _StepsChart extends StatelessWidget {
 }
 
 class _WorkoutsSection extends ConsumerWidget {
-  const _WorkoutsSection({required this.window});
+  const _WorkoutsSection({required this.window, required this.hideWhenEmpty});
   final _Window window;
+  final bool hideWhenEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final activity = ref.watch(activityRangeProvider(window));
+    const title = 'Workouts per week';
+    final pending = _pending(
+      activity,
+      () => ref.invalidate(activityRangeProvider(window)),
+    );
+    if (pending != null) return _Section(title: title, child: pending);
+
+    final days = activity.value!;
+    final weeks = workoutsPerWeek(days);
+    final empty = weeks.every((w) => w.count == 0);
+    if (empty && hideWhenEmpty) return const SizedBox.shrink();
     return _Section(
-      title: 'Workouts per week',
-      child: _async(activity, (days) {
-        final weeks = workoutsPerWeek(days);
-        if (weeks.every((w) => w.count == 0)) {
-          return const ChartEmptyState(
-            icon: Icons.fitness_center,
-            message: 'No workouts in this range',
-          );
-        }
-        return _WeekBars(
-          weekStarts: [for (final w in weeks) w.weekStart],
-          series: [
-            [for (final w in weeks) w.count.toDouble()],
-          ],
-          colors: [scheme.secondary],
-          unit: 'workouts',
-          integerAxis: true,
-          tooltip: (week, series, value) =>
-              '${value.round()} workout${value.round() == 1 ? '' : 's'}',
-        );
-      }),
+      title: title,
+      headline: workoutsHeadline(days),
+      child: empty
+          ? const ChartEmptyState(
+              icon: Icons.fitness_center,
+              message:
+                  'No workouts in this range.\n'
+                  'Workouts from Health Connect show up here.',
+            )
+          : _WeekBars(
+              weekStarts: [for (final w in weeks) w.weekStart],
+              series: [
+                [for (final w in weeks) w.count.toDouble()],
+              ],
+              colors: [scheme.primary],
+              unit: 'workouts',
+              integerAxis: true,
+              tooltip: (week, series, value) =>
+                  '${value.round()} workout${value.round() == 1 ? '' : 's'}',
+            ),
     );
   }
 }
 
 class _MaintenanceSection extends ConsumerWidget {
-  const _MaintenanceSection({required this.window});
+  const _MaintenanceSection({
+    required this.window,
+    required this.hideWhenEmpty,
+  });
   final _Window window;
+  final bool hideWhenEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final targets = ref.watch(targetHistoryProvider);
+    const title = 'Maintenance estimate';
+    const subtitle = 'Calories to keep your weight stable, from each check-in';
+    final pending = _pending(
+      targets,
+      () => ref.invalidate(targetHistoryProvider),
+    );
+    if (pending != null) {
+      return _Section(title: title, subtitle: subtitle, child: pending);
+    }
+    final series = maintenanceSeries(targets.value!, window.$1, window.$2);
+    if (series.isEmpty && hideWhenEmpty) return const SizedBox.shrink();
     return _Section(
-      title: 'Maintenance estimate',
-      subtitle: 'Calories to keep your weight stable, from each check-in',
-      child: _async(targets, (points) {
-        final series = maintenanceSeries(points, window.$1, window.$2);
-        if (series.isEmpty) {
-          return const ChartEmptyState(
-            icon: Icons.local_fire_department_outlined,
-            message:
-                'No maintenance estimate yet.\n'
-                'It appears once your targets are set up.',
-          );
-        }
-        return _MaintenanceChart(series: series, from: window.$1);
-      }),
+      title: title,
+      headline: maintenanceHeadline(series),
+      subtitle: subtitle,
+      child: series.isEmpty
+          ? ChartEmptyState(
+              icon: Icons.local_fire_department_outlined,
+              message:
+                  'No maintenance estimate yet.\n'
+                  'It appears once your profile is set up.',
+              action: FilledButton.tonal(
+                onPressed: () => _openSettings(context),
+                child: const Text('Open settings'),
+              ),
+            )
+          : _MaintenanceChart(series: series, from: window.$1),
     );
   }
 }
@@ -441,8 +705,15 @@ class _MaintenanceChart extends StatelessWidget {
                   stepDirection: LineChartStepData.stepDirectionForward,
                 ),
                 color: scheme.primary,
-                barWidth: 2.5,
-                dotData: const FlDotData(show: false),
+                barWidth: 3,
+                dotData: FlDotData(
+                  getDotPainter: (spot, xPct, bar, index) => FlDotCirclePainter(
+                    radius: 4,
+                    color: scheme.primary,
+                    strokeWidth: 1.5,
+                    strokeColor: scheme.surface,
+                  ),
+                ),
               ),
             ],
           ),
@@ -467,8 +738,10 @@ class _WeekBars extends StatelessWidget {
   final List<List<double?>> series;
   final List<Color> colors;
   final String unit;
+
   /// Tooltip text for a bar (week index, series index, value).
   final String Function(int week, int series, double value) tooltip;
+
   /// Use whole-number y steps (for counts).
   final bool integerAxis;
 
@@ -569,7 +842,7 @@ class _Legend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.labelSmall;
+    final style = Theme.of(context).textTheme.labelMedium;
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 16,
@@ -596,14 +869,14 @@ class _Legend extends StatelessWidget {
 }
 
 TextStyle? _labelStyle(BuildContext context) =>
-    Theme.of(context).textTheme.labelSmall
+    Theme.of(context).textTheme.labelMedium
         ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
 
 FlGridData _grid(ColorScheme scheme, double interval) => FlGridData(
   drawVerticalLine: false,
   horizontalInterval: interval > 0 ? interval : null,
   getDrawingHorizontalLine: (_) =>
-      FlLine(color: scheme.outlineVariant, strokeWidth: 0.5),
+      FlLine(color: scheme.outlineVariant, strokeWidth: 1),
 );
 
 /// Shared axis titles: [unit] on the left axis, [xLabel] along the bottom.
@@ -621,7 +894,7 @@ FlTitlesData _titles({
     rightTitles: const AxisTitles(),
     leftTitles: AxisTitles(
       axisNameWidget: Text(unit, style: labelStyle),
-      axisNameSize: 18,
+      axisNameSize: 20,
       sideTitles: SideTitles(
         showTitles: true,
         reservedSize: 44,
@@ -641,10 +914,10 @@ FlTitlesData _titles({
       axisNameWidget: bottomName == null
           ? null
           : Text(bottomName, style: labelStyle),
-      axisNameSize: bottomName == null ? 0 : 16,
+      axisNameSize: bottomName == null ? 0 : 18,
       sideTitles: SideTitles(
         showTitles: true,
-        reservedSize: 22,
+        reservedSize: 24,
         interval: xInterval,
         // The last date label would sit on the right edge and get clipped.
         maxIncluded: false,

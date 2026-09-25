@@ -15,8 +15,9 @@ final databaseProvider = Provider<AppDatabase>(
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 /// The day shown on the Today screen (defaults to today; user can browse back).
-final selectedDayProvider =
-    NotifierProvider<SelectedDay, String>(SelectedDay.new);
+final selectedDayProvider = NotifierProvider<SelectedDay, String>(
+  SelectedDay.new,
+);
 
 /// Holds the selected day key; starts at today per [clockProvider].
 class SelectedDay extends Notifier<String> {

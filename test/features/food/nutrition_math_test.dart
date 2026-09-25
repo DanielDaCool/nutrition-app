@@ -81,4 +81,12 @@ void main() {
       expect(parseServingGrams(servingQuantity: 40), isNull);
     });
   });
+
+  test('evenServings: whole or half servings only', () {
+    expect(evenServings(300, 150), 2);
+    expect(evenServings(75, 150), 0.5);
+    expect(evenServings(130, 150), isNull);
+    expect(evenServings(100, null), isNull);
+    expect(evenServings(100, 0), isNull);
+  });
 }

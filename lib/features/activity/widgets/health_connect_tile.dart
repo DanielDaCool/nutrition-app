@@ -98,7 +98,7 @@ class HealthConnectSettingsTile extends ConsumerWidget {
         final history = s.historyAuthorized ? '' : ' · reads the last 30 days';
         return (s.syncing ? 'Connected · syncing…' : 'Connected') + history;
       case HealthStatusKind.error:
-        return 'Sync failed: ${s.message ?? 'unknown error'}';
+        return "Sync didn't work. Tap Connect or Sync now to try again.";
     }
   }
 
