@@ -143,6 +143,20 @@ class Workouts extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Manually logged aerobic exercise (e.g. a bike ride or treadmill walk) not
+/// captured by Health Connect. Calories are a MET-based estimate the user
+/// can override; `metValue` is null when the estimate was overridden.
+@TableIndex(name: 'manual_exercises_day_idx', columns: {#dayKey})
+class ManualExercises extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get dayKey => text()();
+  TextColumn get activityName => text()();
+  RealColumn get durationMin => real()();
+  RealColumn get metValue => real().nullable()();
+  RealColumn get kcal => real()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
 /// Targets accepted by the user; the newest effectiveFrom <= today applies.
 @DataClassName('TargetRecord')
 class TargetHistory extends Table {

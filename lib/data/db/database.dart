@@ -23,6 +23,7 @@ part 'database.g.dart';
     DayStatuses,
     DailySteps,
     Workouts,
+    ManualExercises,
     TargetHistory,
     KeyValues,
   ],
