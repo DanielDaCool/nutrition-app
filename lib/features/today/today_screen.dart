@@ -19,7 +19,8 @@ import 'widgets/quick_weigh_in.dart';
 import 'widgets/yesterday_prompt.dart';
 
 /// Today tab for the day in `selectedDayProvider`. Arrows move a day at a
-/// time but never past today; tapping the title jumps back to today.
+/// time but never past today; the calendar icon jumps to any past day;
+/// tapping the title jumps back to today.
 ///
 /// On today without a weigh-in the quick weigh-in sits above the calorie
 /// card (morning routine); once saved a compact summary row takes its place.
@@ -101,6 +102,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         ),
         actions: [
           IconButton(
+            key: const Key('pickDay'),
+            tooltip: 'Pick a day',
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () => _pickDay(context, selected, dayKey, today),
+          ),
+          IconButton(
             tooltip: 'Next day',
             icon: const Icon(Icons.chevron_right),
             onPressed: canGoForward
@@ -144,6 +151,25 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       ),
     );
   }
+}
+
+/// Opens a date picker bounded to [today] and jumps there on pick.
+Future<void> _pickDay(
+  BuildContext context,
+  SelectedDay selected,
+  String dayKey,
+  String today,
+) async {
+  final initial = startOfDay(dayKey);
+  final picked = await showDatePicker(
+    context: context,
+    helpText: 'Jump to a day',
+    initialDate: initial,
+    firstDate: DateTime(initial.year - 3),
+    lastDate: startOfDay(today),
+  );
+  if (picked == null) return;
+  selected.set(dayKeyOf(picked));
 }
 
 /// "Viewing Wed 24 Sep · Back to today" bar shown on past days.
