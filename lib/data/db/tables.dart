@@ -145,7 +145,8 @@ class Workouts extends Table {
 
 /// Manually logged aerobic exercise (e.g. a bike ride or treadmill walk) not
 /// captured by Health Connect. Calories are a MET-based estimate the user
-/// can override; `metValue` is null when the estimate was overridden.
+/// can override; `metValue` is null when the estimate was overridden or
+/// came from speed and incline (walks and runs).
 @TableIndex(name: 'manual_exercises_day_idx', columns: {#dayKey})
 class ManualExercises extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -154,6 +155,10 @@ class ManualExercises extends Table {
   RealColumn get durationMin => real()();
   RealColumn get metValue => real().nullable()();
   RealColumn get kcal => real()();
+
+  /// Walks and runs only: distance covered and treadmill incline (%).
+  RealColumn get distanceKm => real().nullable()();
+  RealColumn get inclinePct => real().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 }
 

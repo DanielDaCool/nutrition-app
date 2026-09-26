@@ -36,12 +36,36 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.defaults() : super(driftDatabase(name: 'nutrition'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        beforeOpen: (details) async {
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
-      );
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) await _addManualExercises(m);
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
+
+  /// v1 -> v2. Installs updated to the v1 build that first shipped
+  /// ManualExercises never got the table (no migration ran), while fresh
+  /// installs of that build have it without the distance/incline columns.
+  Future<void> _addManualExercises(Migrator m) async {
+    final columns = await customSelect(
+      "SELECT name FROM pragma_table_info('manual_exercises')",
+    ).map((r) => r.read<String>('name')).get();
+    if (columns.isEmpty) {
+      await m.createTable(manualExercises);
+      await m.createIndex(manualExercisesDayIdx);
+      return;
+    }
+    if (!columns.contains('distance_km')) {
+      await m.addColumn(manualExercises, manualExercises.distanceKm);
+    }
+    if (!columns.contains('incline_pct')) {
+      await m.addColumn(manualExercises, manualExercises.inclinePct);
+    }
+  }
 }
