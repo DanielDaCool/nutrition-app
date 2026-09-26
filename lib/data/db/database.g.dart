@@ -4026,6 +4026,28 @@ class $ManualExercisesTable extends ManualExercises
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _distanceKmMeta = const VerificationMeta(
+    'distanceKm',
+  );
+  @override
+  late final GeneratedColumn<double> distanceKm = GeneratedColumn<double>(
+    'distance_km',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _inclinePctMeta = const VerificationMeta(
+    'inclinePct',
+  );
+  @override
+  late final GeneratedColumn<double> inclinePct = GeneratedColumn<double>(
+    'incline_pct',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4045,6 +4067,8 @@ class $ManualExercisesTable extends ManualExercises
     durationMin,
     metValue,
     kcal,
+    distanceKm,
+    inclinePct,
     createdAt,
   ];
   @override
@@ -4106,6 +4130,18 @@ class $ManualExercisesTable extends ManualExercises
     } else if (isInserting) {
       context.missing(_kcalMeta);
     }
+    if (data.containsKey('distance_km')) {
+      context.handle(
+        _distanceKmMeta,
+        distanceKm.isAcceptableOrUnknown(data['distance_km']!, _distanceKmMeta),
+      );
+    }
+    if (data.containsKey('incline_pct')) {
+      context.handle(
+        _inclinePctMeta,
+        inclinePct.isAcceptableOrUnknown(data['incline_pct']!, _inclinePctMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4147,6 +4183,14 @@ class $ManualExercisesTable extends ManualExercises
         DriftSqlType.double,
         data['${effectivePrefix}kcal'],
       )!,
+      distanceKm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}distance_km'],
+      ),
+      inclinePct: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}incline_pct'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4167,6 +4211,10 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
   final double durationMin;
   final double? metValue;
   final double kcal;
+
+  /// Walks and runs only: distance covered and treadmill incline (%).
+  final double? distanceKm;
+  final double? inclinePct;
   final DateTime createdAt;
   const ManualExercise({
     required this.id,
@@ -4175,6 +4223,8 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
     required this.durationMin,
     this.metValue,
     required this.kcal,
+    this.distanceKm,
+    this.inclinePct,
     required this.createdAt,
   });
   @override
@@ -4188,6 +4238,12 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
       map['met_value'] = Variable<double>(metValue);
     }
     map['kcal'] = Variable<double>(kcal);
+    if (!nullToAbsent || distanceKm != null) {
+      map['distance_km'] = Variable<double>(distanceKm);
+    }
+    if (!nullToAbsent || inclinePct != null) {
+      map['incline_pct'] = Variable<double>(inclinePct);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -4202,6 +4258,12 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
           ? const Value.absent()
           : Value(metValue),
       kcal: Value(kcal),
+      distanceKm: distanceKm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(distanceKm),
+      inclinePct: inclinePct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inclinePct),
       createdAt: Value(createdAt),
     );
   }
@@ -4218,6 +4280,8 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
       durationMin: serializer.fromJson<double>(json['durationMin']),
       metValue: serializer.fromJson<double?>(json['metValue']),
       kcal: serializer.fromJson<double>(json['kcal']),
+      distanceKm: serializer.fromJson<double?>(json['distanceKm']),
+      inclinePct: serializer.fromJson<double?>(json['inclinePct']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -4231,6 +4295,8 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
       'durationMin': serializer.toJson<double>(durationMin),
       'metValue': serializer.toJson<double?>(metValue),
       'kcal': serializer.toJson<double>(kcal),
+      'distanceKm': serializer.toJson<double?>(distanceKm),
+      'inclinePct': serializer.toJson<double?>(inclinePct),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -4242,6 +4308,8 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
     double? durationMin,
     Value<double?> metValue = const Value.absent(),
     double? kcal,
+    Value<double?> distanceKm = const Value.absent(),
+    Value<double?> inclinePct = const Value.absent(),
     DateTime? createdAt,
   }) => ManualExercise(
     id: id ?? this.id,
@@ -4250,6 +4318,8 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
     durationMin: durationMin ?? this.durationMin,
     metValue: metValue.present ? metValue.value : this.metValue,
     kcal: kcal ?? this.kcal,
+    distanceKm: distanceKm.present ? distanceKm.value : this.distanceKm,
+    inclinePct: inclinePct.present ? inclinePct.value : this.inclinePct,
     createdAt: createdAt ?? this.createdAt,
   );
   ManualExercise copyWithCompanion(ManualExercisesCompanion data) {
@@ -4264,6 +4334,12 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
           : this.durationMin,
       metValue: data.metValue.present ? data.metValue.value : this.metValue,
       kcal: data.kcal.present ? data.kcal.value : this.kcal,
+      distanceKm: data.distanceKm.present
+          ? data.distanceKm.value
+          : this.distanceKm,
+      inclinePct: data.inclinePct.present
+          ? data.inclinePct.value
+          : this.inclinePct,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -4277,6 +4353,8 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
           ..write('durationMin: $durationMin, ')
           ..write('metValue: $metValue, ')
           ..write('kcal: $kcal, ')
+          ..write('distanceKm: $distanceKm, ')
+          ..write('inclinePct: $inclinePct, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -4290,6 +4368,8 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
     durationMin,
     metValue,
     kcal,
+    distanceKm,
+    inclinePct,
     createdAt,
   );
   @override
@@ -4302,6 +4382,8 @@ class ManualExercise extends DataClass implements Insertable<ManualExercise> {
           other.durationMin == this.durationMin &&
           other.metValue == this.metValue &&
           other.kcal == this.kcal &&
+          other.distanceKm == this.distanceKm &&
+          other.inclinePct == this.inclinePct &&
           other.createdAt == this.createdAt);
 }
 
@@ -4312,6 +4394,8 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
   final Value<double> durationMin;
   final Value<double?> metValue;
   final Value<double> kcal;
+  final Value<double?> distanceKm;
+  final Value<double?> inclinePct;
   final Value<DateTime> createdAt;
   const ManualExercisesCompanion({
     this.id = const Value.absent(),
@@ -4320,6 +4404,8 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
     this.durationMin = const Value.absent(),
     this.metValue = const Value.absent(),
     this.kcal = const Value.absent(),
+    this.distanceKm = const Value.absent(),
+    this.inclinePct = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   ManualExercisesCompanion.insert({
@@ -4329,6 +4415,8 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
     required double durationMin,
     this.metValue = const Value.absent(),
     required double kcal,
+    this.distanceKm = const Value.absent(),
+    this.inclinePct = const Value.absent(),
     required DateTime createdAt,
   }) : dayKey = Value(dayKey),
        activityName = Value(activityName),
@@ -4342,6 +4430,8 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
     Expression<double>? durationMin,
     Expression<double>? metValue,
     Expression<double>? kcal,
+    Expression<double>? distanceKm,
+    Expression<double>? inclinePct,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -4351,6 +4441,8 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
       if (durationMin != null) 'duration_min': durationMin,
       if (metValue != null) 'met_value': metValue,
       if (kcal != null) 'kcal': kcal,
+      if (distanceKm != null) 'distance_km': distanceKm,
+      if (inclinePct != null) 'incline_pct': inclinePct,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -4362,6 +4454,8 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
     Value<double>? durationMin,
     Value<double?>? metValue,
     Value<double>? kcal,
+    Value<double?>? distanceKm,
+    Value<double?>? inclinePct,
     Value<DateTime>? createdAt,
   }) {
     return ManualExercisesCompanion(
@@ -4371,6 +4465,8 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
       durationMin: durationMin ?? this.durationMin,
       metValue: metValue ?? this.metValue,
       kcal: kcal ?? this.kcal,
+      distanceKm: distanceKm ?? this.distanceKm,
+      inclinePct: inclinePct ?? this.inclinePct,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -4396,6 +4492,12 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
     if (kcal.present) {
       map['kcal'] = Variable<double>(kcal.value);
     }
+    if (distanceKm.present) {
+      map['distance_km'] = Variable<double>(distanceKm.value);
+    }
+    if (inclinePct.present) {
+      map['incline_pct'] = Variable<double>(inclinePct.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4411,6 +4513,8 @@ class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
           ..write('durationMin: $durationMin, ')
           ..write('metValue: $metValue, ')
           ..write('kcal: $kcal, ')
+          ..write('distanceKm: $distanceKm, ')
+          ..write('inclinePct: $inclinePct, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -8006,6 +8110,8 @@ typedef $$ManualExercisesTableCreateCompanionBuilder =
       required double durationMin,
       Value<double?> metValue,
       required double kcal,
+      Value<double?> distanceKm,
+      Value<double?> inclinePct,
       required DateTime createdAt,
     });
 typedef $$ManualExercisesTableUpdateCompanionBuilder =
@@ -8016,6 +8122,8 @@ typedef $$ManualExercisesTableUpdateCompanionBuilder =
       Value<double> durationMin,
       Value<double?> metValue,
       Value<double> kcal,
+      Value<double?> distanceKm,
+      Value<double?> inclinePct,
       Value<DateTime> createdAt,
     });
 
@@ -8055,6 +8163,16 @@ class $$ManualExercisesTableFilterComposer
 
   ColumnFilters<double> get kcal => $composableBuilder(
     column: $table.kcal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get distanceKm => $composableBuilder(
+    column: $table.distanceKm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get inclinePct => $composableBuilder(
+    column: $table.inclinePct,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8103,6 +8221,16 @@ class $$ManualExercisesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get distanceKm => $composableBuilder(
+    column: $table.distanceKm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get inclinePct => $composableBuilder(
+    column: $table.inclinePct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -8139,6 +8267,16 @@ class $$ManualExercisesTableAnnotationComposer
 
   GeneratedColumn<double> get kcal =>
       $composableBuilder(column: $table.kcal, builder: (column) => column);
+
+  GeneratedColumn<double> get distanceKm => $composableBuilder(
+    column: $table.distanceKm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get inclinePct => $composableBuilder(
+    column: $table.inclinePct,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -8187,6 +8325,8 @@ class $$ManualExercisesTableTableManager
                 Value<double> durationMin = const Value.absent(),
                 Value<double?> metValue = const Value.absent(),
                 Value<double> kcal = const Value.absent(),
+                Value<double?> distanceKm = const Value.absent(),
+                Value<double?> inclinePct = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => ManualExercisesCompanion(
                 id: id,
@@ -8195,6 +8335,8 @@ class $$ManualExercisesTableTableManager
                 durationMin: durationMin,
                 metValue: metValue,
                 kcal: kcal,
+                distanceKm: distanceKm,
+                inclinePct: inclinePct,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -8205,6 +8347,8 @@ class $$ManualExercisesTableTableManager
                 required double durationMin,
                 Value<double?> metValue = const Value.absent(),
                 required double kcal,
+                Value<double?> distanceKm = const Value.absent(),
+                Value<double?> inclinePct = const Value.absent(),
                 required DateTime createdAt,
               }) => ManualExercisesCompanion.insert(
                 id: id,
@@ -8213,6 +8357,8 @@ class $$ManualExercisesTableTableManager
                 durationMin: durationMin,
                 metValue: metValue,
                 kcal: kcal,
+                distanceKm: distanceKm,
+                inclinePct: inclinePct,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0

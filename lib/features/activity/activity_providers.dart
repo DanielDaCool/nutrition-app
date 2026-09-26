@@ -39,6 +39,8 @@ Future<void> addManualExerciseEntry(
   required double durationMin,
   required double kcal,
   double? metValue,
+  double? distanceKm,
+  double? inclinePct,
 }) => addManualExercise(
   ref.read(databaseProvider),
   dayKey: dayKey,
@@ -46,6 +48,8 @@ Future<void> addManualExerciseEntry(
   durationMin: durationMin,
   kcal: kcal,
   metValue: metValue,
+  distanceKm: distanceKm,
+  inclinePct: inclinePct,
   now: ref.read(clockProvider)(),
 );
 

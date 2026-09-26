@@ -46,6 +46,30 @@ String formatDuration(Duration d) {
   return '$h h $m min';
 }
 
+/// At most [maxDecimals] decimals, no trailing zeros: 2.50 -> '2.5', 6.0 -> '6'.
+String formatDecimal(double v, int maxDecimals) {
+  final s = v.toStringAsFixed(maxDecimals);
+  if (!s.contains('.')) return s;
+  return s.replaceFirst(RegExp(r'\.?0+$'), '');
+}
+
+/// "2.5 km · 5 km/h · 6% incline" for a manual walk or run; null without a
+/// distance.
+String? formatWalkDetails({
+  required double? distanceKm,
+  required double? inclinePct,
+  required Duration duration,
+}) {
+  if (distanceKm == null || distanceKm <= 0) return null;
+  final parts = ['${formatDecimal(distanceKm, 2)} km'];
+  final hours = duration.inSeconds / 3600;
+  if (hours > 0) parts.add('${formatDecimal(distanceKm / hours, 1)} km/h');
+  if (inclinePct != null && inclinePct > 0) {
+    parts.add('${formatDecimal(inclinePct, 1)}% incline');
+  }
+  return parts.join(' · ');
+}
+
 /// 8432 -> '8,432'.
 String formatSteps(int steps) {
   final s = steps.abs().toString();

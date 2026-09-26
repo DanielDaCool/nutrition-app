@@ -53,6 +53,8 @@ Future<List<DayActivity>> loadActivityRange(
         end: m.createdAt.add(Duration(seconds: (m.durationMin * 60).round())),
         kcal: m.kcal,
         isManual: true,
+        distanceKm: m.distanceKm,
+        inclinePct: m.inclinePct,
       ),
     );
   }
@@ -133,6 +135,8 @@ Future<void> addManualExercise(
   required double durationMin,
   required double kcal,
   double? metValue,
+  double? distanceKm,
+  double? inclinePct,
   required DateTime now,
 }) {
   return db
@@ -144,6 +148,8 @@ Future<void> addManualExercise(
           durationMin: durationMin,
           kcal: kcal,
           metValue: Value(metValue),
+          distanceKm: Value(distanceKm),
+          inclinePct: Value(inclinePct),
           createdAt: now,
         ),
       );
@@ -152,7 +158,5 @@ Future<void> addManualExercise(
 /// Removes a manually logged exercise by its row id (see
 /// [WorkoutSummary.id], stripped of the `manual-` prefix).
 Future<void> deleteManualExercise(AppDatabase db, int id) {
-  return (db.delete(
-    db.manualExercises,
-  )..where((t) => t.id.equals(id))).go();
+  return (db.delete(db.manualExercises)..where((t) => t.id.equals(id))).go();
 }
