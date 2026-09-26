@@ -24,6 +24,11 @@ Future<List<DayActivity>> loadActivityRange(
             ..where((t) => t.dayKey.isBetweenValues(from, to))
             ..orderBy([(t) => OrderingTerm.asc(t.startTime)]))
           .get();
+  final manualRows =
+      await (db.select(db.manualExercises)
+            ..where((t) => t.dayKey.isBetweenValues(from, to))
+            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+          .get();
 
   final stepsByDay = {for (final r in stepRows) r.dayKey: r.steps};
   final workoutsByDay = <String, List<WorkoutSummary>>{};
@@ -35,8 +40,24 @@ Future<List<DayActivity>> loadActivityRange(
         start: w.startTime,
         end: w.endTime,
         sourceApp: w.sourceApp,
+        kcal: w.kcal,
       ),
     );
+  }
+  for (final m in manualRows) {
+    (workoutsByDay[m.dayKey] ??= []).add(
+      WorkoutSummary(
+        id: 'manual-${m.id}',
+        title: m.activityName,
+        start: m.createdAt,
+        end: m.createdAt.add(Duration(seconds: (m.durationMin * 60).round())),
+        kcal: m.kcal,
+        isManual: true,
+      ),
+    );
+  }
+  for (final entries in workoutsByDay.values) {
+    entries.sort((a, b) => a.start.compareTo(b.start));
   }
 
   final days = <DayActivity>[];
@@ -86,7 +107,11 @@ Stream<List<DayActivity>> watchActivityRange(
       // Subscribe before the first read so no change can slip in between.
       updates = db
           .tableUpdates(
-            TableUpdateQuery.onAllTables([db.dailySteps, db.workouts]),
+            TableUpdateQuery.onAllTables([
+              db.dailySteps,
+              db.workouts,
+              db.manualExercises,
+            ]),
           )
           .listen((_) => reload());
       reload();
@@ -97,4 +122,37 @@ Stream<List<DayActivity>> watchActivityRange(
     },
   );
   return controller.stream;
+}
+
+/// Adds a manually logged aerobic exercise (this feature's only writer of
+/// ManualExercises).
+Future<void> addManualExercise(
+  AppDatabase db, {
+  required String dayKey,
+  required String activityName,
+  required double durationMin,
+  required double kcal,
+  double? metValue,
+  required DateTime now,
+}) {
+  return db
+      .into(db.manualExercises)
+      .insert(
+        ManualExercisesCompanion.insert(
+          dayKey: dayKey,
+          activityName: activityName,
+          durationMin: durationMin,
+          kcal: kcal,
+          metValue: Value(metValue),
+          createdAt: now,
+        ),
+      );
+}
+
+/// Removes a manually logged exercise by its row id (see
+/// [WorkoutSummary.id], stripped of the `manual-` prefix).
+Future<void> deleteManualExercise(AppDatabase db, int id) {
+  return (db.delete(
+    db.manualExercises,
+  )..where((t) => t.id.equals(id))).go();
 }

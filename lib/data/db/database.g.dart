@@ -3956,6 +3956,467 @@ class WorkoutsCompanion extends UpdateCompanion<Workout> {
   }
 }
 
+class $ManualExercisesTable extends ManualExercises
+    with TableInfo<$ManualExercisesTable, ManualExercise> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ManualExercisesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _dayKeyMeta = const VerificationMeta('dayKey');
+  @override
+  late final GeneratedColumn<String> dayKey = GeneratedColumn<String>(
+    'day_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activityNameMeta = const VerificationMeta(
+    'activityName',
+  );
+  @override
+  late final GeneratedColumn<String> activityName = GeneratedColumn<String>(
+    'activity_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _durationMinMeta = const VerificationMeta(
+    'durationMin',
+  );
+  @override
+  late final GeneratedColumn<double> durationMin = GeneratedColumn<double>(
+    'duration_min',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _metValueMeta = const VerificationMeta(
+    'metValue',
+  );
+  @override
+  late final GeneratedColumn<double> metValue = GeneratedColumn<double>(
+    'met_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kcalMeta = const VerificationMeta('kcal');
+  @override
+  late final GeneratedColumn<double> kcal = GeneratedColumn<double>(
+    'kcal',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    dayKey,
+    activityName,
+    durationMin,
+    metValue,
+    kcal,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manual_exercises';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ManualExercise> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('day_key')) {
+      context.handle(
+        _dayKeyMeta,
+        dayKey.isAcceptableOrUnknown(data['day_key']!, _dayKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayKeyMeta);
+    }
+    if (data.containsKey('activity_name')) {
+      context.handle(
+        _activityNameMeta,
+        activityName.isAcceptableOrUnknown(
+          data['activity_name']!,
+          _activityNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_activityNameMeta);
+    }
+    if (data.containsKey('duration_min')) {
+      context.handle(
+        _durationMinMeta,
+        durationMin.isAcceptableOrUnknown(
+          data['duration_min']!,
+          _durationMinMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_durationMinMeta);
+    }
+    if (data.containsKey('met_value')) {
+      context.handle(
+        _metValueMeta,
+        metValue.isAcceptableOrUnknown(data['met_value']!, _metValueMeta),
+      );
+    }
+    if (data.containsKey('kcal')) {
+      context.handle(
+        _kcalMeta,
+        kcal.isAcceptableOrUnknown(data['kcal']!, _kcalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kcalMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ManualExercise map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ManualExercise(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      dayKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}day_key'],
+      )!,
+      activityName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}activity_name'],
+      )!,
+      durationMin: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}duration_min'],
+      )!,
+      metValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}met_value'],
+      ),
+      kcal: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}kcal'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ManualExercisesTable createAlias(String alias) {
+    return $ManualExercisesTable(attachedDatabase, alias);
+  }
+}
+
+class ManualExercise extends DataClass implements Insertable<ManualExercise> {
+  final int id;
+  final String dayKey;
+  final String activityName;
+  final double durationMin;
+  final double? metValue;
+  final double kcal;
+  final DateTime createdAt;
+  const ManualExercise({
+    required this.id,
+    required this.dayKey,
+    required this.activityName,
+    required this.durationMin,
+    this.metValue,
+    required this.kcal,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['day_key'] = Variable<String>(dayKey);
+    map['activity_name'] = Variable<String>(activityName);
+    map['duration_min'] = Variable<double>(durationMin);
+    if (!nullToAbsent || metValue != null) {
+      map['met_value'] = Variable<double>(metValue);
+    }
+    map['kcal'] = Variable<double>(kcal);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ManualExercisesCompanion toCompanion(bool nullToAbsent) {
+    return ManualExercisesCompanion(
+      id: Value(id),
+      dayKey: Value(dayKey),
+      activityName: Value(activityName),
+      durationMin: Value(durationMin),
+      metValue: metValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(metValue),
+      kcal: Value(kcal),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ManualExercise.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ManualExercise(
+      id: serializer.fromJson<int>(json['id']),
+      dayKey: serializer.fromJson<String>(json['dayKey']),
+      activityName: serializer.fromJson<String>(json['activityName']),
+      durationMin: serializer.fromJson<double>(json['durationMin']),
+      metValue: serializer.fromJson<double?>(json['metValue']),
+      kcal: serializer.fromJson<double>(json['kcal']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'dayKey': serializer.toJson<String>(dayKey),
+      'activityName': serializer.toJson<String>(activityName),
+      'durationMin': serializer.toJson<double>(durationMin),
+      'metValue': serializer.toJson<double?>(metValue),
+      'kcal': serializer.toJson<double>(kcal),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ManualExercise copyWith({
+    int? id,
+    String? dayKey,
+    String? activityName,
+    double? durationMin,
+    Value<double?> metValue = const Value.absent(),
+    double? kcal,
+    DateTime? createdAt,
+  }) => ManualExercise(
+    id: id ?? this.id,
+    dayKey: dayKey ?? this.dayKey,
+    activityName: activityName ?? this.activityName,
+    durationMin: durationMin ?? this.durationMin,
+    metValue: metValue.present ? metValue.value : this.metValue,
+    kcal: kcal ?? this.kcal,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ManualExercise copyWithCompanion(ManualExercisesCompanion data) {
+    return ManualExercise(
+      id: data.id.present ? data.id.value : this.id,
+      dayKey: data.dayKey.present ? data.dayKey.value : this.dayKey,
+      activityName: data.activityName.present
+          ? data.activityName.value
+          : this.activityName,
+      durationMin: data.durationMin.present
+          ? data.durationMin.value
+          : this.durationMin,
+      metValue: data.metValue.present ? data.metValue.value : this.metValue,
+      kcal: data.kcal.present ? data.kcal.value : this.kcal,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManualExercise(')
+          ..write('id: $id, ')
+          ..write('dayKey: $dayKey, ')
+          ..write('activityName: $activityName, ')
+          ..write('durationMin: $durationMin, ')
+          ..write('metValue: $metValue, ')
+          ..write('kcal: $kcal, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    dayKey,
+    activityName,
+    durationMin,
+    metValue,
+    kcal,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ManualExercise &&
+          other.id == this.id &&
+          other.dayKey == this.dayKey &&
+          other.activityName == this.activityName &&
+          other.durationMin == this.durationMin &&
+          other.metValue == this.metValue &&
+          other.kcal == this.kcal &&
+          other.createdAt == this.createdAt);
+}
+
+class ManualExercisesCompanion extends UpdateCompanion<ManualExercise> {
+  final Value<int> id;
+  final Value<String> dayKey;
+  final Value<String> activityName;
+  final Value<double> durationMin;
+  final Value<double?> metValue;
+  final Value<double> kcal;
+  final Value<DateTime> createdAt;
+  const ManualExercisesCompanion({
+    this.id = const Value.absent(),
+    this.dayKey = const Value.absent(),
+    this.activityName = const Value.absent(),
+    this.durationMin = const Value.absent(),
+    this.metValue = const Value.absent(),
+    this.kcal = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ManualExercisesCompanion.insert({
+    this.id = const Value.absent(),
+    required String dayKey,
+    required String activityName,
+    required double durationMin,
+    this.metValue = const Value.absent(),
+    required double kcal,
+    required DateTime createdAt,
+  }) : dayKey = Value(dayKey),
+       activityName = Value(activityName),
+       durationMin = Value(durationMin),
+       kcal = Value(kcal),
+       createdAt = Value(createdAt);
+  static Insertable<ManualExercise> custom({
+    Expression<int>? id,
+    Expression<String>? dayKey,
+    Expression<String>? activityName,
+    Expression<double>? durationMin,
+    Expression<double>? metValue,
+    Expression<double>? kcal,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dayKey != null) 'day_key': dayKey,
+      if (activityName != null) 'activity_name': activityName,
+      if (durationMin != null) 'duration_min': durationMin,
+      if (metValue != null) 'met_value': metValue,
+      if (kcal != null) 'kcal': kcal,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ManualExercisesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? dayKey,
+    Value<String>? activityName,
+    Value<double>? durationMin,
+    Value<double?>? metValue,
+    Value<double>? kcal,
+    Value<DateTime>? createdAt,
+  }) {
+    return ManualExercisesCompanion(
+      id: id ?? this.id,
+      dayKey: dayKey ?? this.dayKey,
+      activityName: activityName ?? this.activityName,
+      durationMin: durationMin ?? this.durationMin,
+      metValue: metValue ?? this.metValue,
+      kcal: kcal ?? this.kcal,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (dayKey.present) {
+      map['day_key'] = Variable<String>(dayKey.value);
+    }
+    if (activityName.present) {
+      map['activity_name'] = Variable<String>(activityName.value);
+    }
+    if (durationMin.present) {
+      map['duration_min'] = Variable<double>(durationMin.value);
+    }
+    if (metValue.present) {
+      map['met_value'] = Variable<double>(metValue.value);
+    }
+    if (kcal.present) {
+      map['kcal'] = Variable<double>(kcal.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManualExercisesCompanion(')
+          ..write('id: $id, ')
+          ..write('dayKey: $dayKey, ')
+          ..write('activityName: $activityName, ')
+          ..write('durationMin: $durationMin, ')
+          ..write('metValue: $metValue, ')
+          ..write('kcal: $kcal, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $TargetHistoryTable extends TargetHistory
     with TableInfo<$TargetHistoryTable, TargetRecord> {
   @override
@@ -4786,6 +5247,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DayStatusesTable dayStatuses = $DayStatusesTable(this);
   late final $DailyStepsTable dailySteps = $DailyStepsTable(this);
   late final $WorkoutsTable workouts = $WorkoutsTable(this);
+  late final $ManualExercisesTable manualExercises = $ManualExercisesTable(
+    this,
+  );
   late final $TargetHistoryTable targetHistory = $TargetHistoryTable(this);
   late final $KeyValuesTable keyValues = $KeyValuesTable(this);
   late final Index foodLogDayIdx = Index(
@@ -4795,6 +5259,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index workoutsDayIdx = Index(
     'workouts_day_idx',
     'CREATE INDEX workouts_day_idx ON workouts (day_key)',
+  );
+  late final Index manualExercisesDayIdx = Index(
+    'manual_exercises_day_idx',
+    'CREATE INDEX manual_exercises_day_idx ON manual_exercises (day_key)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -4810,10 +5278,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dayStatuses,
     dailySteps,
     workouts,
+    manualExercises,
     targetHistory,
     keyValues,
     foodLogDayIdx,
     workoutsDayIdx,
+    manualExercisesDayIdx,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -7528,6 +7998,257 @@ typedef $$WorkoutsTableProcessedTableManager =
       Workout,
       PrefetchHooks Function()
     >;
+typedef $$ManualExercisesTableCreateCompanionBuilder =
+    ManualExercisesCompanion Function({
+      Value<int> id,
+      required String dayKey,
+      required String activityName,
+      required double durationMin,
+      Value<double?> metValue,
+      required double kcal,
+      required DateTime createdAt,
+    });
+typedef $$ManualExercisesTableUpdateCompanionBuilder =
+    ManualExercisesCompanion Function({
+      Value<int> id,
+      Value<String> dayKey,
+      Value<String> activityName,
+      Value<double> durationMin,
+      Value<double?> metValue,
+      Value<double> kcal,
+      Value<DateTime> createdAt,
+    });
+
+class $$ManualExercisesTableFilterComposer
+    extends Composer<_$AppDatabase, $ManualExercisesTable> {
+  $$ManualExercisesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dayKey => $composableBuilder(
+    column: $table.dayKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get activityName => $composableBuilder(
+    column: $table.activityName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get durationMin => $composableBuilder(
+    column: $table.durationMin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get metValue => $composableBuilder(
+    column: $table.metValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get kcal => $composableBuilder(
+    column: $table.kcal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ManualExercisesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ManualExercisesTable> {
+  $$ManualExercisesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dayKey => $composableBuilder(
+    column: $table.dayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get activityName => $composableBuilder(
+    column: $table.activityName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get durationMin => $composableBuilder(
+    column: $table.durationMin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get metValue => $composableBuilder(
+    column: $table.metValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get kcal => $composableBuilder(
+    column: $table.kcal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ManualExercisesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ManualExercisesTable> {
+  $$ManualExercisesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dayKey =>
+      $composableBuilder(column: $table.dayKey, builder: (column) => column);
+
+  GeneratedColumn<String> get activityName => $composableBuilder(
+    column: $table.activityName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get durationMin => $composableBuilder(
+    column: $table.durationMin,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get metValue =>
+      $composableBuilder(column: $table.metValue, builder: (column) => column);
+
+  GeneratedColumn<double> get kcal =>
+      $composableBuilder(column: $table.kcal, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ManualExercisesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ManualExercisesTable,
+          ManualExercise,
+          $$ManualExercisesTableFilterComposer,
+          $$ManualExercisesTableOrderingComposer,
+          $$ManualExercisesTableAnnotationComposer,
+          $$ManualExercisesTableCreateCompanionBuilder,
+          $$ManualExercisesTableUpdateCompanionBuilder,
+          (
+            ManualExercise,
+            BaseReferences<
+              _$AppDatabase,
+              $ManualExercisesTable,
+              ManualExercise
+            >,
+          ),
+          ManualExercise,
+          PrefetchHooks Function()
+        > {
+  $$ManualExercisesTableTableManager(
+    _$AppDatabase db,
+    $ManualExercisesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ManualExercisesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ManualExercisesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ManualExercisesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> dayKey = const Value.absent(),
+                Value<String> activityName = const Value.absent(),
+                Value<double> durationMin = const Value.absent(),
+                Value<double?> metValue = const Value.absent(),
+                Value<double> kcal = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => ManualExercisesCompanion(
+                id: id,
+                dayKey: dayKey,
+                activityName: activityName,
+                durationMin: durationMin,
+                metValue: metValue,
+                kcal: kcal,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String dayKey,
+                required String activityName,
+                required double durationMin,
+                Value<double?> metValue = const Value.absent(),
+                required double kcal,
+                required DateTime createdAt,
+              }) => ManualExercisesCompanion.insert(
+                id: id,
+                dayKey: dayKey,
+                activityName: activityName,
+                durationMin: durationMin,
+                metValue: metValue,
+                kcal: kcal,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ManualExercisesTable, ManualExercise>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ManualExercisesTable,
+                    ManualExercise
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ManualExercisesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ManualExercisesTable,
+      ManualExercise,
+      $$ManualExercisesTableFilterComposer,
+      $$ManualExercisesTableOrderingComposer,
+      $$ManualExercisesTableAnnotationComposer,
+      $$ManualExercisesTableCreateCompanionBuilder,
+      $$ManualExercisesTableUpdateCompanionBuilder,
+      (
+        ManualExercise,
+        BaseReferences<_$AppDatabase, $ManualExercisesTable, ManualExercise>,
+      ),
+      ManualExercise,
+      PrefetchHooks Function()
+    >;
 typedef $$TargetHistoryTableCreateCompanionBuilder =
     TargetHistoryCompanion Function({
       Value<int> id,
@@ -7988,6 +8709,8 @@ class $AppDatabaseManager {
       $$DailyStepsTableTableManager(_db, _db.dailySteps);
   $$WorkoutsTableTableManager get workouts =>
       $$WorkoutsTableTableManager(_db, _db.workouts);
+  $$ManualExercisesTableTableManager get manualExercises =>
+      $$ManualExercisesTableTableManager(_db, _db.manualExercises);
   $$TargetHistoryTableTableManager get targetHistory =>
       $$TargetHistoryTableTableManager(_db, _db.targetHistory);
   $$KeyValuesTableTableManager get keyValues =>
