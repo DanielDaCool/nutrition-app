@@ -34,7 +34,7 @@ class SettingsScreen extends ConsumerWidget {
     final missingProfile = profile.hasValue && profile.value == null;
     const profileSection = [
       _SectionHeader('Profile', key: Key('profileHeader')),
-      ProfileForm(key: Key('profileForm')),
+      ProfileForm(key: Key('profileForm'), lockable: true),
     ];
     const targetsSection = [
       CurrentTargetsCard(key: Key('targetsCard')),
@@ -215,6 +215,7 @@ class ProfileForm extends ConsumerStatefulWidget {
     this.saveLabel = 'Save profile',
     this.extra = const [],
     this.onSaved,
+    this.lockable = false,
   });
 
   /// Text on the save button.
@@ -225,6 +226,11 @@ class ProfileForm extends ConsumerStatefulWidget {
 
   /// Runs after the profile is saved; replaces the default snackbar.
   final Future<void> Function()? onSaved;
+
+  /// When true and a profile already exists, the form opens read-only behind
+  /// an "Edit" button, and saving asks for confirmation. First-run setup
+  /// (no profile yet) is never locked, so this has no effect there.
+  final bool lockable;
 
   @override
   ConsumerState<ProfileForm> createState() => _ProfileFormState();
@@ -242,6 +248,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
   int _weekday = DateTime.sunday;
   bool _loaded = false;
   bool _saving = false;
+  bool _editing = false;
   String? _birthError;
 
   @override
@@ -292,12 +299,53 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     }
   }
 
+  bool get _hasExistingProfile => ref.read(profileProvider).value != null;
+
+  void _startEditing() => setState(() => _editing = true);
+
+  void _cancelEditing() {
+    setState(() {
+      _editing = false;
+      _birthError = null;
+      _loaded = false;
+    });
+    _load(ref.read(profileProvider).value);
+  }
+
+  Future<bool> _confirmSave() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Save profile changes?'),
+        content: const Text(
+          'This updates your goal weight, height and other profile details.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const Key('confirmSaveProfile'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Save changes'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
   Future<void> _save() async {
     final formOk = _formKey.currentState!.validate();
     if (_birthDate == null) {
       setState(() => _birthError = 'Add your birth date');
     }
     if (!formOk || _birthDate == null) return;
+    if (widget.lockable && _hasExistingProfile && !await _confirmSave()) {
+      return;
+    }
+    if (!mounted) return;
     setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
     final hasWeighIn = ref.read(weighInsProvider).value?.isNotEmpty ?? false;
@@ -314,6 +362,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
             proteinPerKg: _proteinPerKg,
             checkInWeekday: _weekday,
           );
+      if (mounted) setState(() => _editing = false);
       final onSaved = widget.onSaved;
       if (onSaved != null) {
         await onSaved();
@@ -371,6 +420,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
       );
     }
     _load(profile.value);
+    final locked = widget.lockable && profile.value != null && !_editing;
 
     ref.watch(weighInsProvider); // read by _save for the snackbar text
     final now = ref.read(clockProvider)();
@@ -408,6 +458,24 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (locked)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Locked to prevent accidental changes',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 8),
             SegmentedButton<Sex>(
               segments: const [
@@ -415,11 +483,14 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
                 ButtonSegment(value: Sex.female, label: Text('Female')),
               ],
               selected: {_sex},
-              onSelectionChanged: (s) => setState(() => _sex = s.first),
+              onSelectionChanged: locked
+                  ? null
+                  : (s) => setState(() => _sex = s.first),
             ),
             ListTile(
               key: const Key('birthDate'),
               contentPadding: EdgeInsets.zero,
+              enabled: !locked,
               title: const Text('Birth date'),
               subtitle: Text(
                 _birthError ??
@@ -432,11 +503,12 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
                     : TextStyle(color: theme.colorScheme.error),
               ),
               trailing: const Icon(Icons.edit_calendar_outlined),
-              onTap: _pickBirthDate,
+              onTap: locked ? null : _pickBirthDate,
             ),
             TextFormField(
               key: const Key('heightCm'),
               controller: _height,
+              enabled: !locked,
               decoration: const InputDecoration(
                 labelText: 'Height',
                 suffixText: 'cm',
@@ -478,7 +550,9 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
                     ),
                   ),
               ],
-              onChanged: (a) => setState(() => _activity = a ?? _activity),
+              onChanged: locked
+                  ? null
+                  : (a) => setState(() => _activity = a ?? _activity),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -491,6 +565,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
             TextFormField(
               key: const Key('goalWeightKg'),
               controller: _goal,
+              enabled: !locked,
               decoration: const InputDecoration(
                 labelText: 'Goal weight',
                 suffixText: 'kg',
@@ -519,7 +594,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               max: effectiveRateMax,
               divisions: ((effectiveRateMax - 0.25) / 0.05).round(),
               label: '${_ratePct.toStringAsFixed(2)} %',
-              onChanged: (v) => setState(() => _ratePct = v),
+              onChanged: locked ? null : (v) => setState(() => _ratePct = v),
             ),
             if (rateMax != null && rateMax < 1.0)
               Padding(
@@ -548,7 +623,9 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               max: 2.2,
               divisions: 6,
               label: '${_proteinPerKg.toStringAsFixed(1)} g/kg',
-              onChanged: (v) => setState(() => _proteinPerKg = v),
+              onChanged: locked
+                  ? null
+                  : (v) => setState(() => _proteinPerKg = v),
             ),
             DropdownButtonFormField<int>(
               key: const Key('checkInWeekday'),
@@ -558,18 +635,57 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
                 for (var d = 1; d <= 7; d++)
                   DropdownMenuItem(value: d, child: Text(_weekdays[d - 1])),
               ],
-              onChanged: (d) => setState(() => _weekday = d ?? _weekday),
+              onChanged: locked
+                  ? null
+                  : (d) => setState(() => _weekday = d ?? _weekday),
             ),
             ...widget.extra,
             const SizedBox(height: 16),
-            FilledButton(
-              key: const Key('saveProfile'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+            if (locked)
+              OutlinedButton.icon(
+                key: const Key('editProfile'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                onPressed: _startEditing,
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Edit'),
+              )
+            else if (widget.lockable && _hasExistingProfile)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const Key('cancelEditProfile'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _saving ? null : _cancelEditing,
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      key: const Key('saveProfile'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: _saving ? null : _save,
+                      child: Text(widget.saveLabel),
+                    ),
+                  ),
+                ],
+              )
+            else
+              FilledButton(
+                key: const Key('saveProfile'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                onPressed: _saving ? null : _save,
+                child: Text(widget.saveLabel),
               ),
-              onPressed: _saving ? null : _save,
-              child: Text(widget.saveLabel),
-            ),
             const SizedBox(height: 8),
           ],
         ),
