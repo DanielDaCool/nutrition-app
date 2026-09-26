@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/models.dart';
+import '../../weight/weight_logic.dart';
+import '../../weight/weight_providers.dart';
 import '../activity_format.dart';
 import '../activity_providers.dart';
 import '../health_source.dart';
+import 'add_exercise_dialog.dart';
 
 /// Steps and workouts for one day. Shown on the Today screen.
 ///
@@ -22,6 +25,9 @@ class ActivityCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activity = ref.watch(dayActivityProvider(dayKey));
     final status = ref.watch(healthStatusProvider);
+    final defaultWeightKg = latestWeighInKg(
+      ref.watch(weighInsProvider).value ?? const {},
+    );
     final theme = Theme.of(context);
     final setup = _setupRow(ref, status);
     return Card(
@@ -31,11 +37,29 @@ class ActivityCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-              child: Text('Activity', style: theme.textTheme.titleMedium),
+              padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Activity', style: theme.textTheme.titleMedium),
+                  ),
+                  IconButton(
+                    key: const Key('addExerciseButton'),
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Add exercise',
+                    onPressed: () => showAddExerciseDialog(
+                      context,
+                      ref,
+                      dayKey: dayKey,
+                      defaultWeightKg: defaultWeightKg,
+                    ),
+                  ),
+                ],
+              ),
             ),
             ...switch (activity) {
               AsyncData(:final value) => _content(
+                ref,
                 value,
                 hideEmpty: setup != null,
               ),
@@ -106,7 +130,11 @@ class ActivityCard extends ConsumerWidget {
     }
   }
 
-  List<Widget> _content(DayActivity day, {required bool hideEmpty}) {
+  List<Widget> _content(
+    WidgetRef ref,
+    DayActivity day, {
+    required bool hideEmpty,
+  }) {
     final steps = day.steps;
     if (steps == null && day.workouts.isEmpty) {
       if (hideEmpty) return const [];
@@ -129,16 +157,31 @@ class ActivityCard extends ConsumerWidget {
       ),
       for (final w in day.workouts)
         ListTile(
-          leading: const Icon(Icons.fitness_center),
+          leading: Icon(w.isManual ? Icons.edit_calendar : Icons.fitness_center),
           title: Text('${w.title} · ${formatDuration(w.duration)}'),
-          subtitle: _source(w),
+          subtitle: _subtitle(w),
+          trailing: w.isManual
+              ? IconButton(
+                  key: Key('deleteExercise-${w.id}'),
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Delete',
+                  onPressed: () => deleteManualExerciseEntry(ref, w.id),
+                )
+              : null,
         ),
     ];
   }
 
-  Widget? _source(WorkoutSummary w) {
+  Widget? _subtitle(WorkoutSummary w) {
+    if (w.isManual) {
+      return w.kcal == null ? null : Text('${w.kcal!.round()} kcal · manual');
+    }
     final app = readableSourceApp(w.sourceApp);
-    return app == null ? null : Text('from $app');
+    final parts = [
+      if (app != null) 'from $app',
+      if (w.kcal != null) '${w.kcal!.round()} kcal',
+    ];
+    return parts.isEmpty ? null : Text(parts.join(' · '));
   }
 }
 
