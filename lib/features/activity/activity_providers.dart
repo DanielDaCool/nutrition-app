@@ -31,6 +31,30 @@ final activityRangeProvider =
           watchActivityRange(ref.watch(databaseProvider), range.$1, range.$2),
     );
 
+/// Adds a manually logged aerobic exercise for [dayKey].
+Future<void> addManualExerciseEntry(
+  WidgetRef ref, {
+  required String dayKey,
+  required String activityName,
+  required double durationMin,
+  required double kcal,
+  double? metValue,
+}) => addManualExercise(
+  ref.read(databaseProvider),
+  dayKey: dayKey,
+  activityName: activityName,
+  durationMin: durationMin,
+  kcal: kcal,
+  metValue: metValue,
+  now: ref.read(clockProvider)(),
+);
+
+/// Removes a manually logged exercise by its [WorkoutSummary.id].
+Future<void> deleteManualExerciseEntry(WidgetRef ref, String workoutId) {
+  final id = int.parse(workoutId.substring('manual-'.length));
+  return deleteManualExercise(ref.read(databaseProvider), id);
+}
+
 /// Access to Health Connect. Override with a fake in tests.
 final healthSourceProvider = Provider<HealthSource>(
   (ref) => HealthPackageSource(),
