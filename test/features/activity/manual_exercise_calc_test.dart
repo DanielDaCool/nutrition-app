@@ -11,38 +11,71 @@ void main() {
       );
     });
 
-    test('scales linearly with duration', () {
-      final oneHour = estimateExerciseKcal(
-        met: 6.0,
-        weightKg: 70,
-        durationMin: 60,
+    test('zero duration burns nothing', () {
+      expect(estimateExerciseKcal(met: 8.0, weightKg: 80, durationMin: 0), 0);
+    });
+  });
+
+  group('estimateGaitKcal', () {
+    test('flat walk at 5 km/h matches the ACSM walking equation', () {
+      // S = 83.33 m/min; VO2 = 3.5 + 8.333 = 11.833 ml/kg/min.
+      // 80 kg, 60 min: 11.833 * 80 / 1000 * 5 * 60 = 284 kcal.
+      expect(
+        estimateGaitKcal(
+          gait: Gait.walk,
+          speedKmh: 5,
+          inclinePct: 0,
+          weightKg: 80,
+          durationMin: 60,
+        ),
+        closeTo(284, 0.5),
       );
-      final twoHours = estimateExerciseKcal(
-        met: 6.0,
-        weightKg: 70,
-        durationMin: 120,
-      );
-      expect(twoHours, closeTo(oneHour * 2, 0.001));
     });
 
-    test('zero duration burns nothing', () {
+    test('incline raises a walk a lot', () {
+      // 10%: VO2 = 11.833 + 1.8 * 83.33 * 0.1 = 26.833 -> 644 kcal/h.
       expect(
-        estimateExerciseKcal(met: 8.0, weightKg: 80, durationMin: 0),
-        0,
+        estimateGaitKcal(
+          gait: Gait.walk,
+          speedKmh: 5,
+          inclinePct: 10,
+          weightKg: 80,
+          durationMin: 60,
+        ),
+        closeTo(644, 0.5),
+      );
+    });
+
+    test('flat run at 10 km/h matches the ACSM running equation', () {
+      // S = 166.67 m/min; VO2 = 3.5 + 33.33 = 36.83 -> 80 kg, 30 min: 442.
+      expect(
+        estimateGaitKcal(
+          gait: Gait.run,
+          speedKmh: 10,
+          inclinePct: 0,
+          weightKg: 80,
+          durationMin: 30,
+        ),
+        closeTo(442, 0.5),
       );
     });
   });
 
-  group('commonExerciseTypes', () {
-    test('every entry but Other has a positive MET', () {
-      for (final t in commonExerciseTypes) {
-        if (t.label == 'Other') {
-          expect(t.met, isNull);
-        } else {
-          expect(t.met, isNotNull);
-          expect(t.met, greaterThan(0));
-        }
+  test('speed and distance convert through the duration', () {
+    expect(speedFromDistance(2.5, 30), closeTo(5, 1e-9));
+    expect(distanceFromSpeed(5.5, 30), closeTo(2.75, 1e-9));
+  });
+
+  test('every type is either MET-based, a walk/run, or Other', () {
+    for (final t in commonExerciseTypes) {
+      if (t.isOther) {
+        expect(t.label, 'Other');
+      } else if (t.gait == null) {
+        expect(t.met, greaterThan(0));
+      } else {
+        expect(t.met, isNull);
       }
-    });
+    }
+    expect(commonExerciseTypes.where((t) => t.isOther), hasLength(1));
   });
 }

@@ -106,6 +106,8 @@ class WorkoutSummary {
     this.sourceApp,
     this.kcal,
     this.isManual = false,
+    this.distanceKm,
+    this.inclinePct,
   });
 
   /// Health Connect record id, or `manual-<id>` for a manually logged entry.
@@ -120,6 +122,9 @@ class WorkoutSummary {
   /// True when this was typed in by the user rather than synced from Health
   /// Connect.
   final bool isManual;
+  /// Manually logged walks and runs only.
+  final double? distanceKm;
+  final double? inclinePct;
 
   Duration get duration => end.difference(start);
 }
