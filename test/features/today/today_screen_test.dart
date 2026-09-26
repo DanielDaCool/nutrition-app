@@ -148,6 +148,27 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('date picker jumps straight to a past day', (tester) async {
+    await pumpToday(tester, targets: targets);
+    expect(find.text('Today'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('pickDay')));
+    await tester.pumpAndSettle();
+
+    // Switch the picker to keyboard input and type the day directly.
+    await tester.tap(find.byTooltip('Switch to input'));
+    await tester.pumpAndSettle();
+    final dateField = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == 'mm/dd/yyyy',
+    );
+    await tester.enterText(dateField, '09/20/2026');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sun, 20 Sep'), findsOneWidget);
+    await unmount(tester);
+  });
+
   testWidgets('check-in banner and quick weigh-in', (tester) async {
     await pumpToday(tester, targets: targets, checkInDue: true);
     expect(find.byKey(const Key('checkInBanner')), findsOneWidget);
