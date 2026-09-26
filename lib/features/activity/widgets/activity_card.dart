@@ -157,7 +157,9 @@ class ActivityCard extends ConsumerWidget {
       ),
       for (final w in day.workouts)
         ListTile(
-          leading: Icon(w.isManual ? Icons.edit_calendar : Icons.fitness_center),
+          leading: Icon(
+            w.isManual ? Icons.edit_calendar : Icons.fitness_center,
+          ),
           title: Text('${w.title} · ${formatDuration(w.duration)}'),
           subtitle: _subtitle(w),
           trailing: w.isManual
@@ -174,7 +176,16 @@ class ActivityCard extends ConsumerWidget {
 
   Widget? _subtitle(WorkoutSummary w) {
     if (w.isManual) {
-      return w.kcal == null ? null : Text('${w.kcal!.round()} kcal · manual');
+      final parts = [
+        ?formatWalkDetails(
+          distanceKm: w.distanceKm,
+          inclinePct: w.inclinePct,
+          duration: w.duration,
+        ),
+        if (w.kcal != null) '${w.kcal!.round()} kcal',
+        'manual',
+      ];
+      return Text(parts.join(' · '));
     }
     final app = readableSourceApp(w.sourceApp);
     final parts = [
