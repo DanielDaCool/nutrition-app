@@ -11,6 +11,10 @@
     <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY"/>
+    <!-- Walk reminder: local notification and its Android 13+ opt-in, plus
+         rescheduling the periodic background check after a reboot. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <application
         android:label="Nutrition"
