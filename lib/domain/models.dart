@@ -104,15 +104,22 @@ class WorkoutSummary {
     required this.start,
     required this.end,
     this.sourceApp,
+    this.kcal,
+    this.isManual = false,
   });
 
-  /// Health Connect record id.
+  /// Health Connect record id, or `manual-<id>` for a manually logged entry.
   final String id;
   final String title;
   final DateTime start;
   final DateTime end;
   /// Package or name of the app that wrote the workout, if known.
   final String? sourceApp;
+  /// Calories burned, if known (measured, synced, or a MET-based estimate).
+  final double? kcal;
+  /// True when this was typed in by the user rather than synced from Health
+  /// Connect.
+  final bool isManual;
 
   Duration get duration => end.difference(start);
 }
