@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../weight/weight_logic.dart' show formatKg;
+import '../activity_format.dart';
 import '../activity_providers.dart';
 import '../manual_exercise_calc.dart';
 
@@ -21,12 +22,14 @@ Future<void> showAddExerciseDialog(
 }) async {
   await showDialog<void>(
     context: context,
-    builder: (_) => _AddExerciseDialog(
-      dayKey: dayKey,
-      defaultWeightKg: defaultWeightKg,
-    ),
+    builder: (_) =>
+        _AddExerciseDialog(dayKey: dayKey, defaultWeightKg: defaultWeightKg),
   );
 }
+
+/// Parses "5.5" or "5,5"; null when empty or not a number.
+double? _parse(String text) =>
+    double.tryParse(text.trim().replaceAll(',', '.'));
 
 class _AddExerciseDialog extends ConsumerStatefulWidget {
   const _AddExerciseDialog({required this.dayKey, this.defaultWeightKg});
@@ -35,57 +38,129 @@ class _AddExerciseDialog extends ConsumerStatefulWidget {
   final double? defaultWeightKg;
 
   @override
-  ConsumerState<_AddExerciseDialog> createState() =>
-      _AddExerciseDialogState();
+  ConsumerState<_AddExerciseDialog> createState() => _AddExerciseDialogState();
 }
 
 class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
   final _formKey = GlobalKey<FormState>();
   final _durationCtrl = TextEditingController(text: '30');
+  final _distanceCtrl = TextEditingController();
+  final _speedCtrl = TextEditingController();
+  final _inclineCtrl = TextEditingController(text: '0');
   final _weightCtrl = TextEditingController();
   final _kcalCtrl = TextEditingController();
   final _customNameCtrl = TextEditingController();
 
   ExerciseType _type = commonExerciseTypes.first;
   bool _kcalEdited = false;
+
+  /// Which of speed and distance the user typed last; the other one is
+  /// derived from it and the duration.
+  bool _speedTyped = false;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _weightCtrl.text = widget.defaultWeightKg == null
-        ? ''
-        : formatKg(widget.defaultWeightKg!);
-    _durationCtrl.addListener(_recompute);
-    _weightCtrl.addListener(_recompute);
+    final kg = widget.defaultWeightKg;
+    _weightCtrl.text = kg == null ? '' : formatKg(kg);
     _recompute();
   }
 
   @override
   void dispose() {
-    _durationCtrl.dispose();
-    _weightCtrl.dispose();
-    _kcalCtrl.dispose();
-    _customNameCtrl.dispose();
+    for (final c in [
+      _durationCtrl,
+      _distanceCtrl,
+      _speedCtrl,
+      _inclineCtrl,
+      _weightCtrl,
+      _kcalCtrl,
+      _customNameCtrl,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  double? get _durationMin => double.tryParse(_durationCtrl.text.trim());
-  double? get _weightKg => double.tryParse(_weightCtrl.text.trim());
+  double? get _durationMin {
+    final v = _parse(_durationCtrl.text);
+    return v != null && v > 0 ? v : null;
+  }
 
-  void _recompute() {
-    if (_kcalEdited || _type.met == null) return;
+  double? get _speedKmh {
+    final v = _parse(_speedCtrl.text);
+    return v != null && v > 0 ? v : null;
+  }
+
+  double get _inclinePct => _parse(_inclineCtrl.text) ?? 0;
+
+  /// Distance for saving: exact from speed x time when speed was typed.
+  double? get _distanceKm {
     final duration = _durationMin;
-    final weight = _weightKg;
-    if (duration == null || duration <= 0 || weight == null || weight <= 0) {
+    final speed = _speedKmh;
+    if (_speedTyped && duration != null && speed != null) {
+      return distanceFromSpeed(speed, duration);
+    }
+    final v = _parse(_distanceCtrl.text);
+    return v != null && v > 0 ? v : null;
+  }
+
+  /// Fills in whichever of distance/speed the user didn't type.
+  void _syncDistanceSpeed() {
+    final duration = _durationMin;
+    if (_type.gait == null || duration == null) return;
+    if (_speedTyped) {
+      final speed = _speedKmh;
+      _distanceCtrl.text = speed == null
+          ? ''
+          : formatDecimal(distanceFromSpeed(speed, duration), 2);
+    } else {
+      final v = _parse(_distanceCtrl.text);
+      _speedCtrl.text = v == null || v <= 0
+          ? ''
+          : formatDecimal(speedFromDistance(v, duration), 1);
+    }
+  }
+
+  /// Refreshes the calorie estimate unless the user typed their own number.
+  void _recompute() {
+    if (_kcalEdited || _type.isOther) return;
+    final duration = _durationMin;
+    final weight = _parse(_weightCtrl.text);
+    if (duration == null || weight == null || weight <= 0) {
+      _kcalCtrl.text = '';
       return;
     }
-    final kcal = estimateExerciseKcal(
-      met: _type.met!,
-      weightKg: weight,
-      durationMin: duration,
-    );
-    _kcalCtrl.text = kcal.round().toString();
+    final gait = _type.gait;
+    double? kcal;
+    if (gait != null) {
+      final speed = _speedKmh;
+      if (speed != null) {
+        kcal = estimateGaitKcal(
+          gait: gait,
+          speedKmh: speed,
+          inclinePct: _inclinePct,
+          weightKg: weight,
+          durationMin: duration,
+        );
+      }
+    } else {
+      kcal = estimateExerciseKcal(
+        met: _type.met!,
+        weightKg: weight,
+        durationMin: duration,
+      );
+    }
+    _kcalCtrl.text = kcal == null ? '' : kcal.round().toString();
+  }
+
+  void _changed({bool? speedTyped}) {
+    setState(() {
+      if (speedTyped != null) _speedTyped = speedTyped;
+      _syncDistanceSpeed();
+      _recompute();
+    });
   }
 
   void _selectType(ExerciseType? type) {
@@ -93,6 +168,7 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
     setState(() {
       _type = type;
       _kcalEdited = false;
+      _syncDistanceSpeed();
       _recompute();
     });
   }
@@ -100,19 +176,17 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
   Future<void> _save() async {
     if (_saving || !_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    final duration = _durationMin!;
-    final kcal = double.parse(_kcalCtrl.text.trim());
-    final name = _type.met == null
-        ? _customNameCtrl.text.trim()
-        : _type.label;
+    final isGait = _type.gait != null;
     try {
       await addManualExerciseEntry(
         ref,
         dayKey: widget.dayKey,
-        activityName: name,
-        durationMin: duration,
-        kcal: kcal,
+        activityName: _type.isOther ? _customNameCtrl.text.trim() : _type.label,
+        durationMin: _durationMin!,
+        kcal: _parse(_kcalCtrl.text)!,
         metValue: _kcalEdited ? null : _type.met,
+        distanceKm: isGait ? _distanceKm : null,
+        inclinePct: isGait ? _inclinePct : null,
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -126,8 +200,11 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
     }
   }
 
+  static const _decimal = TextInputType.numberWithOptions(decimal: true);
+
   @override
   Widget build(BuildContext context) {
+    final isGait = _type.gait != null;
     return AlertDialog(
       title: const Text('Add exercise'),
       content: Form(
@@ -147,12 +224,14 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
                 ],
                 onChanged: _selectType,
               ),
-              if (_type.met == null) ...[
+              if (_type.isOther) ...[
                 const SizedBox(height: 12),
                 TextFormField(
                   key: const Key('exerciseCustomNameField'),
                   controller: _customNameCtrl,
-                  decoration: const InputDecoration(labelText: 'What did you do?'),
+                  decoration: const InputDecoration(
+                    labelText: 'What did you do?',
+                  ),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Required' : null,
                 ),
@@ -161,33 +240,86 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
               TextFormField(
                 key: const Key('exerciseDurationField'),
                 controller: _durationCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+                keyboardType: _decimal,
                 decoration: const InputDecoration(
-                  labelText: 'Duration',
+                  labelText: 'Time',
                   suffixText: 'min',
                 ),
-                validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
-                  return (n == null || n <= 0) ? 'Enter minutes' : null;
-                },
+                onChanged: (_) => _changed(),
+                validator: (_) => _durationMin == null ? 'Enter minutes' : null,
               ),
-              if (_type.met != null) ...[
+              if (isGait) ...[
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        key: const Key('exerciseDistanceField'),
+                        controller: _distanceCtrl,
+                        keyboardType: _decimal,
+                        decoration: const InputDecoration(
+                          labelText: 'Distance',
+                          suffixText: 'km',
+                        ),
+                        onChanged: (_) => _changed(speedTyped: false),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        key: const Key('exerciseSpeedField'),
+                        controller: _speedCtrl,
+                        keyboardType: _decimal,
+                        decoration: const InputDecoration(
+                          labelText: 'Speed',
+                          suffixText: 'km/h',
+                        ),
+                        onChanged: (_) => _changed(speedTyped: true),
+                        validator: (_) {
+                          final speed = _speedKmh;
+                          if (speed == null) {
+                            return _kcalEdited
+                                ? null
+                                : 'Enter distance or speed';
+                          }
+                          return speed > 30 ? 'Too fast' : null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('exerciseInclineField'),
+                  controller: _inclineCtrl,
+                  keyboardType: _decimal,
+                  decoration: const InputDecoration(
+                    labelText: 'Incline',
+                    suffixText: '%',
+                  ),
+                  onChanged: (_) => _changed(),
+                  validator: (v) {
+                    if ((v ?? '').trim().isEmpty) return null;
+                    final n = _parse(v!);
+                    return (n == null || n < 0 || n > 40) ? '0 to 40' : null;
+                  },
+                ),
+              ],
+              if (!_type.isOther) ...[
                 const SizedBox(height: 12),
                 TextFormField(
                   key: const Key('exerciseWeightField'),
                   controller: _weightCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
+                  keyboardType: _decimal,
                   decoration: const InputDecoration(
                     labelText: 'Body weight (used for the estimate)',
                     suffixText: 'kg',
                   ),
+                  onChanged: (_) => _changed(),
                   validator: (v) {
                     if (_kcalEdited) return null; // not used once overridden
-                    final n = double.tryParse((v ?? '').trim());
+                    final n = _parse(v ?? '');
                     return (n == null || n <= 0) ? 'Enter weight' : null;
                   },
                 ),
@@ -200,13 +332,13 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
                 decoration: InputDecoration(
                   labelText: 'Calories burned',
                   suffixText: 'kcal',
-                  helperText: _type.met == null
+                  helperText: _type.isOther || _kcalEdited
                       ? null
-                      : (_kcalEdited ? null : 'Estimated - edit to override'),
+                      : 'Estimated - edit to override',
                 ),
                 onChanged: (_) => setState(() => _kcalEdited = true),
                 validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
+                  final n = _parse(v ?? '');
                   return (n == null || n < 0) ? 'Enter calories' : null;
                 },
               ),
