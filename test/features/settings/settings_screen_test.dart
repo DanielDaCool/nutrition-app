@@ -153,9 +153,15 @@ void main() {
     await tester.runAsync(() => seedProfile(db));
     await tester.pumpWidget(app(db));
     await settle(tester);
+    final edit = find.byKey(const Key('editProfile'));
+    await tester.ensureVisible(edit);
+    await tester.tap(edit);
+    await tester.pump();
     final save = find.byKey(const Key('saveProfile'));
     await tester.ensureVisible(save);
     await tester.tap(save);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirmSaveProfile')));
     await settle(tester);
     expect(
       find.text(
@@ -192,10 +198,82 @@ void main() {
       findsOneWidget,
     );
 
+    // The profile is locked; unlock it before editing.
+    final edit = find.byKey(const Key('editProfile'));
+    await tester.ensureVisible(edit);
+    await tester.tap(edit);
+    await tester.pump();
+
     // A lower goal brings the loss rate back.
     await tester.enterText(find.byKey(const Key('goalWeightKg')), '75');
     await tester.pump();
     expect(find.textContaining('Weekly loss rate'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('an existing profile is locked until Edit is tapped', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    // Locked: no Save button, fields disabled, an Edit button instead.
+    expect(find.byKey(const Key('saveProfile')), findsNothing);
+    expect(find.byKey(const Key('editProfile')), findsOneWidget);
+    final heightField = tester.widget<TextFormField>(
+      find.byKey(const Key('heightCm')),
+    );
+    expect(heightField.enabled, isFalse);
+
+    await tester.tap(find.byKey(const Key('editProfile')));
+    await tester.pump();
+    expect(find.byKey(const Key('saveProfile')), findsOneWidget);
+    expect(find.byKey(const Key('editProfile')), findsNothing);
+
+    // Cancel discards the change and relocks without saving.
+    await tester.enterText(find.byKey(const Key('goalWeightKg')), '70');
+    await tester.tap(find.byKey(const Key('cancelEditProfile')));
+    await settle(tester);
+    expect(find.byKey(const Key('editProfile')), findsOneWidget);
+    final profile = await tester.runAsync(
+      () => db.select(db.profiles).getSingle(),
+    );
+    expect(profile!.goalWeightKg, 80);
+
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('dismissing the save confirmation keeps the old profile', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    await tester.tap(find.byKey(const Key('editProfile')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('goalWeightKg')), '70');
+    final save = find.byKey(const Key('saveProfile'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel').last);
+    await settle(tester);
+
+    final profile = await tester.runAsync(
+      () => db.select(db.profiles).getSingle(),
+    );
+    expect(profile!.goalWeightKg, 80);
+
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
   });
