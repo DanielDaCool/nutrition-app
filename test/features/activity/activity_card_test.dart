@@ -81,11 +81,13 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('connected but empty: No activity yet, no buttons', (
+  testWidgets('connected but empty: shows the step goal section, no buttons', (
     tester,
   ) async {
     await pumpSynced(tester);
-    expect(find.text('No activity yet'), findsOneWidget);
+    expect(find.text('No activity yet'), findsNothing);
+    expect(find.text('0'), findsOneWidget);
+    expect(find.byKey(const Key('stepGoalProgress')), findsOneWidget);
     expect(find.byType(FilledButton), findsNothing);
     await unmount(tester);
   });

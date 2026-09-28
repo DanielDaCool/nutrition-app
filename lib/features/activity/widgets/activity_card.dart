@@ -9,6 +9,7 @@ import '../../weight/weight_providers.dart';
 import '../activity_format.dart';
 import '../activity_providers.dart';
 import '../health_source.dart';
+import '../step_goal_providers.dart';
 import 'add_exercise_dialog.dart';
 
 /// Steps and workouts for one day. Shown on the Today screen.
@@ -28,6 +29,10 @@ class ActivityCard extends ConsumerWidget {
     final defaultWeightKg = latestWeighInKg(
       ref.watch(weighInsProvider).value ?? const {},
     );
+    final activeCalories = ref.watch(todayActiveCaloriesProvider(dayKey)).value;
+    final stepGoal =
+        ref.watch(stepGoalProvider).value?.stepGoal ??
+        StepGoalSettings.defaultStepGoal;
     final theme = Theme.of(context);
     final setup = _setupRow(ref, status);
     return Card(
@@ -59,9 +64,12 @@ class ActivityCard extends ConsumerWidget {
             ),
             ...switch (activity) {
               AsyncData(:final value) => _content(
+                context,
                 ref,
                 value,
                 hideEmpty: setup != null,
+                activeCalories: activeCalories,
+                stepGoal: stepGoal,
               ),
               AsyncError(:final error) => [_errorRow(ref, error)],
               _ => const [
@@ -131,30 +139,23 @@ class ActivityCard extends ConsumerWidget {
   }
 
   List<Widget> _content(
+    BuildContext context,
     WidgetRef ref,
     DayActivity day, {
     required bool hideEmpty,
+    required double? activeCalories,
+    required int stepGoal,
   }) {
     final steps = day.steps;
-    if (steps == null && day.workouts.isEmpty) {
-      if (hideEmpty) return const [];
-      return const [
-        ListTile(
-          leading: Icon(Icons.directions_walk),
-          title: Text('No activity yet'),
-          subtitle: Text(
-            'Steps and workouts show up here from Health Connect.',
-          ),
-        ),
-      ];
+    // Only fall back to the "no activity" empty state when Health Connect
+    // isn't connected and there's truly nothing to show. Otherwise (even a
+    // day with 0 synced steps) the goal section below is always worth
+    // showing.
+    if (steps == null && day.workouts.isEmpty && hideEmpty) {
+      return const [];
     }
     return [
-      ListTile(
-        leading: const Icon(Icons.directions_walk),
-        title: Text(
-          steps == null ? 'No step data' : '${formatSteps(steps)} steps',
-        ),
-      ),
+      _stepsSection(context, steps ?? 0, stepGoal, activeCalories),
       for (final w in day.workouts)
         ListTile(
           leading: Icon(
@@ -172,6 +173,69 @@ class ActivityCard extends ConsumerWidget {
               : null,
         ),
     ];
+  }
+
+  /// A prominent steps count with an active-calories readout and a progress
+  /// bar toward the daily step goal, Samsung-Health-style.
+  Widget _stepsSection(
+    BuildContext context,
+    int steps,
+    int stepGoal,
+    double? activeCalories,
+  ) {
+    final theme = Theme.of(context);
+    final progress = stepGoal > 0 ? (steps / stepGoal).clamp(0.0, 1.0) : 0.0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.directions_walk,
+                size: 32,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(formatSteps(steps), style: theme.textTheme.headlineMedium),
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text('steps', style: theme.textTheme.bodyMedium),
+              ),
+              if (activeCalories != null) ...[
+                const SizedBox(width: 16),
+                const Icon(Icons.local_fire_department, color: Colors.deepOrange),
+                const SizedBox(width: 4),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '${activeCalories.round()} kcal',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              key: const Key('stepGoalProgress'),
+              value: progress,
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Goal: ${formatSteps(stepGoal)} steps',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget? _subtitle(WorkoutSummary w) {

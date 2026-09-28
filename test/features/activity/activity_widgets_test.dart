@@ -6,6 +6,8 @@ import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
 import 'package:nutrition_app/features/activity/health_source.dart';
+import 'package:nutrition_app/features/activity/step_goal_logic.dart';
+import 'package:nutrition_app/features/activity/step_goal_repository.dart';
 import 'package:nutrition_app/features/activity/widgets/activity_card.dart';
 import 'package:nutrition_app/features/activity/widgets/health_connect_tile.dart';
 
@@ -71,20 +73,69 @@ void main() {
       });
       await pump(tester, const ActivityCard(dayKey: '2026-09-25'));
 
-      expect(find.text('8,432 steps'), findsOneWidget);
+      expect(find.text('8,432'), findsOneWidget);
+      expect(find.text('steps'), findsOneWidget);
       expect(find.byIcon(Icons.directions_walk), findsOneWidget);
+      expect(find.byKey(const Key('stepGoalProgress')), findsOneWidget);
       expect(find.text('Chest and back · 1 h 12 min'), findsOneWidget);
       expect(find.text('from Hevy'), findsOneWidget);
       await unmount(tester);
     });
 
-    testWidgets('shows an empty state', (tester) async {
+    testWidgets('shows the step goal section with zero steps synced', (
+      tester,
+    ) async {
       await pump(tester, const ActivityCard(dayKey: '2026-09-25'));
-      expect(find.text('No activity yet'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+      expect(find.text('steps'), findsOneWidget);
+      expect(find.text('No activity yet'), findsNothing);
       await unmount(tester);
     });
 
-    testWidgets('workout without steps says so', (tester) async {
+    testWidgets('shows active calories when Health Connect reports them', (
+      tester,
+    ) async {
+      source.activeCaloriesByDay['2026-09-25'] = 234;
+      await pump(tester, const ActivityCard(dayKey: '2026-09-25'));
+      expect(find.text('234 kcal'), findsOneWidget);
+      expect(find.byIcon(Icons.local_fire_department), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('omits calories when Health Connect has no permission', (
+      tester,
+    ) async {
+      source.permissionsGranted = false;
+      await pump(tester, const ActivityCard(dayKey: '2026-09-25'));
+      expect(find.byIcon(Icons.local_fire_department), findsNothing);
+      await unmount(tester);
+    });
+
+    testWidgets('progress bar reflects steps over the goal', (tester) async {
+      await tester.runAsync(() async {
+        await saveStepGoalSettings(db, const StepGoalSettings(stepGoal: 5000));
+        await db
+            .into(db.dailySteps)
+            .insert(
+              DailyStepsCompanion.insert(
+                dayKey: '2026-09-25',
+                steps: 2500,
+                syncedAt: now,
+              ),
+            );
+      });
+      await pump(tester, const ActivityCard(dayKey: '2026-09-25'));
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byKey(const Key('stepGoalProgress')),
+      );
+      expect(bar.value, closeTo(0.5, 0.0001));
+      expect(find.text('Goal: 5,000 steps'), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('workout without steps still shows the goal section', (
+      tester,
+    ) async {
       await tester.runAsync(() async {
         await db
             .into(db.workouts)
@@ -100,7 +151,7 @@ void main() {
             );
       });
       await pump(tester, const ActivityCard(dayKey: '2026-09-24'));
-      expect(find.text('No step data'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
       expect(find.text('Strength training · 45 min'), findsOneWidget);
       await unmount(tester);
     });
