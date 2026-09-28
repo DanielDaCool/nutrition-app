@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/day_key.dart';
 import '../../domain/models.dart';
 import 'activity_repository.dart';
 import 'health_package_source.dart';
@@ -63,6 +64,24 @@ Future<void> deleteManualExerciseEntry(WidgetRef ref, String workoutId) {
 final healthSourceProvider = Provider<HealthSource>(
   (ref) => HealthPackageSource(),
 );
+
+/// Today's active calories burned, read live from Health Connect. Null while
+/// loading, unavailable, or on read failure — the UI just omits the number.
+final todayActiveCaloriesProvider = FutureProvider.family<double?, String>((
+  ref,
+  dayKey,
+) async {
+  final source = ref.watch(healthSourceProvider);
+  try {
+    if (!await source.hasPermissions()) return null;
+    return await source.totalActiveCalories(
+      startOfDay(dayKey),
+      endOfDay(dayKey),
+    );
+  } catch (_) {
+    return null;
+  }
+});
 
 /// The [HealthSyncService] wired to the app database, [healthSourceProvider]
 /// and the injectable clock.
