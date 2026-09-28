@@ -39,7 +39,6 @@ CI (`.github/workflows/ci.yml`) runs codegen check, analyze, test, and builds an
 | B. Food logging | food agent | `lib/features/food/**`, `test/features/food/**` | Foods, FoodLogEntries, SavedMeals, SavedMealItems, DayStatuses, KeyValues (keys prefixed `describe.`) |
 | C. Health Connect | health agent | `lib/features/activity/**`, `test/features/activity/**` | DailySteps, Workouts, KeyValues (keys prefixed `hc.`) |
 | D. Weight, Today, Dashboard | charts agent | `lib/features/weight/**`, `lib/features/today/**`, `lib/features/dashboard/**`, `test/features/{weight,today,dashboard}/**` | WeighIns |
-| E. PC dashboard sync | lead | `lib/features/sync/**`, `docs/**` (static site), `test/features/sync/**` | KeyValues (keys prefixed `sync.`) |
 
 Contract names (keep them; replace stub bodies):
 - A: `currentTargetsProvider`, `checkInDueProvider`, `CheckInScreen`, `SettingsScreen`
