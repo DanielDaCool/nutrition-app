@@ -204,7 +204,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Cycling, leisurely'), findsNothing);
-    expect(find.text('No activity yet'), findsOneWidget);
+    expect(find.byKey(const Key('stepGoalProgress')), findsOneWidget);
     await unmount(tester);
   });
 }

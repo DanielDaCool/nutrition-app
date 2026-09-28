@@ -71,6 +71,10 @@ abstract interface class HealthSource {
   /// Total steps in [start, end). Null when the read failed.
   Future<int?> totalSteps(DateTime start, DateTime end);
 
+  /// Total active-energy calories burned in [start, end). Null when the read
+  /// failed.
+  Future<double?> totalActiveCalories(DateTime start, DateTime end);
+
   /// Exercise sessions overlapping [start, end).
   Future<List<HcWorkout>> workouts(DateTime start, DateTime end);
 

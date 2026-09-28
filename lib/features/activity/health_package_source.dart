@@ -25,8 +25,10 @@ class HealthPackageSource implements HealthSource {
     hp.HealthDataType.WORKOUT,
     hp.HealthDataType.DISTANCE_DELTA,
     hp.HealthDataType.TOTAL_CALORIES_BURNED,
+    hp.HealthDataType.ACTIVE_ENERGY_BURNED,
   ];
   static const _access = [
+    hp.HealthDataAccess.READ,
     hp.HealthDataAccess.READ,
     hp.HealthDataAccess.READ,
     hp.HealthDataAccess.READ,
@@ -98,6 +100,23 @@ class HealthPackageSource implements HealthSource {
   Future<int?> totalSteps(DateTime start, DateTime end) async {
     if (!_isAndroid) return null;
     return (await _client()).getTotalStepsInInterval(start, end);
+  }
+
+  @override
+  Future<double?> totalActiveCalories(DateTime start, DateTime end) async {
+    if (!_isAndroid) return null;
+    final points = await (await _client()).getHealthDataFromTypes(
+      types: const [hp.HealthDataType.ACTIVE_ENERGY_BURNED],
+      startTime: start,
+      endTime: end,
+    );
+    double total = 0;
+    for (final p in points) {
+      final value = p.value;
+      if (value is! hp.NumericHealthValue) continue;
+      total += value.numericValue.toDouble();
+    }
+    return total;
   }
 
   @override

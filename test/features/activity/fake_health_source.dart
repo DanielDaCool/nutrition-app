@@ -15,6 +15,9 @@ class FakeHealthSource implements HealthSource {
 
   /// Steps per day key. Missing days report 0, like Health Connect.
   final Map<String, int?> stepsByDay = {};
+
+  /// Active calories per day key. Missing days report 0, like Health Connect.
+  final Map<String, double?> activeCaloriesByDay = {};
   final List<HcWorkout> workoutRecords = [];
 
   /// When set, every data call waits for it (to test concurrent syncs).
@@ -65,6 +68,14 @@ class FakeHealthSource implements HealthSource {
     stepCalls.add((start, end));
     final key = dayKeyOf(start);
     return stepsByDay.containsKey(key) ? stepsByDay[key] : 0;
+  }
+
+  @override
+  Future<double?> totalActiveCalories(DateTime start, DateTime end) async {
+    final key = dayKeyOf(start);
+    return activeCaloriesByDay.containsKey(key)
+        ? activeCaloriesByDay[key]
+        : 0;
   }
 
   @override
