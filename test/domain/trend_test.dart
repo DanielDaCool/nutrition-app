@@ -34,6 +34,16 @@ void main() {
     expect(t.last.trendKg, 90.0);
   });
 
+  test('until clips off future-dated weigh-ins instead of being ignored', () {
+    final t = computeTrend({
+      '2026-09-01': 90.0,
+      '2026-09-05': 88.0, // after `until` -- e.g. a mis-keyed future day
+    }, until: '2026-09-02');
+    expect(t.length, 2);
+    expect(t.map((p) => p.dayKey), ['2026-09-01', '2026-09-02']);
+    expect(t.last.dayKey, '2026-09-02');
+  });
+
   test('a steady loss is tracked with lag', () {
     final weighIns = <String, double>{};
     for (var i = 0; i < 60; i++) {

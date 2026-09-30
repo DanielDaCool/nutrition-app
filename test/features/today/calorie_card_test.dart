@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +44,8 @@ void main() {
   Future<void> pumpCard(
     WidgetTester tester, {
     Stream<DailyTargets?> Function()? targets,
+    String dayKey = '2026-09-25',
+    Stream<DayIntake> Function(String dayKey)? intake,
   }) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
@@ -54,18 +58,20 @@ void main() {
           if (targets != null)
             currentTargetsProvider.overrideWith((ref) => targets()),
           dayIntakeProvider.overrideWith(
-            (ref, dayKey) => Stream.value(
-              DayIntake(
-                dayKey: dayKey,
-                total: Macros.zero,
-                byMeal: const {},
-                fullyLogged: false,
-              ),
-            ),
+            (ref, dk) =>
+                intake?.call(dk) ??
+                Stream.value(
+                  DayIntake(
+                    dayKey: dk,
+                    total: Macros.zero,
+                    byMeal: const {},
+                    fullyLogged: false,
+                  ),
+                ),
           ),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: CalorieCard(dayKey: '2026-09-25')),
+        child: MaterialApp(
+          home: Scaffold(body: CalorieCard(dayKey: dayKey)),
         ),
       ),
     );
@@ -144,4 +150,118 @@ void main() {
     expect(find.byKey(const Key('kcalRemaining')), findsOneWidget);
     await unmount(tester);
   });
+
+  Future<void> insertTarget(
+    AppDatabase db,
+    String effectiveFrom,
+    double kcal,
+  ) => db
+      .into(db.targetHistory)
+      .insert(
+        TargetHistoryCompanion.insert(
+          effectiveFrom: effectiveFrom,
+          kcal: kcal,
+          proteinG: kcal * 0.3 / 4,
+          fatG: kcal * 0.3 / 9,
+          carbsG: kcal * 0.4 / 4,
+          maintenanceKcal: kcal + 300,
+          method: TargetMethod.formula.index,
+          createdAt: now,
+        ),
+      );
+
+  testWidgets(
+    'a past day uses the target that was in effect on that day, not today\'s',
+    (tester) async {
+      await tester.runAsync(() async {
+        await insertTarget(db, '2026-09-01', 1800);
+        await insertTarget(db, '2026-09-18', 2200); // in effect on 09-20
+        await insertTarget(db, '2026-09-22', 3000); // starts after 09-20
+      });
+      // No override for currentTargetsProvider: a past day must not touch
+      // it at all.
+      await pumpCard(tester, dayKey: '2026-09-20');
+      expect(find.textContaining('Target 2,200 kcal'), findsOneWidget);
+      expect(find.textContaining('Target 1,800 kcal'), findsNothing);
+      expect(find.textContaining('Target 3,000 kcal'), findsNothing);
+      await unmount(tester);
+    },
+  );
+
+  testWidgets('a past day before any target explains there was none', (
+    tester,
+  ) async {
+    await tester.runAsync(() => insertTarget(db, '2026-09-22', 2000));
+    await pumpCard(tester, dayKey: '2026-09-10');
+    expect(find.byKey(const Key('noTargetForDayCard')), findsOneWidget);
+    expect(find.text('No target was set for this day'), findsOneWidget);
+    // Unlike today's "no targets" card, there's no setup action to offer.
+    expect(find.text('Set up'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets(
+    'today with a profile and weigh-in but no active target shows a '
+    'retryable message instead of spinning forever',
+    (tester) async {
+      await pumpCard(
+        tester,
+        targets: () => Stream.value(null), // resolved, terminally null
+      );
+      await tester.runAsync(() => seedProfile(db));
+      await db
+          .into(db.weighIns)
+          .insert(
+            WeighInsCompanion.insert(
+              dayKey: '2026-09-25',
+              weightKg: 82,
+              createdAt: now,
+            ),
+          );
+      await settle(tester);
+      expect(find.byKey(const Key('noCurrentTargetCard')), findsOneWidget);
+      expect(find.text('No target is active for today'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
+      // Definitely not stuck loading forever.
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      await unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'switching days shows the loading state, not a flash of "0 eaten"',
+    (tester) async {
+      final intakeController = StreamController<DayIntake>();
+      addTearDown(intakeController.close);
+      await pumpCard(
+        tester,
+        targets: () => Stream.value(
+          const DailyTargets(
+            effectiveFrom: '2026-09-25',
+            macros: Macros(kcal: 2000, proteinG: 150, fatG: 70, carbsG: 200),
+            maintenanceKcal: 2500,
+            method: TargetMethod.formula,
+          ),
+        ),
+        intake: (dayKey) => intakeController.stream,
+      );
+      // Intake never resolved yet: still loading, never "0 eaten".
+      expect(find.byKey(const Key('calorieCard')), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.textContaining('kcal remaining'), findsNothing);
+
+      intakeController.add(
+        const DayIntake(
+          dayKey: '2026-09-25',
+          total: Macros(kcal: 500, proteinG: 30, fatG: 10, carbsG: 60),
+          byMeal: {},
+          fullyLogged: false,
+        ),
+      );
+      await settle(tester);
+      expect(find.byKey(const Key('calorieCard')), findsOneWidget);
+      expect(find.text('1,500'), findsOneWidget); // 2000 - 500 remaining
+      await unmount(tester);
+    },
+  );
 }

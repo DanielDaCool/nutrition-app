@@ -48,11 +48,34 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     return validateWeightKg(text);
   }
 
+  /// Runs after the profile is stored. The weigh-in is saved and its failure
+  /// reported on its own: the profile is already saved at this point, so a
+  /// weigh-in error must not read as "Couldn't save your profile". On a
+  /// weigh-in error the screen stays open so it can be retried.
   Future<void> _afterProfileSaved() async {
     final weightKg = parseWeightKg(_weightKg.text);
     if (weightKg != null) {
-      final today = dayKeyOf(ref.read(clockProvider)());
-      await ref.read(weightRepositoryProvider).upsert(today, weightKg);
+      try {
+        final today = dayKeyOf(ref.read(clockProvider)());
+        await ref.read(weightRepositoryProvider).upsert(today, weightKg);
+      } catch (e, s) {
+        debugPrint('Saving first weigh-in failed: $e\n$s');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              "Profile saved, but your weight couldn't be saved",
+            ),
+            action: SnackBarAction(
+              label: 'Try again',
+              onPressed: () {
+                if (mounted) _afterProfileSaved();
+              },
+            ),
+          ),
+        );
+        return;
+      }
     }
     if (!mounted) return;
     final ready = weightKg != null || _hasWeighIn;

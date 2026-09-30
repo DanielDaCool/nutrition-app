@@ -100,6 +100,31 @@ void main() {
     expect(hasAnySteps([act('2026-09-01', null)]), isFalse);
   });
 
+  test('stepsWithAverage with `from` uses lead-in days for a real trailing '
+      'average, then trims the result to `from` onward', () {
+    // 6 days of lead-in (2026-08-27..09-01, 500 steps each) plus the visible
+    // range (2026-09-02..09-04, 2000 steps each).
+    final days = [
+      for (var i = 27; i <= 31; i++) act('2026-08-$i', 500),
+      act('2026-09-01', 500),
+      act('2026-09-02', 2000),
+      act('2026-09-03', 2000),
+      act('2026-09-04', 2000),
+    ];
+    final out = stepsWithAverage(days, from: '2026-09-02');
+    // Only the visible range comes back...
+    expect(out.map((d) => d.dayKey), [
+      '2026-09-02',
+      '2026-09-03',
+      '2026-09-04',
+    ]);
+    // ...but the first point's average is a real trailing 7-day window
+    // (6 lead-in days at 500 + itself at 2000), not just itself.
+    expect(out[0].avg7, closeTo((6 * 500 + 2000) / 7, 1e-9));
+    // Without `from`, nothing is trimmed (existing callers keep working).
+    expect(stepsWithAverage(days).length, days.length);
+  });
+
   test('workoutsPerWeek counts per Monday week', () {
     final weeks = workoutsPerWeek([
       act('2026-09-20', null, workouts: 1), // week of 14th
@@ -180,6 +205,32 @@ void main() {
         isNull,
       );
     });
+
+    test(
+      'intakeHeadline averages intake and target over the same day-set, '
+      'excluding fully-logged days that predate any target',
+      () {
+        const targets = [
+          TargetPoint(
+            effectiveFrom: '2026-09-03',
+            kcal: 2000,
+            maintenanceKcal: 0,
+          ),
+        ];
+        final days = [
+          // Logged before targets existed: has no matching target row.
+          day('2026-09-01', 3000),
+          day('2026-09-02', 3000),
+          // Logged once a target was in effect.
+          day('2026-09-03', 2200),
+          day('2026-09-04', 1800),
+        ];
+        // Both averages are over 09-03/09-04 only: the pre-target days would
+        // otherwise drag the intake average away from a target average that
+        // never included them.
+        expect(intakeHeadline(days, targets), 'Avg 2,000 of 2,000 kcal');
+      },
+    );
 
     test('workoutsHeadline counts workouts and the weekly rate', () {
       final days = [
