@@ -12,6 +12,22 @@ String kcal(num v) => '${_int.format(v.round())} kcal';
 
 String _kg(double v) => '${v.abs().toStringAsFixed(1)} kg';
 
+/// What limited the measured estimate's blend weight: "N fully logged
+/// days", "K weigh-ins" or both, matching the min() in the engine's blend.
+String _limitedBy(Explanation e) {
+  final logged =
+      ((e.loggedDays - kMinLoggedDays) / (kFullLoggedDays - kMinLoggedDays))
+          .clamp(0.0, 1.0);
+  final weighIns =
+      ((e.weighInsInWindow - kMinWeighIns) / (kFullWeighIns - kMinWeighIns))
+          .clamp(0.0, 1.0);
+  final days = '${e.loggedDays} fully logged days';
+  final weighs = '${e.weighInsInWindow} weigh-ins';
+  if (logged < weighIns) return days;
+  if (weighIns < logged) return weighs;
+  return '$days and $weighs';
+}
+
 /// Sentences explaining [e], most important first.
 List<String> explainLines(Explanation e) {
   final lines = <String>[];
@@ -36,7 +52,7 @@ List<String> explainLines(Explanation e) {
       lines.add(
         'You averaged ${kcal(e.avgIntakeKcal!)} on ${e.loggedDays} '
         'fully logged days and $move in ${e.days} days, which points to '
-        'a maintenance of about $measured. With ${e.loggedDays} logged days '
+        'a maintenance of about $measured. With ${_limitedBy(e)} '
         'that counts $pct%; the rest comes from the formula estimate '
         '(${kcal(e.formulaKcal)}), giving '
         '${kcal(e.unlimitedMaintenanceKcal)}.',
@@ -49,7 +65,14 @@ List<String> explainLines(Explanation e) {
       );
     }
   } else {
-    final reason = e.measuredMissingReason;
+    // No measured value (the engine says why), or one that got no weight in
+    // the blend yet (just at the minimum logged days or weigh-ins).
+    final reason =
+        e.measuredMissingReason ??
+        (e.measuredKcal != null
+            ? 'only ${_limitedBy(e)} so far, not yet enough for your own '
+                  'data to count'
+            : null);
     lines.add(
       'Your maintenance of about ${kcal(e.formulaKcal)} is estimated '
       'from your body stats and activity level'
