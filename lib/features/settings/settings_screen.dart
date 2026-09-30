@@ -14,7 +14,6 @@ import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
 import '../activity/widgets/step_goal_tile.dart';
 import '../activity/widgets/walk_reminder_tile.dart';
-import '../sync/pc_dashboard_tile.dart';
 import '../targets/checkin_screen.dart';
 import '../targets/engine/engine.dart';
 import '../targets/engine/explain.dart';
@@ -68,8 +67,6 @@ class SettingsScreen extends ConsumerWidget {
           const StepGoalSettingsTile(),
           const WalkReminderSettingsTile(),
           const ExportDataTile(),
-          const Divider(),
-          const PcDashboardTile(),
         ],
       ),
     );
