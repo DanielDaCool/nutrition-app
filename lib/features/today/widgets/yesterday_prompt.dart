@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/day_key.dart';
+import '../../dashboard/dashboard_providers.dart';
 import '../../food/food_providers.dart';
 
 /// The day (today's dayKey) on which the prompt was last answered. Kept in
@@ -91,6 +92,13 @@ class YesterdayPrompt extends ConsumerWidget {
     final hasFood =
         intake != null && (intake.byMeal.isNotEmpty || intake.total.kcal > 0);
     if (!hasFood || intake.fullyLogged) return const SizedBox.shrink();
+
+    // Nothing to ask about when the app's own usage doesn't reach back to
+    // yesterday at all (e.g. right after onboarding, on the very first day).
+    final earliest = ref.watch(earliestDataDayProvider).value;
+    if (earliest == null || earliest.compareTo(yesterday) > 0) {
+      return const SizedBox.shrink();
+    }
 
     final theme = Theme.of(context);
     return Card(
