@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
+import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
 import 'package:nutrition_app/features/food/data/food_repository.dart';
 import 'package:nutrition_app/features/food/food_providers.dart';
 import 'package:nutrition_app/features/targets/targets_providers.dart';
@@ -32,6 +33,10 @@ void main() {
     bool checkInDue = false,
     DateTime Function()? clock,
     DayIntake Function(String dayKey)? intakeFor,
+    // Earliest day the app has any data for, for the yesterday-prompt logic.
+    // Defaults to well before any of these tests' "yesterday" so it doesn't
+    // interfere unless a test overrides it to probe that logic directly.
+    String? earliestDataDay = '2026-01-01',
     List<Override> extra = const [],
   }) async {
     tester.view.physicalSize = const Size(800, 2000);
@@ -56,6 +61,9 @@ void main() {
                     fullyLogged: false,
                   ),
             ),
+          ),
+          earliestDataDayProvider.overrideWith(
+            (ref) => Stream.value(earliestDataDay),
           ),
           ...extra,
         ],
@@ -406,6 +414,23 @@ void main() {
       expect(find.byKey(const Key('yesterdayPrompt')), findsNothing);
       await unmount(tester);
     });
+
+    testWidgets(
+      'not shown on the first-ever day of app data (no real yesterday)',
+      (tester) async {
+        // Yesterday looks "complete" by food data alone, but the app itself
+        // has no data before today (fresh install / just finished
+        // onboarding) — there's no real yesterday to ask about.
+        await pumpToday(
+          tester,
+          targets: targets,
+          intakeFor: (d) => intake(d, logged: false),
+          earliestDataDay: '2026-09-25',
+        );
+        expect(find.byKey(const Key('yesterdayPrompt')), findsNothing);
+        await unmount(tester);
+      },
+    );
 
     testWidgets(
       "Yes, mark it shows Try again instead of throwing when the save fails",
