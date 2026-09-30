@@ -101,6 +101,88 @@ void main() {
       await finish(tester);
     });
 
+    testWidgets('switching the basis converts the numbers already entered', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      // An incomplete Open Food Facts product: per 100 g, no fat.
+      await pump(
+        tester,
+        const CustomFoodScreen(
+          draft: RemoteFood(
+            source: 'off',
+            externalId: '7290000000055',
+            name: 'Granola',
+            kcalPer100g: 250,
+            proteinPer100g: 10,
+            carbsPer100g: 40,
+            servingGrams: 30,
+          ),
+        ),
+      );
+      String field(String key) =>
+          tester.widget<TextFormField>(find.byKey(Key(key))).controller!.text;
+      expect(field('kcal-field'), '250');
+
+      // The label gives fat per serving, so switch to per serving.
+      await tester.tap(find.text('Per serving'));
+      await tester.pump();
+      expect(field('kcal-field'), '75');
+      expect(field('protein-field'), '3');
+      expect(field('carbs-field'), '12');
+      await tester.enterText(find.byKey(const Key('fat-field')), '1.5');
+      await tester.pump();
+      expect(find.textContaining('Per 100 g: 250 kcal'), findsOneWidget);
+
+      // Back to per 100 g: the same food, fat converted too.
+      await tester.tap(find.text('Per 100 g'));
+      await tester.pump();
+      expect(field('kcal-field'), '250');
+      expect(field('fat-field'), '5');
+
+      // Per serving again, then a bigger serving: converted numbers follow.
+      await tester.tap(find.text('Per serving'));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('serving-grams-field')),
+        '40',
+      );
+      await tester.pump();
+      expect(field('kcal-field'), '100');
+      expect(field('fat-field'), '2');
+
+      await tester.ensureVisible(find.byKey(const Key('save-food')));
+      await tester.tap(find.byKey(const Key('save-food')));
+      await settle(tester);
+      final f = (await tester.runAsync(() => db.select(db.foods).get()))!
+          .single;
+      expect(f.kcalPer100g, closeTo(250, 1e-9));
+      expect(f.proteinPer100g, closeTo(10, 1e-9));
+      expect(f.fatPer100g, closeTo(5, 1e-9));
+      expect(f.carbsPer100g, closeTo(40, 1e-9));
+      expect(f.servingGrams, 40);
+      await finish(tester);
+    });
+
+    testWidgets('per serving needs a serving size to convert numbers', (
+      tester,
+    ) async {
+      await pump(tester, const CustomFoodScreen());
+      await tester.enterText(find.byKey(const Key('kcal-field')), '300');
+      await tester.pump();
+      await tester.tap(find.text('Per serving'));
+      await tester.pump();
+      expect(
+        find.text(
+          'Enter the serving size first, so the values can be converted.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Energy per 100 g'), findsOneWidget);
+      await finish(tester);
+    });
+
     testWidgets('negative numbers block saving; odd kcal only warns', (
       tester,
     ) async {
