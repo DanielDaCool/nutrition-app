@@ -41,10 +41,18 @@ Future<void> addWeighIn(AppDatabase db, String day, double kg) => db
       ),
     );
 
-Future<void> addTarget(AppDatabase db, String day, {double kcal = 2400}) => db
+Future<int> addTarget(
+  AppDatabase db,
+  String day, {
+  double kcal = 2400,
+  Map<String, Object?>? explanation,
+}) => db
     .into(db.targetHistory)
     .insert(
       TargetHistoryCompanion.insert(
+        explanationJson: Value(
+          explanation == null ? null : jsonEncode(explanation),
+        ),
         effectiveFrom: day,
         kcal: kcal,
         proteinG: 180,
@@ -219,6 +227,74 @@ void main() {
     expect(rows, hasLength(2));
     expect(rows.map((r) => r.kcal), [2000, 2000]);
     expect(await repo.checkInDue(), isFalse);
+  });
+
+  group('skip keeps the engine state', () {
+    // A real explanation, with Kalman state as if data had been measured.
+    Future<Map<String, Object?>> realExplanation() async {
+      now = DateTime(2026, 9, 20, 9);
+      await addProfile(repo);
+      await addWeighIn(db, '2026-09-19', 90);
+      final rec = (await repo.recommendToday())!;
+      return rec.explanation.toJson()
+        ..['phaseStartDayKey'] = '2026-09-06'
+        ..['smoothedMeasuredKcal'] = 2600.0
+        ..['measuredVarianceKcal2'] = 10000.0;
+    }
+
+    test('skip copies the kept explanation forward', () async {
+      final kept = await realExplanation();
+      final keptId = await addTarget(db, '2026-09-20', explanation: kept);
+      now = sunday;
+      await repo.keepCurrentTarget();
+
+      final skipRow = await (db.select(
+        db.targetHistory,
+      )..where((t) => t.effectiveFrom.equals('2026-09-27'))).getSingle();
+      final stored =
+          jsonDecode(skipRow.explanationJson!) as Map<String, Object?>;
+      expect(stored['skipped'], isTrue);
+      expect(stored['keptFrom'], keptId);
+      expect(stored['formulaKcal'], kept['formulaKcal']);
+
+      // Next week's check-in sees the kept target's state, not a reset.
+      now = DateTime(2026, 10, 4, 9);
+      final input = (await repo.loadInput())!;
+      expect(input.previousPhaseStartDayKey, '2026-09-06');
+      expect(input.previousWeeklyRatePctRaw, 0.5);
+      expect(input.previousFormulaKcal, kept['formulaKcal']);
+      expect(input.previousMaintenanceMode, isFalse);
+      expect(input.previousSmoothedMeasuredKcal, 2600);
+      // One skipped week of process noise on top of the kept variance.
+      expect(input.previousMeasuredVarianceKcal2, 10000 + 50 * 50);
+    });
+
+    test(
+      'an old skip marker row is followed back to the kept target',
+      () async {
+        final kept = await realExplanation();
+        final keptId = await addTarget(db, '2026-09-20', explanation: kept);
+        await addTarget(
+          db,
+          '2026-09-27',
+          explanation: {'skipped': true, 'keptFrom': keptId},
+        );
+        now = DateTime(2026, 10, 4, 9);
+        final input = (await repo.loadInput())!;
+        expect(input.previousPhaseStartDayKey, '2026-09-06');
+        expect(input.previousFormulaKcal, kept['formulaKcal']);
+        expect(input.previousSmoothedMeasuredKcal, 2600);
+
+        // Skipping again copies the real explanation, not the bare marker.
+        now = DateTime(2026, 10, 5, 9);
+        await repo.keepCurrentTarget();
+        final row = await (db.select(
+          db.targetHistory,
+        )..where((t) => t.effectiveFrom.equals('2026-10-05'))).getSingle();
+        final stored = jsonDecode(row.explanationJson!) as Map<String, Object?>;
+        expect(stored['formulaKcal'], kept['formulaKcal']);
+      },
+    );
   });
 
   test('future-dated targets are ignored', () async {

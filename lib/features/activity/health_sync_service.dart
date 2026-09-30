@@ -34,6 +34,7 @@ class HealthConnectStatus {
 
   /// The "read data older than 30 days" permission exists on this phone.
   final bool historyAvailable;
+
   /// The history permission is granted, so syncs read back 90 days.
   final bool historyAuthorized;
 
@@ -97,6 +98,7 @@ class HealthSyncService {
 
   /// KeyValues key: last successful sync time (UTC ISO-8601).
   static const lastSyncAtKey = 'hc.lastSyncAt';
+
   /// KeyValues key: day key of the last sync; the next sync starts
   /// [overlapDays] before it.
   static const lastSyncedDayKey = 'hc.lastSyncedDay';
@@ -150,12 +152,22 @@ class HealthSyncService {
       final today = dayKeyOf(now);
       final from = await _windowStart(today, access.historyAuthorized);
 
+      // Each data type is gated on its own permission: Health Connect lets
+      // the user grant steps but decline workouts (or vice versa), and one
+      // declined optional type must not block the rest of the sync.
+      final hasSteps = await source.hasStepsPermission();
+      final hasWorkouts = await source.hasWorkoutPermission();
+
       // Read everything first, then write in one transaction.
       final steps = <String, int?>{};
-      for (var d = from; d.compareTo(today) <= 0; d = addDays(d, 1)) {
-        steps[d] = await source.totalSteps(startOfDay(d), endOfDay(d));
+      if (hasSteps) {
+        for (var d = from; d.compareTo(today) <= 0; d = addDays(d, 1)) {
+          steps[d] = await source.totalSteps(startOfDay(d), endOfDay(d));
+        }
       }
-      final workouts = await source.workouts(startOfDay(from), endOfDay(today));
+      final workouts = hasWorkouts
+          ? await source.workouts(startOfDay(from), endOfDay(today))
+          : const <HcWorkout>[];
 
       await db.transaction(() async {
         for (final e in steps.entries) {
@@ -239,6 +251,11 @@ class HealthSyncService {
       );
     }
     final historyAvailable = await source.isHistoryAvailable();
+    // Steps and workouts are independent Health Connect permissions the user
+    // can toggle separately; needing *both* declined to count as
+    // "not connected" means one still-granted type isn't blocked by the
+    // other having been turned off (see hasStepsPermission/hasWorkoutPermission
+    // and how the sync itself uses them).
     if (!await source.hasPermissions()) {
       return HealthConnectStatus(
         HealthStatusKind.needsPermission,

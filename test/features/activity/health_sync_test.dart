@@ -251,6 +251,76 @@ void main() {
       expect(source.stepCalls, isEmpty);
     });
 
+    test(
+      'declining only "Active calories" does not block steps or workouts',
+      () async {
+        // Only ACTIVE_ENERGY_BURNED declined; STEPS and the rest of the
+        // WORKOUT group are still granted.
+        source.activeCaloriesPermissionOverride = false;
+        source.stepsByDay['2026-09-25'] = 4321;
+        source.workoutRecords.add(workout('w1', DateTime(2026, 9, 25, 8)));
+
+        await syncNow();
+
+        expect(
+          container.read(healthStatusProvider).kind,
+          HealthStatusKind.ok,
+        );
+        expect(source.stepCalls, isNotEmpty);
+        expect(source.workoutCalls, isNotEmpty);
+        expect(
+          (await db.select(db.dailySteps).getSingle()).steps,
+          4321,
+        );
+        expect(await db.select(db.workouts).get(), hasLength(1));
+      },
+    );
+
+    test(
+      'steps permission alone still syncs steps, with workouts skipped',
+      () async {
+        source.stepsPermissionOverride = true;
+        source.workoutPermissionOverride = false;
+        source.stepsByDay['2026-09-25'] = 7000;
+        source.workoutRecords.add(workout('w1', DateTime(2026, 9, 25, 8)));
+
+        await syncNow();
+
+        expect(
+          container.read(healthStatusProvider).kind,
+          HealthStatusKind.ok,
+        );
+        expect(source.stepCalls, isNotEmpty);
+        expect(source.workoutCalls, isEmpty);
+        expect(
+          (await db.select(db.dailySteps).getSingle()).steps,
+          7000,
+        );
+        expect(await db.select(db.workouts).get(), isEmpty);
+      },
+    );
+
+    test(
+      'workout permission alone still syncs workouts, with steps skipped',
+      () async {
+        source.stepsPermissionOverride = false;
+        source.workoutPermissionOverride = true;
+        source.stepsByDay['2026-09-25'] = 7000;
+        source.workoutRecords.add(workout('w1', DateTime(2026, 9, 25, 8)));
+
+        await syncNow();
+
+        expect(
+          container.read(healthStatusProvider).kind,
+          HealthStatusKind.ok,
+        );
+        expect(source.stepCalls, isEmpty);
+        expect(source.workoutCalls, isNotEmpty);
+        expect(await db.select(db.dailySteps).get(), isEmpty);
+        expect(await db.select(db.workouts).get(), hasLength(1));
+      },
+    );
+
     test('read errors go into state and keep the last sync time', () async {
       await syncNow();
       final firstSync = now;
@@ -306,21 +376,51 @@ void main() {
   );
 
   group('connect', () {
-    test('requests permissions, then history, then syncs 90 days', () async {
-      source.permissionsGranted = false;
-      await container.read(healthSyncProvider.notifier).connect();
-      expect(source.requestPermissionCalls, 1);
-      expect(source.requestHistoryCalls, 1);
-      expect(source.stepCalls, hasLength(91));
-      expect(container.read(healthStatusProvider).historyAuthorized, isTrue);
-    });
+    test(
+      'requests permissions, then history, then background, then syncs 90 days',
+      () async {
+        source.permissionsGranted = false;
+        await container.read(healthSyncProvider.notifier).connect();
+        expect(source.requestPermissionCalls, 1);
+        expect(source.requestHistoryCalls, 1);
+        expect(source.requestBackgroundCalls, 1);
+        expect(source.backgroundAuthorized, isTrue);
+        expect(source.stepCalls, hasLength(91));
+        expect(container.read(healthStatusProvider).historyAuthorized, isTrue);
+      },
+    );
 
     test('does not re-request permissions already granted', () async {
       source.historyAuthorized = true;
+      source.backgroundAuthorized = true;
       await container.read(healthSyncProvider.notifier).connect();
       expect(source.requestPermissionCalls, 0);
       expect(source.requestHistoryCalls, 0);
+      expect(source.requestBackgroundCalls, 0);
     });
+
+    test(
+      'requests the background permission even when history is already granted',
+      () async {
+        // A1: background reads need their own permission, requested
+        // alongside (not instead of) the existing connect flow.
+        source.historyAuthorized = true;
+        source.backgroundAvailable = true;
+        source.backgroundAuthorized = false;
+        await container.read(healthSyncProvider.notifier).connect();
+        expect(source.requestBackgroundCalls, 1);
+        expect(source.backgroundAuthorized, isTrue);
+      },
+    );
+
+    test(
+      'skips the background request when the feature is unavailable',
+      () async {
+        source.backgroundAvailable = false;
+        await container.read(healthSyncProvider.notifier).connect();
+        expect(source.requestBackgroundCalls, 0);
+      },
+    );
   });
 
   group('activity providers', () {
@@ -408,6 +508,36 @@ void main() {
       );
       expect(day.steps, 8432);
     });
+
+    test(
+      'todayActiveCaloriesProvider re-reads after a sync instead of staying '
+      'stale or stuck on a cached null',
+      () async {
+        // Starts with no permission: the provider caches null.
+        source.permissionsGranted = false;
+        final provider = todayActiveCaloriesProvider('2026-09-25');
+        final seen = <double?>[];
+        final sub = container.listen<AsyncValue<double?>>(provider, (
+          _,
+          next,
+        ) {
+          if (next case AsyncData(:final value)) seen.add(value);
+        }, fireImmediately: true);
+        addTearDown(sub.close);
+        await container.read(provider.future);
+        expect(seen.last, isNull);
+
+        // Permission is granted and a sync runs (as connect() would do);
+        // the still-listened provider must re-read rather than keep
+        // reporting the stale/cached null.
+        source.permissionsGranted = true;
+        source.activeCaloriesByDay['2026-09-25'] = 250;
+        await syncNow();
+        await container.read(provider.future);
+
+        expect(seen.last, 250);
+      },
+    );
   });
 
   test('checkStatus reports without syncing', () async {
