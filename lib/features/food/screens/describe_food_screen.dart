@@ -168,12 +168,22 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
       if (e?.removed ?? false) continue;
       final food = e?.food ?? item.match?.candidate;
       final quantity = e?.quantity ?? item.quantity;
-      final unit = (e?.unitSet ?? false) ? e!.unit : item.unit;
-      final estimate = food == null
-          ? null
-          : (e?.food == null && !(e?.changesAmount ?? false))
-          ? item.estimate
-          : engine.gramsFor(food, quantity, unit);
+      // [item.unit] is what the estimate used ("25 almonds" as pieces, not
+      // grams), so edits and food swaps keep meaning the same amount.
+      var unit = (e?.unitSet ?? false) ? e!.unit : item.unit;
+      GramsEstimate? estimate;
+      if (food == null) {
+        estimate = null;
+      } else if (e?.changesAmount ?? false) {
+        estimate = engine.gramsFor(food, quantity, unit);
+      } else if (e?.food != null) {
+        // Another food for the same words: read them again for that food.
+        final r = engine.estimatePhrase(food, item.phrase);
+        estimate = r.estimate;
+        unit = r.unit;
+      } else {
+        estimate = item.estimate;
+      }
       rows.add(
         _Row(
           item: item,

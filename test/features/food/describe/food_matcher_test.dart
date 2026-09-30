@@ -112,6 +112,15 @@ void main() {
       final almonds = e.parse('25 almonds').items.single;
       expect(almonds.grams, closeTo(25 * 1.3, 1e-9));
       expect(almonds.gramsExplanation, '25 pieces × 1.3 g');
+      // The item says what was estimated, so edits keep counting pieces.
+      expect(almonds.unit, MeasureUnit.piece);
+      expect(almonds.countedAsPieces, isTrue);
+      expect(e.parse('rice 150').items.single.unit, MeasureUnit.gram);
+      // Another food for the same words is read the same way.
+      final walnuts = _builtins.firstWhere((c) => c.name == 'Walnuts');
+      final r = e.estimatePhrase(walnuts, almonds.phrase);
+      expect(r.unit, MeasureUnit.piece);
+      expect(r.estimate.grams, closeTo(32.5, 1e-9));
       expect(e.parse('rice 150').items.single.grams, 150);
       expect(e.parse('150 rice').items.single.grams, 150);
     });
