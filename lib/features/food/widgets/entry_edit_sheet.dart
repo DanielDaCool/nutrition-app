@@ -46,11 +46,11 @@ class EntryEditSheet extends StatefulWidget {
 }
 
 class _EntryEditSheetState extends State<EntryEditSheet> {
-  late final _grams = () {
-    final text = fmtNum(widget.item.grams);
-    return TextEditingController(text: text)
-      ..selection = TextSelection(baseOffset: 0, extentOffset: text.length);
-  }();
+  /// The grams as first shown (rounded to 0.1 g).
+  late final _shownGrams = fmtNum(widget.item.grams);
+  late final _grams = TextEditingController(
+    text: _shownGrams,
+  )..selection = TextSelection(baseOffset: 0, extentOffset: _shownGrams.length);
   late Meal _meal = widget.item.meal;
   String? _error;
 
@@ -61,6 +61,9 @@ class _EntryEditSheetState extends State<EntryEditSheet> {
   }
 
   double? get _value {
+    // Untouched: keep the exact grams, not the rounded text, so moving an
+    // entry to another meal doesn't nudge 14.86 g to 14.9 g.
+    if (_grams.text.trim() == _shownGrams) return widget.item.grams;
     final v = parseAmount(_grams.text);
     return v == null || v <= 0 ? null : v;
   }
