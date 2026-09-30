@@ -50,6 +50,31 @@ void main() {
     });
   });
 
+  group('resolveKcal', () {
+    test('uses the kcal field when it agrees with kJ', () {
+      expect(resolveKcal(kcalField: 282, kjField: 1180), 282);
+    });
+    test('falls back to kJ when kcal is missing', () {
+      expect(resolveKcal(kcalField: null, kjField: 1046), closeTo(250, 1));
+    });
+    test('falls back to kcal when kJ is missing', () {
+      expect(resolveKcal(kcalField: 500, kjField: null), 500);
+    });
+    test('null when both are missing', () {
+      expect(resolveKcal(kcalField: null, kjField: null), isNull);
+    });
+    test('small rounding gaps between the two fields are kept as the '
+        'kcal field', () {
+      // 1180 kJ / 4.184 = 282.02; a label rounded to 280 kcal is fine.
+      expect(resolveKcal(kcalField: 280, kjField: 1180), 280);
+    });
+    test('corrects a kcal field that actually holds the kJ number', () {
+      // A contributor typed the kJ figure (2092) into the kcal box; the kJ
+      // field itself is right, so 2092 kJ / 4.184 = 500 kcal is trusted.
+      expect(resolveKcal(kcalField: 2092, kjField: 2092), closeTo(500, 1e-6));
+    });
+  });
+
   test('parseAmount accepts comma decimals and rejects junk', () {
     expect(parseAmount('12,5'), 12.5);
     expect(parseAmount(' 30 '), 30);
