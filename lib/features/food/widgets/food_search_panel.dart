@@ -9,13 +9,10 @@ import '../describe/food_matcher.dart';
 import '../food_providers.dart';
 import 'error_retry.dart';
 
-/// Which remote database the Search tab queries.
-enum SearchSource { off, usda }
-
 /// Food search. With [onPickLocal], saved and built-in foods are listed as
-/// you type under "Your foods" and online search (USDA or Open Food Facts)
-/// runs from a button; without it, only online search. Results survive tab
-/// switches.
+/// you type under "Your foods" and online search (Open Food Facts and USDA,
+/// queried together) runs from a button; without it, only online search.
+/// Results survive tab switches.
 class FoodSearchPanel extends ConsumerStatefulWidget {
   const FoodSearchPanel({
     super.key,
@@ -41,7 +38,6 @@ class FoodSearchPanel extends ConsumerStatefulWidget {
 class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
     with AutomaticKeepAliveClientMixin {
   late final _query = TextEditingController(text: widget.initialQuery);
-  SearchSource _source = SearchSource.usda;
   AsyncValue<List<RemoteFood>>? _results;
 
   /// Incremented per search so a slow, older response can't overwrite a
@@ -70,42 +66,48 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
   /// Runs only when the user submits (API rate limits).
   ///
   /// USDA covers only generic foods and OFF only branded ones (see
-  /// [UsdaClient]), so a real product like "Nutella" gets no results from
-  /// whichever source the picker happens to be on. When the selected source
-  /// comes back empty, try the other one before giving up, and flip the
-  /// picker to match so it's clear where the results came from.
+  /// [UsdaClient]) — a real product like "Nutella" has nothing to do with
+  /// USDA's Foundation/SR Legacy data, but a query like "cottage cheese" can
+  /// still get an unrelated generic hit from USDA even when the branded
+  /// product the user meant is only in OFF. So both are always queried and
+  /// their results shown together, OFF's (usually the closer match for a
+  /// named product) first.
   Future<void> _search() async {
     final q = _query.text.trim();
     if (q.isEmpty) return;
     FocusScope.of(context).unfocus();
     final id = ++_requestId;
     setState(() => _results = const AsyncLoading());
-    var source = _source;
-    var result = await AsyncValue.guard(() => _searchWith(source, q));
-    if (mounted && id == _requestId) {
-      if (result case AsyncData(:final value) when value.isEmpty) {
-        source = _otherSource(source);
-        result = await AsyncValue.guard(() => _searchWith(source, q));
-      }
-      if (mounted && id == _requestId) {
-        setState(() {
-          _results = result;
-          if (result is AsyncData<List<RemoteFood>> && result.value.isNotEmpty) {
-            _source = source;
-          }
-        });
-      }
-    }
+    final results = await Future.wait([
+      AsyncValue.guard(() => ref.read(offClientProvider).search(q)),
+      AsyncValue.guard(() => ref.read(usdaClientProvider).search(q)),
+    ]);
+    if (mounted && id == _requestId) setState(() => _results = _merge(results));
   }
 
-  Future<List<RemoteFood>> _searchWith(SearchSource source, String q) =>
-      switch (source) {
-        SearchSource.off => ref.read(offClientProvider).search(q),
-        SearchSource.usda => ref.read(usdaClientProvider).search(q),
-      };
-
-  SearchSource _otherSource(SearchSource source) =>
-      source == SearchSource.usda ? SearchSource.off : SearchSource.usda;
+  /// Combines both sources' results. Errors are dropped as long as at least
+  /// one source came back with something (even an empty list); only when
+  /// both fail is the first error shown.
+  static AsyncValue<List<RemoteFood>> _merge(
+    List<AsyncValue<List<RemoteFood>>> results,
+  ) {
+    final lists = <List<RemoteFood>>[];
+    Object? firstError;
+    StackTrace? firstStackTrace;
+    for (final r in results) {
+      switch (r) {
+        case AsyncData(:final value):
+          lists.add(value);
+        case AsyncError(:final error, :final stackTrace):
+          firstError ??= error;
+          firstStackTrace ??= stackTrace;
+        default:
+          break;
+      }
+    }
+    if (lists.isEmpty) return AsyncError(firstError!, firstStackTrace!);
+    return AsyncData([for (final l in lists) ...l]);
+  }
 
   bool get _local => widget.onPickLocal != null;
 
@@ -115,11 +117,6 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
     final q = _query.text.trim();
     return Column(
       children: [
-        if (!_local)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: _sourcePicker(),
-          ),
         Padding(
           padding: const EdgeInsets.all(16),
           child: TextField(
@@ -129,9 +126,7 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
             decoration: InputDecoration(
               hintText: _local
                   ? 'e.g. banana, cottage cheese, rice'
-                  : _source == SearchSource.usda
-                  ? 'e.g. chicken breast, rice, egg'
-                  : 'Product or brand',
+                  : 'e.g. chicken breast, or a brand like Nutella',
               prefixIcon: _local ? const Icon(Icons.search) : null,
               border: const OutlineInputBorder(),
               suffixIcon: _local
@@ -162,18 +157,6 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
       ],
     );
   }
-
-  Widget _sourcePicker() => SegmentedButton<SearchSource>(
-    segments: const [
-      ButtonSegment(value: SearchSource.usda, label: Text('USDA (generic)')),
-      ButtonSegment(value: SearchSource.off, label: Text('Open Food Facts')),
-    ],
-    selected: {_source},
-    onSelectionChanged: (s) => setState(() {
-      _source = s.first;
-      _results = null;
-    }),
-  );
 
   /// Search tab: saved and common foods as you type, then online on demand.
   Widget _localBody(String q) {
@@ -224,10 +207,6 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
           child: Text('Online', style: label),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: _sourcePicker(),
-        ),
-        Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: FilledButton.tonalIcon(
             key: const Key('search-online-button'),
@@ -244,7 +223,7 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
     );
   }
 
-  /// "Search online" page: the source picker is above, results fill it.
+  /// "Search online" page: just the field above, results fill it.
   Widget _remoteOnlyBody() {
     if (_results == null) {
       return const _Hint('Type a food and press Search.');
