@@ -137,6 +137,30 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets(
+    'connected but no step data shows an empty state, not the connect CTA',
+    (tester) async {
+      // Bug: Health Connect is already connected, but there's just no step
+      // data in range yet (e.g. a fresh emulator) — the steps card used to
+      // show "Connect Health Connect" regardless of connection status.
+      await addProfileAndWeighIn();
+      await pumpDashboard(
+        tester,
+        extra: [
+          healthStatusProvider.overrideWith(
+            () => _FixedHealthStatus(
+              const HealthConnectStatus(HealthStatusKind.ok),
+            ),
+          ),
+        ],
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('No step data'), findsOneWidget);
+      expect(find.byKey(const Key('connectHealthConnect')), findsNothing);
+      await unmount(tester);
+    },
+  );
+
   testWidgets('renders charts with data in light and dark', (tester) async {
     for (var i = 0; i < 40; i++) {
       final day = addDays('2026-09-25', -i);
@@ -287,4 +311,13 @@ void main() {
       await unmount(tester);
     },
   );
+}
+
+/// Always reports a fixed [HealthConnectStatus], for testing status-driven UI.
+class _FixedHealthStatus extends HealthStatusController {
+  _FixedHealthStatus(this._status);
+  final HealthConnectStatus _status;
+
+  @override
+  HealthConnectStatus build() => _status;
 }

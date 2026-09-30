@@ -393,6 +393,7 @@ class _StepsSection extends ConsumerWidget {
     final days = activity.value!;
     final empty = !hasAnySteps(days);
     if (empty && hideWhenEmpty) return const SizedBox.shrink();
+    final connected = ref.watch(healthStatusProvider).kind == HealthStatusKind.ok;
     return _Section(
       title: title,
       headline: stepsHeadline(days),
@@ -405,17 +406,22 @@ class _StepsSection extends ConsumerWidget {
               ],
             ),
       child: empty
-          ? ChartEmptyState(
-              icon: Icons.directions_walk,
-              message: 'No step data in this range yet.',
-              action: FilledButton.tonalIcon(
-                key: const Key('connectHealthConnect'),
-                onPressed: () =>
-                    ref.read(healthSyncProvider.notifier).connect(),
-                icon: const Icon(Icons.favorite_outline),
-                label: const Text('Connect Health Connect'),
-              ),
-            )
+          ? (connected
+                ? const ChartEmptyState(
+                    icon: Icons.directions_walk,
+                    message: 'No step data in this range yet.',
+                  )
+                : ChartEmptyState(
+                    icon: Icons.directions_walk,
+                    message: 'No step data in this range yet.',
+                    action: FilledButton.tonalIcon(
+                      key: const Key('connectHealthConnect'),
+                      onPressed: () =>
+                          ref.read(healthSyncProvider.notifier).connect(),
+                      icon: const Icon(Icons.favorite_outline),
+                      label: const Text('Connect Health Connect'),
+                    ),
+                  ))
           : _StepsChart(
               days: stepsWithAverage(avgActivity.value!, from: window.$1),
             ),
