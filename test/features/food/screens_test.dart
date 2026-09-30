@@ -379,10 +379,10 @@ void main() {
       expect(find.text('Your foods'), findsOneWidget);
       expect(find.byKey(const Key('local-builtin:banana')), findsOneWidget);
 
-      // Online search only on the button.
+      // Online search only on the button, both sources queried together.
       await tester.tap(find.byKey(const Key('search-online-button')));
       await settle(tester);
-      expect(requests, hasLength(1));
+      expect(requests, hasLength(2));
 
       await tester.tap(find.byKey(const Key('local-builtin:banana')));
       await settle(tester);
@@ -412,8 +412,11 @@ void main() {
       expect(requests, isEmpty); // typing doesn't search
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await settle(tester);
-      expect(requests, hasLength(1));
-      expect(requests.single.url.host, 'api.nal.usda.gov');
+      expect(requests, hasLength(2));
+      expect(
+        requests.map((r) => r.url.host),
+        containsAll(['api.nal.usda.gov', 'world.openfoodfacts.org']),
+      );
       expect(
         find.text('Chicken, breast, boneless, skinless, raw'),
         findsOneWidget,
@@ -423,7 +426,8 @@ void main() {
     });
 
     testWidgets(
-      'a branded product empty on USDA falls back to Open Food Facts',
+      'a branded product with nothing on USDA still shows up from Open '
+      'Food Facts',
       (tester) async {
         await pump(
           tester,
@@ -451,10 +455,58 @@ void main() {
         await tester.testTextInput.receiveAction(TextInputAction.search);
         await settle(tester);
         expect(requests, hasLength(2));
-        expect(requests[0].url.host, 'api.nal.usda.gov');
-        expect(requests[1].url.host, 'world.openfoodfacts.org');
+        expect(
+          requests.map((r) => r.url.host),
+          containsAll(['api.nal.usda.gov', 'world.openfoodfacts.org']),
+        );
         expect(find.text('Nutella'), findsOneWidget);
         expect(find.text('Ferrero · 539 kcal/100 g'), findsOneWidget);
+        await finish(tester);
+      },
+    );
+
+    testWidgets(
+      'both sources return results: both are shown, Open Food Facts first',
+      (tester) async {
+        await pump(
+          tester,
+          const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+          client: mock(
+            (req) => http.Response.bytes(
+              utf8.encode(
+                fixtureText(
+                  req.url.host == 'world.openfoodfacts.org'
+                      ? 'off_search_nutella.json'
+                      : 'usda_search.json',
+                ),
+              ),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            ),
+          ),
+        );
+        await tester.tap(find.text('Search'));
+        await settle(tester);
+        await tester.enterText(
+          find.byKey(const Key('search-field')),
+          'chicken nutella',
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        await settle(tester);
+        expect(find.text('Nutella'), findsOneWidget);
+        expect(
+          find.text('Chicken, breast, boneless, skinless, raw'),
+          findsOneWidget,
+        );
+        final tiles = tester
+            .widgetList<Text>(find.byType(Text))
+            .map((t) => t.data)
+            .whereType<String>()
+            .toList();
+        expect(
+          tiles.indexOf('Nutella'),
+          lessThan(tiles.indexOf('Chicken, breast, boneless, skinless, raw')),
+        );
         await finish(tester);
       },
     );
