@@ -68,20 +68,44 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
   }
 
   /// Runs only when the user submits (API rate limits).
+  ///
+  /// USDA covers only generic foods and OFF only branded ones (see
+  /// [UsdaClient]), so a real product like "Nutella" gets no results from
+  /// whichever source the picker happens to be on. When the selected source
+  /// comes back empty, try the other one before giving up, and flip the
+  /// picker to match so it's clear where the results came from.
   Future<void> _search() async {
     final q = _query.text.trim();
     if (q.isEmpty) return;
     FocusScope.of(context).unfocus();
     final id = ++_requestId;
     setState(() => _results = const AsyncLoading());
-    final result = await AsyncValue.guard(
-      () => switch (_source) {
+    var source = _source;
+    var result = await AsyncValue.guard(() => _searchWith(source, q));
+    if (mounted && id == _requestId) {
+      if (result case AsyncData(:final value) when value.isEmpty) {
+        source = _otherSource(source);
+        result = await AsyncValue.guard(() => _searchWith(source, q));
+      }
+      if (mounted && id == _requestId) {
+        setState(() {
+          _results = result;
+          if (result is AsyncData<List<RemoteFood>> && result.value.isNotEmpty) {
+            _source = source;
+          }
+        });
+      }
+    }
+  }
+
+  Future<List<RemoteFood>> _searchWith(SearchSource source, String q) =>
+      switch (source) {
         SearchSource.off => ref.read(offClientProvider).search(q),
         SearchSource.usda => ref.read(usdaClientProvider).search(q),
-      },
-    );
-    if (mounted && id == _requestId) setState(() => _results = result);
-  }
+      };
+
+  SearchSource _otherSource(SearchSource source) =>
+      source == SearchSource.usda ? SearchSource.off : SearchSource.usda;
 
   bool get _local => widget.onPickLocal != null;
 
