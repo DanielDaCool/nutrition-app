@@ -941,6 +941,76 @@ void main() {
       expect(text, contains('so your maintenance is about 2,'));
     });
 
+    test('partial weight names weigh-ins when they limit it', () {
+      // Logged every day, but only 8 weigh-ins spread over the window:
+      // weigh-ins (not logged days) limit w to (8-6)/4 = 50%.
+      final start = addDays(today, -kWindowDays);
+      final weighDays = {for (var i = 0; i < 8; i++) addDays(start, i * 3)};
+      final h = history(
+        maintenanceKcal: 2500,
+        intakeKcal: 2000,
+        weighed: weighDays.contains,
+      );
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.weight, closeTo(0.5, 1e-9));
+      final text = explainLines(r.explanation).join(' ');
+      expect(text, contains('With 8 weigh-ins that counts 50%'));
+      expect(text, isNot(contains('With $kWindowDays fully logged days')));
+    });
+
+    test('partial weight names logged days when they limit it', () {
+      final h = history(
+        maintenanceKcal: 2500,
+        intakeKcal: 2000,
+        logged: (day) => day.compareTo(addDays(today, -10)) >= 0, // 10 days
+      );
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.weight, greaterThan(0));
+      expect(r.explanation.weight, lessThan(1));
+      final text = explainLines(r.explanation).join(' ');
+      expect(text, contains('With 10 fully logged days that counts'));
+    });
+
+    test('w = 0 with a measured value still gives a reason', () {
+      final h = history(
+        maintenanceKcal: 2500,
+        intakeKcal: 2000,
+        logged: (day) => day.compareTo(addDays(today, -7)) >= 0, // exactly 7
+      );
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.measuredKcal, isNotNull);
+      expect(r.explanation.weight, 0);
+      final text = explainLines(r.explanation).join(' ');
+      expect(
+        text,
+        contains(
+          '(only 7 fully logged days so far, not yet enough for your '
+          'own data to count)',
+        ),
+      );
+    });
+
     test('formula-only why gives the reason', () {
       final r = recommend(
         EngineInput(
