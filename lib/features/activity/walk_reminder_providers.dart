@@ -35,7 +35,14 @@ class WalkReminderSettingsController
 
   /// Persists [settings], then (re)schedules the background check. Named
   /// `save` (not `update`) to avoid colliding with [AsyncNotifier.update].
+  ///
+  /// Only requests the notification permission when [enabled] transitions
+  /// from off to on, not on every call — the step-threshold slider calls
+  /// this on every drag tick while it's on, and re-requesting an
+  /// already-decided permission on each tick is both pointless and (on some
+  /// OEM skins) briefly re-shows the system prompt.
   Future<void> save(WalkReminderSettings settings) async {
+    final wasEnabled = state.value?.enabled ?? false;
     await saveWalkReminderSettings(ref.read(databaseProvider), settings);
     state = AsyncData(settings);
     try {
@@ -44,7 +51,7 @@ class WalkReminderSettingsController
       // The reminder still works next time the app is opened, or once the
       // user retries the toggle; nothing to surface here.
     }
-    if (settings.enabled) {
+    if (settings.enabled && !wasEnabled) {
       try {
         await requestWalkReminderPermission();
       } catch (_) {}

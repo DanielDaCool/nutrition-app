@@ -13,10 +13,12 @@ import '../../helpers/test_db.dart';
 /// real WorkManager platform channel.
 class FakeScheduler implements WalkReminderScheduler {
   WalkReminderSettings? applied;
+  int applyCalls = 0;
 
   @override
   Future<void> apply(WalkReminderSettings settings) async {
     applied = settings;
+    applyCalls++;
   }
 }
 
@@ -79,9 +81,7 @@ void main() {
     expect(find.text('17:00'), findsOneWidget);
     expect(scheduler.applied?.enabled, isTrue);
 
-    final settings = await tester.runAsync(
-      () => loadWalkReminderSettings(db),
-    );
+    final settings = await tester.runAsync(() => loadWalkReminderSettings(db));
     expect(settings!.enabled, isTrue);
     expect(settings.hour, WalkReminderSettings.defaultHour);
     expect(settings.stepThreshold, WalkReminderSettings.defaultStepThreshold);
@@ -122,9 +122,58 @@ void main() {
     await tester.drag(slider, const Offset(200, 0));
     await settle(tester);
 
-    final settings = await tester.runAsync(
-      () => loadWalkReminderSettings(db),
-    );
+    final settings = await tester.runAsync(() => loadWalkReminderSettings(db));
     expect(settings!.stepThreshold, isNot(5000));
   });
+
+  testWidgets(
+    'dragging the slider saves once per interaction, not on every tick',
+    (tester) async {
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      final scheduler = FakeScheduler();
+      await tester.runAsync(
+        () => saveWalkReminderSettings(
+          db,
+          const WalkReminderSettings(
+            enabled: true,
+            hour: 17,
+            minute: 0,
+            stepThreshold: 5000,
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            walkReminderSchedulerProvider.overrideWithValue(scheduler),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: WalkReminderSettingsTile()),
+          ),
+        ),
+      );
+      await settle(tester);
+      // The switch turning on already applied once; only the drag below
+      // should be counted.
+      scheduler.applyCalls = 0;
+
+      final slider = find.byKey(const Key('walkReminderThreshold'));
+      expect(slider, findsOneWidget);
+      // A drag over many pixels generates several onChanged ticks along the
+      // way (the slider moves visibly), but only one release.
+      await tester.drag(slider, const Offset(200, 0));
+      await settle(tester);
+
+      expect(
+        scheduler.applyCalls,
+        1,
+        reason:
+            'save()/apply() must run once per drag, not once per onChanged '
+            'tick, or the permission request and reschedule inside save() '
+            'would also fire on every tick',
+      );
+    },
+  );
 }
