@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
+import 'package:nutrition_app/features/food/data/food_repository.dart';
 import 'package:nutrition_app/features/food/food_providers.dart';
 import 'package:nutrition_app/features/targets/targets_providers.dart';
 import 'package:nutrition_app/features/today/today_screen.dart';
@@ -30,6 +32,7 @@ void main() {
     bool checkInDue = false,
     DateTime Function()? clock,
     DayIntake Function(String dayKey)? intakeFor,
+    List<Override> extra = const [],
   }) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
@@ -54,6 +57,7 @@ void main() {
                   ),
             ),
           ),
+          ...extra,
         ],
         child: const MaterialApp(home: TodayScreen()),
       ),
@@ -402,5 +406,83 @@ void main() {
       expect(find.byKey(const Key('yesterdayPrompt')), findsNothing);
       await unmount(tester);
     });
+
+    testWidgets(
+      "Yes, mark it shows Try again instead of throwing when the save fails",
+      (tester) async {
+        await pumpToday(
+          tester,
+          targets: targets,
+          intakeFor: (d) => intake(d, logged: false),
+          extra: [
+            foodRepositoryProvider.overrideWith(
+              (ref) => _ThrowingSetFullyLoggedRepo(db, () => DateTime(2026, 9, 25)),
+            ),
+          ],
+        );
+        await tester.tap(find.text('Yes, mark it'));
+        for (var i = 0; i < 4; i++) {
+          await tester.pump();
+        }
+        expect(tester.takeException(), isNull);
+        expect(find.text("Couldn't save that."), findsOneWidget);
+        expect(find.text('Try again'), findsOneWidget);
+        // Nothing was actually saved.
+        expect(await db.select(db.dayStatuses).get(), isEmpty);
+        await unmount(tester);
+      },
+    );
+
+    testWidgets(
+      'Undo shows a snackbar instead of throwing when the restore fails',
+      (tester) async {
+        await pumpToday(
+          tester,
+          targets: targets,
+          intakeFor: (d) => intake(d, logged: false),
+          extra: [
+            foodRepositoryProvider.overrideWith(
+              (ref) => _ThrowsOnFalseRepo(db, () => DateTime(2026, 9, 25)),
+            ),
+          ],
+        );
+        await tester.tap(find.text('Yes, mark it'));
+        for (var i = 0; i < 4; i++) {
+          await tester.pump();
+        }
+        expect(find.text('Yesterday marked as complete'), findsOneWidget);
+
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.tap(find.text('Undo'));
+        for (var i = 0; i < 4; i++) {
+          await tester.pump();
+        }
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(tester.takeException(), isNull);
+        expect(find.text("Couldn't save that."), findsOneWidget);
+        await unmount(tester);
+      },
+    );
   });
+}
+
+/// A [FoodRepository] whose `setFullyLogged` always fails.
+class _ThrowingSetFullyLoggedRepo extends FoodRepository {
+  _ThrowingSetFullyLoggedRepo(super.db, super.now);
+
+  @override
+  Future<void> setFullyLogged(String dayKey, bool fullyLogged) =>
+      Future<void>.error(StateError('setFullyLogged failed'));
+}
+
+/// A [FoodRepository] whose `setFullyLogged` succeeds for `true` (mark
+/// complete) but fails for `false` (undo), for exercising Undo's failure
+/// path after a successful save.
+class _ThrowsOnFalseRepo extends FoodRepository {
+  _ThrowsOnFalseRepo(super.db, super.now);
+
+  @override
+  Future<void> setFullyLogged(String dayKey, bool fullyLogged) => fullyLogged
+      ? super.setFullyLogged(dayKey, fullyLogged)
+      : Future<void>.error(StateError('undo failed'));
 }
