@@ -12,6 +12,11 @@
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED"/>
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY"/>
+    <!-- Walk reminder: the WorkManager background task reads today's steps
+         outside the foreground app; Health Connect refuses that read without
+         this permission (it falls back to a possibly stale synced value
+         otherwise). -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"/>
     <!-- Walk reminder: local notification and its Android 13+ opt-in, plus
          rescheduling the periodic background check after a reboot. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
