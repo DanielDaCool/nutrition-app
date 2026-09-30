@@ -236,7 +236,9 @@ class Explanation {
 
   /// Day the current diet phase started (a rate change, a maintenance
   /// pause/resume, or a big weight-driven change in the formula estimate).
-  final String phaseStartDayKey;
+  /// Always set by [recommend]; null only when decoded from an older saved
+  /// target that didn't record it (read as "no signal", not a phase start).
+  final String? phaseStartDayKey;
 
   /// Estimated body fat % (Deurenberg), used for [kcalPerKgUsed] and the
   /// rate cap.
@@ -246,8 +248,10 @@ class Explanation {
   /// composition (falls back to the flat [kKcalPerKg]).
   final double kcalPerKgUsed;
 
-  /// The profile's weekly rate before the body-fat cap.
-  final double weeklyRatePctRaw;
+  /// The profile's weekly rate before the body-fat cap. Always set by
+  /// [recommend]; null only when decoded from an older saved target that
+  /// didn't record it (so it can't look like a rate change).
+  final double? weeklyRatePctRaw;
 
   /// True when [weeklyRatePctRaw] was reduced by the body-fat-based cap.
   final bool rateCapped;
@@ -314,7 +318,9 @@ class Explanation {
 
   /// Inverse of [toJson]. Missing bool fields default to false, and fields
   /// added after the first release default to null/unknown so old rows
-  /// still decode. Throws on JSON that isn't an explanation (e.g. the
+  /// still decode. The fields fed back into the next check-in
+  /// ([phaseStartDayKey], [weeklyRatePctRaw]) stay null when missing, so no
+  /// data reads as no signal rather than as a made-up value. Throws on JSON that isn't an explanation (e.g. the
   /// `{'skipped': true}` marker).
   static Explanation fromJson(Map<String, Object?> j) {
     double d(String k) => (j[k] as num).toDouble();
@@ -337,11 +343,10 @@ class Explanation {
       windowEnd: j['windowEnd'] as String,
       measurementStart:
           j['measurementStart'] as String? ?? j['windowStart'] as String,
-      phaseStartDayKey:
-          j['phaseStartDayKey'] as String? ?? j['windowStart'] as String,
+      phaseStartDayKey: j['phaseStartDayKey'] as String?,
       bodyFatPercent: nd('bodyFatPercent') ?? 20,
       kcalPerKgUsed: nd('kcalPerKgUsed') ?? kKcalPerKg,
-      weeklyRatePctRaw: nd('weeklyRatePctRaw') ?? 0.5,
+      weeklyRatePctRaw: nd('weeklyRatePctRaw'),
       rateCapped: j['rateCapped'] as bool? ?? false,
       smoothedMeasuredKcal: nd('smoothedMeasuredKcal'),
       measuredVarianceKcal2: nd('measuredVarianceKcal2'),
