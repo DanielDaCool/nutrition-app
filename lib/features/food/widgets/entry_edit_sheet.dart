@@ -91,71 +91,78 @@ class _EntryEditSheetState extends State<EntryEditSheet> {
         16,
         16 + MediaQuery.viewInsetsOf(context).bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            item.foodName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            key: const Key('grams-field'),
-            controller: _grams,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Amount',
-              suffixText: 'g',
-              border: const OutlineInputBorder(),
-              errorText: _error,
-              helperText: kcal == null ? null : fmtKcal(kcal),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              item.foodName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge,
             ),
-            onChanged: (_) => setState(() => _error = null),
-            onSubmitted: (_) => _save(),
-          ),
-          const SizedBox(height: 16),
-          Text('Meal', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final m in Meal.values)
-                ChoiceChip(
-                  key: Key('move-${m.name}'),
-                  label: Text(mealLabel(m)),
-                  selected: m == _meal,
-                  onSelected: (_) => setState(() => _meal = m),
-                ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              TextButton.icon(
-                key: const Key('delete-entry'),
-                style: TextButton.styleFrom(
-                  foregroundColor: scheme.error,
-                  minimumSize: const Size(0, 48),
-                ),
-                onPressed: () => Navigator.of(context).pop(const EntryDelete()),
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Delete'),
+            const SizedBox(height: 16),
+            TextField(
+              key: const Key('grams-field'),
+              controller: _grams,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-              const Spacer(),
-              FilledButton(
-                key: const Key('save-entry'),
-                style: FilledButton.styleFrom(minimumSize: const Size(120, 48)),
-                onPressed: _save,
-                child: const Text('Save'),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                suffixText: 'g',
+                border: const OutlineInputBorder(),
+                errorText: _error,
+                helperText: kcal == null ? null : fmtKcal(kcal),
               ),
-            ],
-          ),
-        ],
+              onChanged: (_) => setState(() => _error = null),
+              onSubmitted: (_) => _save(),
+            ),
+            const SizedBox(height: 16),
+            Text('Meal', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final m in Meal.values)
+                  ChoiceChip(
+                    key: Key('move-${m.name}'),
+                    label: Text(mealLabel(m)),
+                    selected: m == _meal,
+                    onSelected: (_) => setState(() => _meal = m),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                TextButton.icon(
+                  key: const Key('delete-entry'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: scheme.error,
+                    minimumSize: const Size(0, 48),
+                  ),
+                  onPressed: () =>
+                      Navigator.of(context).pop(const EntryDelete()),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Delete'),
+                ),
+                const Spacer(),
+                FilledButton(
+                  key: const Key('save-entry'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(120, 48),
+                  ),
+                  onPressed: _save,
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

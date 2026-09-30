@@ -59,6 +59,12 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
   bool _speedTyped = false;
   bool _saving = false;
 
+  /// Once a Save attempt has shown errors, later field changes (including
+  /// auto-filled ones, since programmatic `controller.text` updates also
+  /// notify the field) re-validate live so a stale error doesn't linger on a
+  /// field that's now valid.
+  bool _autovalidate = false;
+
   @override
   void initState() {
     super.initState();
@@ -161,6 +167,13 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
       _syncDistanceSpeed();
       _recompute();
     });
+    // Distance/speed/calories may have just been auto-filled above, through
+    // a controller set directly rather than the field's own onChanged, which
+    // `autovalidateMode` doesn't pick up on its own; re-validate explicitly
+    // so a stale error doesn't linger on a field that's now valid. Only once
+    // errors are already showing (after a failed Save), so nothing appears
+    // prematurely while the form is still being filled in.
+    if (_autovalidate) _formKey.currentState?.validate();
   }
 
   void _selectType(ExerciseType? type) {
@@ -171,10 +184,15 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
       _syncDistanceSpeed();
       _recompute();
     });
+    if (_autovalidate) _formKey.currentState?.validate();
   }
 
   Future<void> _save() async {
-    if (_saving || !_formKey.currentState!.validate()) return;
+    if (_saving) return;
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _autovalidate = true);
+      return;
+    }
     setState(() => _saving = true);
     final isGait = _type.gait != null;
     try {
@@ -209,6 +227,9 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
       title: const Text('Add exercise'),
       content: Form(
         key: _formKey,
+        autovalidateMode: _autovalidate
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

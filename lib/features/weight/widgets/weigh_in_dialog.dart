@@ -126,55 +126,57 @@ class _WeighInDialogState extends State<WeighInDialog> {
       ),
       content: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextFormField(
-              key: const Key('weighInKgField'),
-              controller: _kg,
-              autofocus: true,
-              keyboardType: weightKeyboardType,
-              inputFormatters: const [WeightInputFormatter()],
-              textInputAction: TextInputAction.done,
-              style: theme.textTheme.headlineSmall,
-              decoration: const InputDecoration(
-                labelText: 'Weight',
-                suffixText: 'kg',
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                key: const Key('weighInKgField'),
+                controller: _kg,
+                autofocus: true,
+                keyboardType: weightKeyboardType,
+                inputFormatters: const [WeightInputFormatter()],
+                textInputAction: TextInputAction.done,
+                style: theme.textTheme.headlineSmall,
+                decoration: const InputDecoration(
+                  labelText: 'Weight',
+                  suffixText: 'kg',
+                ),
+                validator: validateWeightKg,
+                onFieldSubmitted: (_) => _submit(),
               ),
-              validator: validateWeightKg,
-              onFieldSubmitted: (_) => _submit(),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today_outlined),
-              title: Text(formatDayLong(_dayKey, widget.today)),
-              subtitle: const Text('Tap to change the date'),
-              onTap: _pickDate,
-            ),
-            if (replaced != null)
-              Row(
-                key: const Key('weighInReplaceWarning'),
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: theme.colorScheme.tertiary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This day already has ${formatKg(replaced)} kg. '
-                      'Saving replaces it.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.tertiary,
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.calendar_today_outlined),
+                title: Text(formatDayLong(_dayKey, widget.today)),
+                subtitle: const Text('Tap to change the date'),
+                onTap: _pickDate,
+              ),
+              if (replaced != null)
+                Row(
+                  key: const Key('weighInReplaceWarning'),
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: theme.colorScheme.tertiary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'This day already has ${formatKg(replaced)} kg. '
+                        'Saving replaces it.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.tertiary,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-          ],
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
       actions: [

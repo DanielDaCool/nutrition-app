@@ -156,6 +156,33 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets(
+    'stale validation errors clear once auto-fill makes the fields valid',
+    (tester) async {
+      // Bug: after a failed Save shows "Enter distance or speed" and "Enter
+      // calories", typing a Speed value auto-fills Distance and the kcal
+      // estimate, but the stale errors used to stay on screen.
+      await addWeighIn80();
+      await pump(tester);
+      await openDialog(tester);
+      await save(tester); // fails: Walk needs distance or speed
+      expect(find.text('Enter distance or speed'), findsOneWidget);
+      expect(find.text('Enter calories'), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const Key('exerciseSpeedField')),
+        '5',
+      );
+      await tester.pumpAndSettle();
+
+      expect(fieldText(tester, 'exerciseDistanceField'), '2.5');
+      expect(fieldText(tester, 'exerciseKcalField'), isNotEmpty);
+      expect(find.text('Enter distance or speed'), findsNothing);
+      expect(find.text('Enter calories'), findsNothing);
+      await unmount(tester);
+    },
+  );
+
   testWidgets('a "Walk" speed above a brisk pace is rejected', (tester) async {
     // A7: the ACSM walking formula is only valid up to ~6 km/h; "Walk" is
     // capped at a realistic walking pace instead of accepting up to 30 km/h.
