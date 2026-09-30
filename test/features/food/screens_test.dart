@@ -421,6 +421,43 @@ void main() {
       expect(find.text('107 kcal/100 g'), findsOneWidget);
       await finish(tester);
     });
+
+    testWidgets(
+      'a branded product empty on USDA falls back to Open Food Facts',
+      (tester) async {
+        await pump(
+          tester,
+          const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+          client: mock(
+            (req) => http.Response.bytes(
+              utf8.encode(
+                fixtureText(
+                  req.url.host == 'world.openfoodfacts.org'
+                      ? 'off_search_nutella.json'
+                      : 'usda_search_empty.json',
+                ),
+              ),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            ),
+          ),
+        );
+        await tester.tap(find.text('Search'));
+        await settle(tester);
+        await tester.enterText(
+          find.byKey(const Key('search-field')),
+          'nutella',
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        await settle(tester);
+        expect(requests, hasLength(2));
+        expect(requests[0].url.host, 'api.nal.usda.gov');
+        expect(requests[1].url.host, 'world.openfoodfacts.org');
+        expect(find.text('Nutella'), findsOneWidget);
+        expect(find.text('Ferrero · 539 kcal/100 g'), findsOneWidget);
+        await finish(tester);
+      },
+    );
   });
 }
 
