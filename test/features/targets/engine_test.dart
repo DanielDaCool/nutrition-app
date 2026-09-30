@@ -837,7 +837,45 @@ void main() {
         ..remove('rateCapped')
         ..remove('smoothedMeasuredKcal')
         ..remove('measuredVarianceKcal2');
-      expect(() => Explanation.fromJson(legacyJson), returnsNormally);
+      final back = Explanation.fromJson(legacyJson);
+      // Missing fields that feed the next check-in read as "no data".
+      expect(back.phaseStartDayKey, isNull);
+      expect(back.weeklyRatePctRaw, isNull);
+      expect(back.smoothedMeasuredKcal, isNull);
+    });
+
+    test('a legacy previous target does not fake a new phase', () {
+      // 1 %/week profile after a legacy target: a made-up 0.5 default would
+      // look like a rate change and skip the first 14 days of the window.
+      final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
+      final legacy =
+          recommend(
+              EngineInput(
+                today: today,
+                profile: profile(),
+                weighIns: h.weighIns,
+                intake: h.intake,
+              ),
+            ).explanation.toJson()
+            ..remove('phaseStartDayKey')
+            ..remove('weeklyRatePctRaw');
+      final prev = Explanation.fromJson(legacy);
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(weeklyRatePct: 0.75),
+          weighIns: h.weighIns,
+          intake: h.intake,
+          previousMaintenanceKcal: prev.maintenanceKcal,
+          previousPhaseStartDayKey: prev.phaseStartDayKey,
+          previousWeeklyRatePctRaw: prev.weeklyRatePctRaw,
+          previousFormulaKcal: prev.formulaKcal,
+          previousMaintenanceMode: prev.maintenanceMode,
+        ),
+      );
+      expect(r.explanation.phaseStartDayKey, isNot(today));
+      expect(r.explanation.measurementStart, addDays(today, -kWindowDays));
+      expect(r.explanation.measuredKcal, isNotNull);
     });
 
     test('plain-English why mentions intake, trend and maintenance', () {
