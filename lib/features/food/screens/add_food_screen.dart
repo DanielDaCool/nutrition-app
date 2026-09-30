@@ -175,6 +175,37 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     switch (result) {
       case BarcodeFound(:final food):
         await _openPortion(food);
+      case BarcodeFailed(:final message, :final canRetry):
+        // No answer (offline, rate-limited) or not a product code: offering
+        // "Add from label" here would make a food that shadows the real
+        // product later, so offer to try again or scan again instead.
+        final again = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              canRetry ? 'Could not look it up' : 'Not a product barcode',
+            ),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                key: const Key('barcode-again'),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(canRetry ? 'Try again' : 'Scan again'),
+              ),
+            ],
+          ),
+        );
+        if (again == true && mounted) {
+          if (canRetry) {
+            await lookupBarcode(code);
+          } else {
+            await _scan();
+          }
+        }
       case BarcodeNeedsLabel(:final message, :final draft):
         final add = await showDialog<bool>(
           context: context,

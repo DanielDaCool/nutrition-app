@@ -14,6 +14,7 @@ import 'package:nutrition_app/features/food/food_providers.dart';
 import 'package:nutrition_app/features/food/screens/add_food_screen.dart';
 import 'package:nutrition_app/features/food/screens/custom_food_screen.dart';
 import 'package:nutrition_app/features/food/screens/portion_screen.dart';
+import 'package:nutrition_app/features/food/widgets/food_search_panel.dart';
 
 import '../../helpers/test_db.dart';
 import 'fixture.dart';
@@ -440,6 +441,59 @@ void main() {
       await finish(tester);
     });
 
+    testWidgets('rate-limited barcode lookup offers Try again, not a label', (
+      tester,
+    ) async {
+      var calls = 0;
+      await pump(
+        tester,
+        const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+        client: mock((_) {
+          calls++;
+          return calls == 1
+              ? http.Response('Too many requests', 429)
+              : http.Response.bytes(
+                  utf8.encode(fixtureText('off_product_hummus.json')),
+                  200,
+                  headers: {'content-type': 'application/json; charset=utf-8'},
+                );
+        }),
+      );
+      final state = tester.state(find.byType(AddFoodScreen)) as dynamic;
+      state.lookupBarcode('7290000066318');
+      await settle(tester);
+      expect(find.text('Could not look it up'), findsOneWidget);
+      expect(find.textContaining('limiting requests'), findsOneWidget);
+      expect(find.text('Add from label'), findsNothing);
+      await tester.tap(find.text('Try again'));
+      await settle(tester);
+      expect(calls, 2);
+      expect(find.byType(PortionScreen), findsOneWidget);
+      // Nothing was made up from a label.
+      final foods = await tester.runAsync(() => db.select(db.foods).get());
+      expect(foods!.single.source, 'off');
+      await finish(tester);
+    });
+
+    testWidgets('a QR code that is not a product barcode: scan again', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+      );
+      final state = tester.state(find.byType(AddFoodScreen)) as dynamic;
+      state.lookupBarcode('https://example.com/menu');
+      await settle(tester);
+      expect(find.text('Not a product barcode'), findsOneWidget);
+      expect(find.text('Scan again'), findsOneWidget);
+      expect(find.text('Add from label'), findsNothing);
+      expect(requests, isEmpty);
+      await tester.tap(find.text('Cancel'));
+      await settle(tester);
+      await finish(tester);
+    });
+
     testWidgets('Search tab finds common foods as you type; picking one '
         'saves it and opens the portion screen', (tester) async {
       await pump(
@@ -546,6 +600,58 @@ void main() {
         await finish(tester);
       },
     );
+
+    testWidgets(
+      'Open Food Facts failing while USDA finds nothing shows the error',
+      (tester) async {
+        await pump(
+          tester,
+          const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+          client: mock(
+            (req) => req.url.host == 'world.openfoodfacts.org'
+                ? http.Response('Too many requests', 429)
+                : http.Response.bytes(
+                    utf8.encode(fixtureText('usda_search_empty.json')),
+                    200,
+                    headers: {
+                      'content-type': 'application/json; charset=utf-8',
+                    },
+                  ),
+          ),
+        );
+        await tester.tap(find.text('Search'));
+        await settle(tester);
+        await tester.enterText(
+          find.byKey(const Key('search-field')),
+          'nutella',
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        await settle(tester);
+        expect(find.textContaining('limiting requests'), findsOneWidget);
+        expect(find.byKey(const Key('try-again')), findsOneWidget);
+        await finish(tester);
+      },
+    );
+
+    test('merge: an error only shows when nothing was found', () {
+      const food = RemoteFood(source: 'usda', externalId: '1', name: 'Rice');
+      final err = AsyncValue<List<RemoteFood>>.error(
+        const FoodApiException(FoodApiErrorKind.rateLimited, 'wait'),
+        StackTrace.empty,
+      );
+      expect(
+        mergeSearchResults([
+          err,
+          const AsyncData([food]),
+        ]).value,
+        [food],
+      );
+      expect(mergeSearchResults([err, const AsyncData([])]).hasError, isTrue);
+      expect(
+        mergeSearchResults([const AsyncData([]), const AsyncData([])]).value,
+        isEmpty,
+      );
+    });
 
     testWidgets(
       'both sources return results: both are shown, Open Food Facts first',
