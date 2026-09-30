@@ -39,6 +39,18 @@ void main() {
       expect(f.servingGrams, 60);
     });
 
+    test('kcal field swapped with kJ (contributor typo) is corrected from '
+        'the kJ value', () {
+      // energy-kcal_100g is 2092 here (the kJ number, typed into the wrong
+      // field); energy-kj_100g correctly says 2092 kJ, i.e. 500 kcal. OFF
+      // has a real, documented data-quality check for exactly this mistake.
+      final f = parseOffProductResponse(
+        fixtureJson('off_product_energy_swapped.json'),
+        barcode: '7290001234567',
+      )!;
+      expect(f.kcalPer100g, closeTo(500, 1e-6));
+    });
+
     test('product without nutriments is incomplete', () {
       final f = parseOffProductResponse(
         fixtureJson('off_product_no_nutrition.json'),

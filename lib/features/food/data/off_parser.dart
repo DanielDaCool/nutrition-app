@@ -49,14 +49,14 @@ RemoteFood? parseOffProduct(Map<String, dynamic> product, {String? barcode}) {
 
   final n = product['nutriments'];
   final nutriments = n is Map ? n : const {};
-  double? kcal = toDouble(nutriments['energy-kcal_100g']);
-  if (kcal == null) {
-    // OFF's `energy_100g` is in kJ.
-    final kj =
-        toDouble(nutriments['energy-kj_100g']) ??
-        toDouble(nutriments['energy_100g']);
-    if (kj != null) kcal = kj / kjPerKcal;
-  }
+  // OFF's `energy_100g` is in kJ.
+  final kj =
+      toDouble(nutriments['energy-kj_100g']) ??
+      toDouble(nutriments['energy_100g']);
+  final kcal = resolveKcal(
+    kcalField: toDouble(nutriments['energy-kcal_100g']),
+    kjField: kj,
+  );
   double? nonNegative(double? v) => (v == null || v < 0) ? null : v;
 
   final servingSize = _text(product['serving_size']);

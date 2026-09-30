@@ -1,0 +1,18 @@
+{
+  "code": "7290001234567",
+  "product": {
+    "brands": "TestBrand",
+    "code": "7290001234567",
+    "product_name": "Mislabeled Snack Bar",
+    "nutriments": {
+      "carbohydrates_100g": 55,
+      "energy-kcal_100g": 2092,
+      "energy-kj_100g": 2092,
+      "fat_100g": 20,
+      "proteins_100g": 8
+    },
+    "serving_size": "40 g"
+  },
+  "status": 1,
+  "status_verbose": "product found"
+}
