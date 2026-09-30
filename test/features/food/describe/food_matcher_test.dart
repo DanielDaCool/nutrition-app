@@ -116,6 +116,41 @@ void main() {
       expect(e.parse('150 rice').items.single.grams, 150);
     });
 
+    test('spoons and pieces of a label serving are not the whole serving', () {
+      const nuts = Macros(kcal: 600, proteinG: 21, fatG: 52, carbsG: 20);
+      final almonds = FoodCandidate(
+        key: foodCandidateKey(1),
+        name: 'Roasted almonds',
+        per100g: nuts,
+        servingName: '1 oz (28g)',
+        servingGrams: 28,
+        foodId: 1,
+      );
+      final pb = FoodCandidate(
+        key: foodCandidateKey(2),
+        name: 'Crunchy peanut butter',
+        per100g: nuts,
+        servingName: '2 tbsp (32g)',
+        servingGrams: 32,
+        foodId: 2,
+      );
+      final e = DescribeEngine([
+        ..._builtins,
+        almonds,
+        pb,
+      ], DescribeMemory.empty);
+      final a = e.parse('25 roasted almonds').items.single;
+      expect(a.match!.candidate.name, 'Roasted almonds');
+      expect(a.grams, closeTo(32.5, 1e-9));
+      expect(a.macros!.kcal, lessThan(250));
+      final p = e.parse('1 tbsp crunchy peanut butter').items.single;
+      expect(p.match!.candidate.name, 'Crunchy peanut butter');
+      expect(p.grams, 16);
+      final h = e.parse('3 tbsp hummus').items.single;
+      expect(h.match!.candidate.name, 'Hummus (spread)');
+      expect(h.grams, 45);
+    });
+
     test('condiments with no amount get a small serving', () {
       final e = DescribeEngine(_builtins, DescribeMemory.empty);
       final r = e.parse('half a pita with tahini and honey');

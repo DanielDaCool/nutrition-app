@@ -112,6 +112,166 @@ void main() {
     expect(_est(1, MeasureUnit.cup, _labelBread).grams, isNot(32));
   });
 
+  group('a serving of several units is divided by its count', () {
+    const peanutButter = FoodWeightInfo(
+      name: 'Crunchy peanut butter',
+      servingName: '2 tbsp (32g)',
+      servingGrams: 32,
+    );
+
+    test('1 tbsp of a "2 tbsp (32g)" label is 16 g', () {
+      final e = _est(1, MeasureUnit.tablespoon, peanutButter);
+      expect(e.grams, 16);
+      expect(e.confidence, WeightConfidence.exact);
+      expect(e.explanation, '1 tbsp ≈ 16 g (label: 2 tbsp = 32 g)');
+      expect(_est(3, MeasureUnit.tablespoon, peanutButter).grams, 48);
+    });
+
+    test('3 tbsp of built-in hummus, "serving (2 tbsp)" = 30 g, is 45 g', () {
+      const hummus = FoodWeightInfo(
+        name: 'Hummus (spread)',
+        servingName: 'serving (2 tbsp)',
+        servingGrams: 30,
+        servingIsTypical: true,
+      );
+      final e = _est(3, MeasureUnit.tablespoon, hummus);
+      expect(e.grams, 45);
+      expect(e.confidence, WeightConfidence.typical);
+      expect(e.explanation, '3 tbsp × 15 g (2 tbsp ≈ 30 g)');
+      // "1 serving" is still the whole serving.
+      expect(_est(1, MeasureUnit.serving, hummus).grams, 30);
+      expect(_est(1, null, hummus).grams, 30);
+    });
+
+    test('3 slices of a "2 slices (60 g)" label is 90 g', () {
+      const bread = FoodWeightInfo(
+        name: 'Rye bread',
+        servingName: '2 slices (60 g)',
+        servingGrams: 60,
+      );
+      expect(_est(3, MeasureUnit.slice, bread).grams, 90);
+      expect(_est(1, MeasureUnit.slice, bread).grams, 30);
+    });
+
+    test('a count of nouns is a count of pieces', () {
+      const cookies = FoodWeightInfo(
+        name: 'Oat cookies',
+        servingName: '3 cookies (36 g)',
+        servingGrams: 36,
+      );
+      expect(_est(2, MeasureUnit.piece, cookies).grams, 24);
+      const omelette = FoodWeightInfo(
+        name: 'Omelette',
+        servingName: 'portion (2 eggs)',
+        servingGrams: 120,
+        servingIsTypical: true,
+      );
+      expect(_est(3, MeasureUnit.piece, omelette).grams, 180);
+    });
+
+    test('a describing word between count and unit is skipped', () {
+      const bread = FoodWeightInfo(
+        name: 'Sourdough',
+        servingName: '2 large slices (100 g)',
+        servingGrams: 100,
+      );
+      expect(_est(1, MeasureUnit.slice, bread).grams, 50);
+    });
+
+    test('a fraction of a unit', () {
+      const oats = FoodWeightInfo(
+        name: 'Mystery flakes',
+        servingName: '1/2 cup (40 g)',
+        servingGrams: 40,
+      );
+      expect(_est(1, MeasureUnit.cup, oats).grams, 80);
+    });
+  });
+
+  group('a serving counts as one unit only when it says one', () {
+    test('"1 slice (32 g)" and "slice" are one slice', () {
+      expect(_est(1, MeasureUnit.slice, _labelBread).grams, 32);
+      const typical = FoodWeightInfo(
+        name: 'Whole wheat bread',
+        servingName: 'slice',
+        servingGrams: 35,
+        servingIsTypical: true,
+      );
+      final e = _est(2, MeasureUnit.slice, typical);
+      expect(e.grams, 70);
+      expect(e.explanation, '2 slices × 35 g');
+    });
+
+    test('"1 bar (45 g)" is one piece', () {
+      const bar = FoodWeightInfo(
+        name: 'Nut bar',
+        servingName: '1 bar (45 g)',
+        servingGrams: 45,
+      );
+      final e = _est(2, MeasureUnit.piece, bar);
+      expect(e.grams, 90);
+      expect(e.confidence, WeightConfidence.exact);
+    });
+
+    test('a weight serving is not a piece: 25 almonds, "1 oz (28g)"', () {
+      const almonds = FoodWeightInfo(
+        name: 'Roasted almonds',
+        servingName: '1 oz (28g)',
+        servingGrams: 28,
+      );
+      final e = _est(25, MeasureUnit.piece, almonds);
+      // From the per-food table (1.3 g an almond), not 25 × 28 g.
+      expect(e.grams, closeTo(32.5, 1e-9));
+      expect(e.confidence, WeightConfidence.typical);
+      // A serving is still the label's.
+      expect(_est(1, MeasureUnit.serving, almonds).grams, 28);
+    });
+
+    test('a serving with no units or counts falls back to the table', () {
+      const label = FoodWeightInfo(
+        name: 'Salted peanuts',
+        servingName: 'Portion bag',
+        servingGrams: 50,
+      );
+      // "portion" is a serving word, but says nothing about tbsp.
+      expect(_est(2, MeasureUnit.tablespoon, label).grams, 18);
+      const plain = FoodWeightInfo(
+        name: 'Cashew mix',
+        servingName: 'handy pack',
+        servingGrams: 40,
+      );
+      // A label serving that just names something isn't a piece either.
+      expect(_est(10, MeasureUnit.piece, plain).grams, closeTo(13, 1e-9));
+      // Nothing in the table: a flagged guess, not the serving.
+      const unknown = FoodWeightInfo(
+        name: 'Mystery mix',
+        servingName: 'pack',
+        servingGrams: 40,
+      );
+      final g = _est(2, MeasureUnit.piece, unknown);
+      expect(g.confidence, WeightConfidence.guess);
+    });
+
+    test('2 tbsp serving asked in pieces uses the table, not 32 g each', () {
+      const pb = FoodWeightInfo(
+        name: 'Peanut butter',
+        servingName: '2 tbsp (32g)',
+        servingGrams: 32,
+      );
+      expect(_est(1, MeasureUnit.piece, pb).confidence, WeightConfidence.guess);
+    });
+
+    test('a built-in serving that names the item is one piece', () {
+      const bamba = FoodWeightInfo(
+        name: 'Bamba',
+        servingName: 'small bag',
+        servingGrams: 25,
+        servingIsTypical: true,
+      );
+      expect(_est(1, MeasureUnit.piece, bamba).grams, 25);
+    });
+  });
+
   test('learned grams beat everything else', () {
     final e = _est(5, MeasureUnit.tablespoon, _cottage, learned: 22);
     expect(e.grams, 110);
