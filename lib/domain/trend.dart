@@ -18,8 +18,17 @@ List<TrendPoint> computeTrend(
   String? until,
   double alpha = kTrendAlpha,
 }) {
-  if (weighIns.isEmpty) return const [];
-  final days = weighIns.keys.toList()..sort();
+  // Weigh-ins after [until] are out of range: don't let a future-dated
+  // weigh-in (e.g. a day-key mistake, or travel across the date line) move
+  // the trend's end point past what the caller asked for.
+  final inRange = until == null
+      ? weighIns
+      : {
+          for (final e in weighIns.entries)
+            if (e.key.compareTo(until) <= 0) e.key: e.value,
+        };
+  if (inRange.isEmpty) return const [];
+  final days = inRange.keys.toList()..sort();
   final first = days.first;
   var last = days.last;
   if (until != null && until.compareTo(last) > 0) last = until;
@@ -27,7 +36,7 @@ List<TrendPoint> computeTrend(
   final points = <TrendPoint>[];
   double? trend;
   for (var day = first; day.compareTo(last) <= 0; day = addDays(day, 1)) {
-    final scale = weighIns[day];
+    final scale = inRange[day];
     if (scale != null) {
       trend = trend == null ? scale : trend + alpha * (scale - trend);
     }
