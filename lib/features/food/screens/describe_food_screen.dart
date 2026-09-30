@@ -103,6 +103,10 @@ class _Row {
     if (!gramsTyped && estimate?.confidence == WeightConfidence.guess) {
       return 'The amount is a rough guess. Tap it to adjust.';
     }
+    // "10 bamba" read as ten bags, or a serving misread: a safety net.
+    if (!gramsTyped && (macros?.kcal ?? 0) > ParsedItem.suspiciousKcal) {
+      return 'That\'s a lot of calories for one item. Check the amount.';
+    }
     return null;
   }
 }
