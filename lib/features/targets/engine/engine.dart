@@ -278,7 +278,8 @@ class Explanation {
   final double floorKcal;
   final bool floorApplied;
 
-  /// True when trend weight is at or below goal, so target = maintenance.
+  /// True when trend weight is at or below goal, so target = maintenance
+  /// (still held at [floorKcal] or above).
   final bool maintenanceMode;
 
   /// Serialised into `TargetHistory.explanationJson`.
@@ -795,10 +796,14 @@ Recommendation recommend(EngineInput input) {
     deficit = effectiveRatePct / 100 * trendKg * kcalPerKgUsed / 7;
     deficit = math.min(deficit, math.min(0.25 * maintenance, kMaxDeficitKcal));
     target = maintenance - deficit;
-    if (target < floor) {
-      target = floor;
-      floorApplied = true;
-    }
+  }
+  // The floor applies in maintenance mode too (a deliberate safety departure
+  // from the original spec): a maintenance estimate dragged down by
+  // under-logging must not produce an implausibly low target. When the
+  // maintenance itself is below the floor, both modes give the floor.
+  if (target < floor) {
+    target = floor;
+    floorApplied = true;
   }
   target = roundTo(target, 10);
 

@@ -540,6 +540,50 @@ void main() {
       expect(r.macros.kcal, 1200);
     });
 
+    test('floor applies in maintenance mode too', () {
+      // Female, 50 y, 155 cm, at goal (52 kg), sedentary: formula
+      // maintenance ~1,290, BMR ~1,075, floor 1,200. Heavy under-logging
+      // (intake 700 with a stable weight) drags measured maintenance to the
+      // 0.6 x formula clamp (~775).
+      final p = profile(
+        sex: Sex.female,
+        birthDate: DateTime(1976, 1, 1),
+        heightCm: 155,
+        activity: ActivityLevel.sedentary,
+        goalWeightKg: 52,
+      );
+      final h = history(maintenanceKcal: 700, intakeKcal: 700, startKg: 52);
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: p,
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.maintenanceMode, isTrue);
+      expect(r.maintenanceKcal, lessThan(1000));
+      expect(r.explanation.floorApplied, isTrue);
+      expect(r.macros.kcal, 1200);
+      expect(
+        explainLines(r.explanation).join(' '),
+        contains('held at the minimum of 1,200 kcal'),
+      );
+    });
+
+    test('maintenance mode above the floor is not floored', () {
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(goalWeightKg: 90),
+          weighIns: {today: 89},
+          intake: const {},
+        ),
+      );
+      expect(r.explanation.floorApplied, isFalse);
+      expect(r.macros.kcal, roundTo(r.maintenanceKcal, 10));
+    });
+
     test('deficit capped at 750 kcal', () {
       final r = recommend(
         EngineInput(
