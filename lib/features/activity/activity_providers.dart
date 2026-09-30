@@ -67,21 +67,25 @@ final healthSourceProvider = Provider<HealthSource>(
 
 /// Today's active calories burned, read live from Health Connect. Null while
 /// loading, unavailable, or on read failure — the UI just omits the number.
-final todayActiveCaloriesProvider = FutureProvider.family<double?, String>((
-  ref,
-  dayKey,
-) async {
-  final source = ref.watch(healthSourceProvider);
-  try {
-    if (!await source.hasPermissions()) return null;
-    return await source.totalActiveCalories(
-      startOfDay(dayKey),
-      endOfDay(dayKey),
-    );
-  } catch (_) {
-    return null;
-  }
-});
+///
+/// `autoDispose` and watching [healthSyncProvider] so a completed sync (or
+/// permission newly granted through it) invalidates this and the number is
+/// re-read, instead of staying on a stale value — or a cached `null` from
+/// before permission was granted — for the rest of the day.
+final todayActiveCaloriesProvider = FutureProvider.family
+    .autoDispose<double?, String>((ref, dayKey) async {
+      ref.watch(healthSyncProvider);
+      final source = ref.watch(healthSourceProvider);
+      try {
+        if (!await source.hasActiveCaloriesPermission()) return null;
+        return await source.totalActiveCalories(
+          startOfDay(dayKey),
+          endOfDay(dayKey),
+        );
+      } catch (_) {
+        return null;
+      }
+    });
 
 /// The [HealthSyncService] wired to the app database, [healthSourceProvider]
 /// and the injectable clock.
@@ -183,6 +187,16 @@ class HealthSyncController extends AsyncNotifier<DateTime?> {
           // Re-read the full 90 days on the next sync.
           await service.forgetSyncCursor();
         }
+      }
+      // The background-read permission is what lets the walk reminder's
+      // periodic background check take a fresh Health Connect reading
+      // instead of falling back to whatever was last synced; ask for it
+      // alongside the rest of the connect flow so it's granted up front
+      // rather than never (there's no other prompt for it in the app).
+      if (await source.hasPermissions() &&
+          await source.isBackgroundAvailable() &&
+          !await source.isBackgroundAuthorized()) {
+        await source.requestBackgroundAuthorization();
       }
     } catch (e) {
       if (ref.mounted) {

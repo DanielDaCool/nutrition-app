@@ -21,7 +21,12 @@ Future<void> openWeighInDialog(
 }) async {
   final today = dayKeyOf(ref.read(clockProvider)());
   final day = dayKey ?? today;
-  final weighIns = ref.read(weighInsProvider).value ?? const {};
+  // Wait for the real snapshot rather than falling back to {} while the
+  // initial DB read is still in flight: an empty fallback would open in
+  // "add" mode with no replace-warning and silently overwrite an existing
+  // weigh-in, and Undo would then delete the day instead of restoring it.
+  final weighIns = await ref.read(weighInsProvider.future);
+  if (!context.mounted) return;
   final existingKg = weighIns[day];
   final messenger = ScaffoldMessenger.of(context);
   final repo = ref.read(weightRepositoryProvider);
@@ -97,11 +102,14 @@ Future<bool> saveWeighInWithUndo({
 
   Future<void> undo() async {
     try {
-      await repo.delete(dayKey);
-      if (previousOnDay != null) await repo.upsert(dayKey, previousOnDay);
-      if (oldDayKey != null && previousOld != null) {
-        await repo.upsert(oldDayKey, previousOld);
-      }
+      // One atomic write: no delete-then-insert flicker, and it can't fail
+      // halfway between removing the new value and restoring the old one.
+      await repo.restore(
+        dayKey: dayKey,
+        weightKg: previousOnDay,
+        oldDayKey: oldDayKey,
+        oldWeightKg: previousOld,
+      );
     } catch (e, st) {
       debugPrint('Undoing weigh-in failed: $e\n$st');
       messenger.showSnackBar(
