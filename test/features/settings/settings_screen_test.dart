@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -273,6 +274,131 @@ void main() {
       () => db.select(db.profiles).getSingle(),
     );
     expect(profile!.goalWeightKg, 80);
+
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('a profile saved elsewhere after the form was built shows up', (
+    tester,
+  ) async {
+    // Settings is built at startup (inside the home shell) before first-run
+    // setup saves the profile from its own form.
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    expect(find.byKey(const Key('startHere')), findsOneWidget);
+
+    await tester.runAsync(
+      () => db
+          .into(db.profiles)
+          .insert(
+            ProfilesCompanion.insert(
+              sex: Sex.female.index,
+              birthDate: DateTime(1990, 3, 4),
+              heightCm: 165,
+              activityLevel: ActivityLevel.active.index,
+              goalWeightKg: 60,
+              weeklyRatePct: const Value(0.25),
+              proteinPerKg: const Value(2.0),
+              checkInWeekday: const Value(DateTime.wednesday),
+              updatedAt: now,
+            ),
+          ),
+    );
+    await settle(tester);
+
+    String fieldText(String key) =>
+        tester.widget<TextFormField>(find.byKey(Key(key))).controller!.text;
+    expect(fieldText('heightCm'), '165');
+    expect(fieldText('goalWeightKg'), '60');
+    expect(find.text('Wednesday'), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+    expect(
+      tester
+          .widget<SegmentedButton<Sex>>(find.byType(SegmentedButton<Sex>))
+          .selected,
+      {Sex.female},
+    );
+
+    // Editing and saving keeps the real values, not the form's defaults.
+    await tester.tap(find.byKey(const Key('editProfile')));
+    await tester.pump();
+    final save = find.byKey(const Key('saveProfile'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirmSaveProfile')));
+    await settle(tester);
+    final profile = await tester.runAsync(
+      () => db.select(db.profiles).getSingle(),
+    );
+    expect(profile!.sex, Sex.female.index);
+    expect(profile.checkInWeekday, DateTime.wednesday);
+    expect(profile.activityLevel, ActivityLevel.active.index);
+    expect(profile.weeklyRatePct, 0.25);
+    expect(profile.proteinPerKg, 2.0);
+
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('a rate above the current cap is shown capped but not saved '
+      'lower', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() async {
+      await db
+          .into(db.profiles)
+          .insert(
+            ProfilesCompanion.insert(
+              sex: Sex.male.index,
+              birthDate: DateTime(1996, 9, 25),
+              heightCm: 180,
+              activityLevel: ActivityLevel.moderate.index,
+              goalWeightKg: 65,
+              weeklyRatePct: const Value(1.0),
+              updatedAt: now,
+            ),
+          );
+      // Lean now (BMI 21.6, ~17% fat): capped at 0.5 %/week.
+      await db
+          .into(db.weighIns)
+          .insert(
+            WeighInsCompanion.insert(
+              dayKey: '2026-09-25',
+              weightKg: 70,
+              createdAt: now,
+            ),
+          );
+    });
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    expect(find.textContaining('Weekly loss rate: 0.50 %'), findsOneWidget);
+    expect(
+      find.textContaining('Your chosen 1.00 % is capped at 0.50 %'),
+      findsOneWidget,
+    );
+
+    // Edit something unrelated and save: the chosen rate is kept.
+    await tester.tap(find.byKey(const Key('editProfile')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('goalWeightKg')), '66');
+    final save = find.byKey(const Key('saveProfile'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirmSaveProfile')));
+    await settle(tester);
+    final profile = await tester.runAsync(
+      () => db.select(db.profiles).getSingle(),
+    );
+    expect(profile!.goalWeightKg, 66);
+    expect(profile.weeklyRatePct, 1.0);
 
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
