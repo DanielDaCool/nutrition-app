@@ -206,6 +206,29 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('an item over 1000 kcal gets a check hint', (tester) async {
+    await pumpApp(tester);
+    const hint = 'That\'s a lot of calories for one item. Check the amount.';
+    await type(tester, '1 bamba');
+    expect(find.text(hint), findsNothing);
+    expect(find.byIcon(Icons.help_outline), findsNothing);
+    // Ten bags: a confident food and a typical weight, but 1358 kcal.
+    await type(tester, '10 bamba');
+    expect(find.text('10 pcs · 250 g'), findsOneWidget);
+    expect(find.text(hint), findsOneWidget);
+    expect(find.byIcon(Icons.help_outline), findsOneWidget);
+
+    // Grams the user typed themselves are trusted.
+    await tester.tap(find.byKey(const Key('amount-10 bamba#1')));
+    await settle(tester);
+    await tester.enterText(find.byKey(const Key('grams-field')), '260');
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await settle(tester);
+    expect(find.text(hint), findsNothing);
+    await finish(tester);
+  });
+
   testWidgets('describe provider loads foods for the screen', (tester) async {
     // Also opens straight from a meal without AddFoodScreen.
     await tester.pumpWidget(
