@@ -16,12 +16,23 @@ String dayKeyOf(DateTime t) {
 /// Local midnight at the start of [dayKey].
 ///
 /// Throws [FormatException] when [dayKey] is not three `-`-separated parts.
+final _dayKeyPattern = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$');
+
 DateTime startOfDay(String dayKey) {
-  final parts = dayKey.split('-');
-  if (parts.length != 3) {
+  final match = _dayKeyPattern.firstMatch(dayKey);
+  if (match == null) {
     throw FormatException('Invalid day key', dayKey);
   }
-  return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+  final year = int.parse(match.group(1)!);
+  final month = int.parse(match.group(2)!);
+  final day = int.parse(match.group(3)!);
+  final d = DateTime(year, month, day);
+  if (d.year != year || d.month != month || d.day != day) {
+    // DateTime silently rolls invalid calendar dates (e.g. day 30 of
+    // February) forward, so reject anything that doesn't round-trip.
+    throw FormatException('Invalid day key', dayKey);
+  }
+  return d;
 }
 
 /// Local midnight at the start of the day after [dayKey].

@@ -23,4 +23,12 @@ void main() {
     expect(startOfDay('2026-09-25'), DateTime(2026, 9, 25));
     expect(endOfDay('2026-09-25'), DateTime(2026, 9, 26));
   });
+
+  test('startOfDay rejects malformed or out-of-range day keys', () {
+    expect(() => startOfDay('2026-2-30'), throwsFormatException);
+    expect(() => startOfDay('2026-02-30'), throwsFormatException);
+    expect(() => startOfDay('2026-13-01'), throwsFormatException);
+    expect(() => startOfDay('26-09-25'), throwsFormatException);
+    expect(() => startOfDay('not-a-day'), throwsFormatException);
+  });
 }
