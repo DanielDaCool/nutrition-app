@@ -65,7 +65,13 @@ List<String> explainLines(Explanation e) {
     );
   }
 
-  if (e.maintenanceMode) {
+  if (e.maintenanceMode && e.floorApplied) {
+    lines.add(
+      'Your trend weight (${e.trendKg.toStringAsFixed(1)} kg) is at or '
+      'below your goal, so your target is maintenance, held at the minimum '
+      'of ${kcal(e.floorKcal)}. Check that logged days are complete.',
+    );
+  } else if (e.maintenanceMode) {
     lines.add(
       'Your trend weight (${e.trendKg.toStringAsFixed(1)} kg) is at or '
       'below your goal, so your target is maintenance.',
