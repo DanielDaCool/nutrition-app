@@ -184,6 +184,40 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('Undo after adding also forgets the picked food', (tester) async {
+    await pumpApp(tester);
+    await type(tester, 'qwzx');
+    await tester.tap(find.text('Pick a food'));
+    await settle(tester);
+    await tester.enterText(find.byKey(const Key('picker-field')), 'banana');
+    await tester.pump();
+    await tester.tap(find.text('Banana'));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('describe-add')));
+    await settle(tester);
+    Future<Map<String, String>> kv() async => {
+      for (final r in (await tester.runAsync(
+        () => db.select(db.keyValues).get(),
+      ))!)
+        r.key: r.value,
+    };
+    expect(await kv(), containsPair('describe.alias.qwzx', 'builtin:banana'));
+
+    await tester.tap(find.text('Undo'));
+    await settle(tester);
+    expect(await entries(tester), isEmpty);
+    expect(await kv(), isNot(contains('describe.alias.qwzx')));
+
+    // Next time the words are not understood as banana any more.
+    await tester.tap(find.text('open'));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('describe-button')));
+    await settle(tester);
+    await type(tester, 'qwzx');
+    expect(find.text('Didn\'t catch "qwzx"'), findsOneWidget);
+    await finish(tester);
+  });
+
   testWidgets('edits survive typing more; items can be removed', (
     tester,
   ) async {
@@ -203,6 +237,63 @@ void main() {
     await tester.pump();
     expect(rich('Banana'), findsNothing);
     expect(find.text('Add 1 item to Lunch'), findsOneWidget);
+    await finish(tester);
+  });
+
+  testWidgets('a count read as pieces stays pieces on swap and edit', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await type(tester, '25 almonds');
+    expect(rich('Almonds'), findsOneWidget);
+    expect(find.text('25 pcs · 32.5 g'), findsOneWidget);
+
+    // Another nut for the same words: still 25 pieces, not 25 g.
+    await tester.tap(find.byKey(const Key('food-25 almond#1')));
+    await settle(tester);
+    await tester.enterText(find.byKey(const Key('picker-field')), 'walnuts');
+    await tester.pump();
+    await tester.tap(find.text('Walnuts'));
+    await settle(tester);
+    expect(rich('Walnuts'), findsOneWidget);
+    expect(find.text('25 pcs · 32.5 g'), findsOneWidget);
+
+    // The amount editor opens on pieces, and a step is one more piece.
+    await tester.tap(find.byKey(const Key('amount-25 almond#1')));
+    await settle(tester);
+    expect(find.text('pieces'), findsWidgets);
+    await tester.tap(find.byTooltip('More'));
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await settle(tester);
+    expect(find.text('26 pcs · 33.8 g'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('describe-add')));
+    await settle(tester);
+    expect((await entries(tester)).single.grams, closeTo(33.8, 1e-9));
+    await finish(tester);
+  });
+
+  testWidgets('an item over 1000 kcal gets a check hint', (tester) async {
+    await pumpApp(tester);
+    const hint = 'That\'s a lot of calories for one item. Check the amount.';
+    await type(tester, '1 bamba');
+    expect(find.text(hint), findsNothing);
+    expect(find.byIcon(Icons.help_outline), findsNothing);
+    // Ten bags: a confident food and a typical weight, but 1358 kcal.
+    await type(tester, '10 bamba');
+    expect(find.text('10 pcs · 250 g'), findsOneWidget);
+    expect(find.text(hint), findsOneWidget);
+    expect(find.byIcon(Icons.help_outline), findsOneWidget);
+
+    // Grams the user typed themselves are trusted.
+    await tester.tap(find.byKey(const Key('amount-10 bamba#1')));
+    await settle(tester);
+    await tester.enterText(find.byKey(const Key('grams-field')), '260');
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await settle(tester);
+    expect(find.text(hint), findsNothing);
     await finish(tester);
   });
 

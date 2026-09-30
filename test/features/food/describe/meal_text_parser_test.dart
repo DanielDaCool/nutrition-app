@@ -80,6 +80,32 @@ void main() {
     'A Plate Of Pasta': [(1, MeasureUnit.plate, 'pasta')],
     'one serving of granola': [(1, MeasureUnit.serving, 'granola')],
     'tahini 2 spoons': [(2, _tbsp, 'tahini')],
+    // Several foods with no comma or "and" between them.
+    '2 bananas 1 apple': [(2, _pc, 'bananas'), (1, _pc, 'apple')],
+    'eggs 3 toast 2': [(3, _pc, 'eggs'), (2, _pc, 'toast')],
+    '2 eggs 1 slice bread 1 tbsp hummus': [
+      (2, _pc, 'eggs'),
+      (1, MeasureUnit.slice, 'bread'),
+      (1, _tbsp, 'hummus'),
+    ],
+    'rice 1 cup chicken 200g': [(1, _cup, 'rice'), (200, _g, 'chicken')],
+    '3 eggs 200g cottage 5% 1/2 avocado': [
+      (3, _pc, 'eggs'),
+      (200, _g, 'cottage 5%'),
+      (0.5, _pc, 'avocado'),
+    ],
+    'cottage cheese 5% 2 eggs': [
+      (1, null, 'cottage cheese 5%'),
+      (2, _pc, 'eggs'),
+    ],
+    '2 eggs, bread 2 pita 1': [
+      (2, _pc, 'eggs'),
+      (2, _pc, 'bread'),
+      (1, _pc, 'pita'),
+    ],
+    // A trailing number with no food after it stays with its food.
+    '1 cup milk 3': [(1, _cup, 'milk 3')],
+    'chicken breast 2 pieces': [(2, _pc, 'chicken breast')],
   };
 
   for (final MapEntry(key: text, value: expected) in cases.entries) {

@@ -16,10 +16,9 @@ class HealthPackageSource implements HealthSource {
     : _healthOverride = health,
       _isAndroid = isAndroid ?? Platform.isAndroid;
 
-  // Reading WORKOUT makes the plugin also read distance and calorie records
-  // inside each session (health 13.3.2 HealthDataReader.handleWorkoutData).
-  // Without those permissions every workout read throws on the native side
-  // and comes back as an empty list, so they're requested too.
+  // Requested together so the OS permission screen offers all of them in one
+  // go; whether each is actually granted is then checked independently
+  // (Health Connect lets the user toggle each one on its own).
   static const _types = [
     hp.HealthDataType.STEPS,
     hp.HealthDataType.WORKOUT,
@@ -34,6 +33,30 @@ class HealthPackageSource implements HealthSource {
     hp.HealthDataAccess.READ,
     hp.HealthDataAccess.READ,
   ];
+
+  static const _stepsTypes = [hp.HealthDataType.STEPS];
+  static const _stepsAccess = [hp.HealthDataAccess.READ];
+
+  // Reading WORKOUT makes the plugin also read distance and calorie records
+  // inside each session (health 13.3.2 HealthDataReader.handleWorkoutData).
+  // Without those permissions every workout read throws on the native side
+  // and comes back as an empty list, so a workout sync needs all of them,
+  // not just WORKOUT itself.
+  static const _workoutTypes = [
+    hp.HealthDataType.WORKOUT,
+    hp.HealthDataType.DISTANCE_DELTA,
+    hp.HealthDataType.TOTAL_CALORIES_BURNED,
+    hp.HealthDataType.ACTIVE_ENERGY_BURNED,
+  ];
+  static const _workoutAccess = [
+    hp.HealthDataAccess.READ,
+    hp.HealthDataAccess.READ,
+    hp.HealthDataAccess.READ,
+    hp.HealthDataAccess.READ,
+  ];
+
+  static const _activeCaloriesTypes = [hp.HealthDataType.ACTIVE_ENERGY_BURNED];
+  static const _activeCaloriesAccess = [hp.HealthDataAccess.READ];
 
   final hp.Health? _healthOverride;
   final bool _isAndroid;
@@ -63,11 +86,29 @@ class HealthPackageSource implements HealthSource {
   }
 
   @override
-  Future<bool> hasPermissions() async {
+  Future<bool> hasPermissions() async =>
+      await hasStepsPermission() || await hasWorkoutPermission();
+
+  @override
+  Future<bool> hasStepsPermission() =>
+      _hasPermission(_stepsTypes, _stepsAccess);
+
+  @override
+  Future<bool> hasWorkoutPermission() =>
+      _hasPermission(_workoutTypes, _workoutAccess);
+
+  @override
+  Future<bool> hasActiveCaloriesPermission() =>
+      _hasPermission(_activeCaloriesTypes, _activeCaloriesAccess);
+
+  Future<bool> _hasPermission(
+    List<hp.HealthDataType> types,
+    List<hp.HealthDataAccess> access,
+  ) async {
     if (!_isAndroid) return false;
     final granted = await (await _client()).hasPermissions(
-      _types,
-      permissions: _access,
+      types,
+      permissions: access,
     );
     return granted ?? false;
   }
@@ -97,6 +138,24 @@ class HealthPackageSource implements HealthSource {
   }
 
   @override
+  Future<bool> isBackgroundAvailable() async {
+    if (!_isAndroid) return false;
+    return (await _client()).isHealthDataInBackgroundAvailable();
+  }
+
+  @override
+  Future<bool> isBackgroundAuthorized() async {
+    if (!_isAndroid) return false;
+    return (await _client()).isHealthDataInBackgroundAuthorized();
+  }
+
+  @override
+  Future<bool> requestBackgroundAuthorization() async {
+    if (!_isAndroid) return false;
+    return (await _client()).requestHealthDataInBackgroundAuthorization();
+  }
+
+  @override
   Future<int?> totalSteps(DateTime start, DateTime end) async {
     if (!_isAndroid) return null;
     return (await _client()).getTotalStepsInInterval(start, end);
@@ -105,10 +164,16 @@ class HealthPackageSource implements HealthSource {
   @override
   Future<double?> totalActiveCalories(DateTime start, DateTime end) async {
     if (!_isAndroid) return null;
-    final points = await (await _client()).getHealthDataFromTypes(
+    // Health Connect's own aggregation dedupes overlapping records from more
+    // than one source app (e.g. a watch and its phone app both writing
+    // active calories) by source priority, the same way
+    // [totalSteps]/getTotalStepsInInterval does for steps. Summing raw
+    // getHealthDataFromTypes records instead (as this used to) double-counts
+    // whenever more than one app wrote overlapping data.
+    final points = await (await _client()).getHealthAggregateDataFromTypes(
       types: const [hp.HealthDataType.ACTIVE_ENERGY_BURNED],
-      startTime: start,
-      endTime: end,
+      startDate: start,
+      endDate: end,
     );
     double total = 0;
     for (final p in points) {

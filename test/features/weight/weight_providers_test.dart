@@ -81,4 +81,51 @@ void main() {
   test('weightTrendProvider is empty without weigh-ins', () async {
     expect(await waitFor(container, weightTrendProvider, (_) => true), isEmpty);
   });
+
+  test('restore on the same day is one write, not delete-then-insert', () async {
+    final repo = container.read(weightRepositoryProvider);
+    await repo.upsert('2026-09-22', 89.0);
+
+    // Watch every emission of the watched table between the two calls: a
+    // buggy delete-then-upsert would emit an intermediate map without
+    // '2026-09-22' before the real value comes back.
+    final seen = <Map<String, double>>[];
+    final sub = repo.watchAll().listen(seen.add);
+    await Future<void>.delayed(Duration.zero);
+    seen.clear();
+
+    await repo.restore(dayKey: '2026-09-22', weightKg: 88.5);
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(seen, isNotEmpty);
+    for (final m in seen) {
+      expect(m.containsKey('2026-09-22'), isTrue);
+    }
+    expect(seen.last['2026-09-22'], 88.5);
+  });
+
+  test('restore with null weightKg removes the day (nothing to restore)', () async {
+    final repo = container.read(weightRepositoryProvider);
+    await repo.upsert('2026-09-22', 89.0);
+    await repo.restore(dayKey: '2026-09-22', weightKg: null);
+    final rows = await db.select(db.weighIns).get();
+    expect(rows, isEmpty);
+  });
+
+  test('restore also restores a moved day, atomically', () async {
+    final repo = container.read(weightRepositoryProvider);
+    await repo.replace('2026-09-20', '2026-09-21', 89.5); // day was empty
+
+    await repo.restore(
+      dayKey: '2026-09-21',
+      weightKg: null, // nothing was on 09-21 before the move
+      oldDayKey: '2026-09-20',
+      oldWeightKg: 90.0, // what 09-20 held before the move
+    );
+    final rows = {
+      for (final r in await db.select(db.weighIns).get()) r.dayKey: r.weightKg,
+    };
+    expect(rows, {'2026-09-20': 90.0});
+  });
 }

@@ -180,6 +180,52 @@ void main() {
     await tearDownTree(tester);
   });
 
+  testWidgets('moving an entry keeps its exact grams and nutrition', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final f = await repo.createCustom(
+        const CustomFoodInput(
+          name: 'Olive oil',
+          per100g: Macros(kcal: 884, proteinG: 0, fatG: 100, carbsG: 0),
+        ),
+      );
+      await repo.logFood(
+        dayKey: _day,
+        meal: Meal.snack,
+        foodId: f.id,
+        grams: 14.86,
+      );
+    });
+    await pumpSection(tester);
+    await tester.tap(find.text('Olive oil'));
+    await settle(tester);
+    final field = tester.widget<TextField>(
+      find.byKey(const Key('grams-field')),
+    );
+    expect(field.controller!.text, '14.9'); // shown rounded
+    await tester.tap(find.byKey(const Key('move-lunch')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('save-entry')));
+    await settle(tester);
+
+    final e = await tester.runAsync(() => db.select(db.foodLogEntries).get());
+    expect(e!.single.meal, Meal.lunch.index);
+    expect(e.single.grams, 14.86);
+    expect(e.single.kcal, closeTo(884 * 0.1486, 1e-9));
+
+    // Typing a new amount still uses what was typed.
+    await tester.tap(find.text('Olive oil'));
+    await settle(tester);
+    await tester.enterText(find.byKey(const Key('grams-field')), '14.9');
+    await tester.enterText(find.byKey(const Key('grams-field')), '15');
+    await tester.tap(find.byKey(const Key('save-entry')));
+    await settle(tester);
+    final e2 = await tester.runAsync(() => db.select(db.foodLogEntries).get());
+    expect(e2!.single.grams, 15);
+    await tearDownTree(tester);
+  });
+
   testWidgets('edit sheet: Delete removes with Undo', (tester) async {
     await tester.runAsync(logBanana);
     await pumpSection(tester);

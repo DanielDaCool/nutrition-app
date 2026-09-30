@@ -71,12 +71,13 @@ void main() {
     test('logs every item into the meal with snapshots', () async {
       final egg = await repo.saveBuiltin(builtinByKey('egg')!);
       final bread = await repo.saveBuiltin(builtinByKey('white_bread')!);
-      final ids = await repo.logMany(
+      final batch = await repo.logMany(
         dayKey: _day,
         meal: Meal.breakfast,
         items: [(foodId: egg.id, grams: 100), (foodId: bread.id, grams: 30)],
       );
-      expect(ids, hasLength(2));
+      expect(batch.entryIds, hasLength(2));
+      expect(batch.previousMemory, isEmpty);
       final entries = await db.select(db.foodLogEntries).get();
       expect(entries.map((e) => e.meal), everyElement(Meal.breakfast.index));
       expect(entries[0].kcal, closeTo(143, 1e-9));
@@ -116,6 +117,62 @@ void main() {
         ),
         throwsArgumentError,
       );
+    });
+  });
+
+  group('undoLogMany', () {
+    Future<Map<String, String>> kv() async => {
+      for (final r in await db.select(db.keyValues).get()) r.key: r.value,
+    };
+
+    test('deletes the entries and what was learned with them', () async {
+      final egg = await repo.saveBuiltin(builtinByKey('egg')!);
+      final batch = await repo.logMany(
+        dayKey: _day,
+        meal: Meal.lunch,
+        items: [(foodId: egg.id, grams: 50)],
+        remember: {
+          'describe.alias.qwzx': 'builtin:egg',
+          'describe.grams.builtin:egg.piece': '55',
+        },
+      );
+      expect(batch.previousMemory, {
+        'describe.alias.qwzx': null,
+        'describe.grams.builtin:egg.piece': null,
+      });
+      await db
+          .into(db.keyValues)
+          .insert(KeyValuesCompanion.insert(key: 'hc.other', value: 'x'));
+      await repo.undoLogMany(batch);
+      expect(await db.select(db.foodLogEntries).get(), isEmpty);
+      // Only the rows this add wrote are gone.
+      expect(await kv(), {'hc.other': 'x'});
+    });
+
+    test('puts back what was remembered before', () async {
+      final egg = await repo.saveBuiltin(builtinByKey('egg')!);
+      final banana = await repo.saveBuiltin(builtinByKey('banana')!);
+      await repo.logMany(
+        dayKey: _day,
+        meal: Meal.lunch,
+        items: [(foodId: banana.id, grams: 120)],
+        remember: {'describe.alias.qwzx': 'builtin:banana'},
+      );
+      // The wrong food picked next time, then undone.
+      final wrong = await repo.logMany(
+        dayKey: _day,
+        meal: Meal.dinner,
+        items: [(foodId: egg.id, grams: 50)],
+        remember: {'describe.alias.qwzx': 'builtin:egg'},
+      );
+      expect(wrong.previousMemory, {'describe.alias.qwzx': 'builtin:banana'});
+      expect((await kv())['describe.alias.qwzx'], 'builtin:egg');
+      await repo.undoLogMany(wrong);
+      expect((await kv())['describe.alias.qwzx'], 'builtin:banana');
+      final left = await db.select(db.foodLogEntries).get();
+      expect(left.single.foodId, banana.id);
+      final memory = await repo.watchDescribeMemory().first;
+      expect(memory.foodFor('qwzx'), 'builtin:banana');
     });
   });
 

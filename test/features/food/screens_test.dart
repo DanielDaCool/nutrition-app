@@ -14,6 +14,7 @@ import 'package:nutrition_app/features/food/food_providers.dart';
 import 'package:nutrition_app/features/food/screens/add_food_screen.dart';
 import 'package:nutrition_app/features/food/screens/custom_food_screen.dart';
 import 'package:nutrition_app/features/food/screens/portion_screen.dart';
+import 'package:nutrition_app/features/food/widgets/food_search_panel.dart';
 
 import '../../helpers/test_db.dart';
 import 'fixture.dart';
@@ -98,6 +99,88 @@ void main() {
       expect(f.proteinPer100g, closeTo(9, 1e-9));
       expect(f.fatPer100g, closeTo(1, 1e-9));
       expect(f.carbsPer100g, closeTo(52.5, 1e-9));
+      await finish(tester);
+    });
+
+    testWidgets('switching the basis converts the numbers already entered', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      // An incomplete Open Food Facts product: per 100 g, no fat.
+      await pump(
+        tester,
+        const CustomFoodScreen(
+          draft: RemoteFood(
+            source: 'off',
+            externalId: '7290000000055',
+            name: 'Granola',
+            kcalPer100g: 250,
+            proteinPer100g: 10,
+            carbsPer100g: 40,
+            servingGrams: 30,
+          ),
+        ),
+      );
+      String field(String key) =>
+          tester.widget<TextFormField>(find.byKey(Key(key))).controller!.text;
+      expect(field('kcal-field'), '250');
+
+      // The label gives fat per serving, so switch to per serving.
+      await tester.tap(find.text('Per serving'));
+      await tester.pump();
+      expect(field('kcal-field'), '75');
+      expect(field('protein-field'), '3');
+      expect(field('carbs-field'), '12');
+      await tester.enterText(find.byKey(const Key('fat-field')), '1.5');
+      await tester.pump();
+      expect(find.textContaining('Per 100 g: 250 kcal'), findsOneWidget);
+
+      // Back to per 100 g: the same food, fat converted too.
+      await tester.tap(find.text('Per 100 g'));
+      await tester.pump();
+      expect(field('kcal-field'), '250');
+      expect(field('fat-field'), '5');
+
+      // Per serving again, then a bigger serving: converted numbers follow.
+      await tester.tap(find.text('Per serving'));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('serving-grams-field')),
+        '40',
+      );
+      await tester.pump();
+      expect(field('kcal-field'), '100');
+      expect(field('fat-field'), '2');
+
+      await tester.ensureVisible(find.byKey(const Key('save-food')));
+      await tester.tap(find.byKey(const Key('save-food')));
+      await settle(tester);
+      final f = (await tester.runAsync(() => db.select(db.foods).get()))!
+          .single;
+      expect(f.kcalPer100g, closeTo(250, 1e-9));
+      expect(f.proteinPer100g, closeTo(10, 1e-9));
+      expect(f.fatPer100g, closeTo(5, 1e-9));
+      expect(f.carbsPer100g, closeTo(40, 1e-9));
+      expect(f.servingGrams, 40);
+      await finish(tester);
+    });
+
+    testWidgets('per serving needs a serving size to convert numbers', (
+      tester,
+    ) async {
+      await pump(tester, const CustomFoodScreen());
+      await tester.enterText(find.byKey(const Key('kcal-field')), '300');
+      await tester.pump();
+      await tester.tap(find.text('Per serving'));
+      await tester.pump();
+      expect(
+        find.text(
+          'Enter the serving size first, so the values can be converted.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Energy per 100 g'), findsOneWidget);
       await finish(tester);
     });
 
@@ -358,6 +441,59 @@ void main() {
       await finish(tester);
     });
 
+    testWidgets('rate-limited barcode lookup offers Try again, not a label', (
+      tester,
+    ) async {
+      var calls = 0;
+      await pump(
+        tester,
+        const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+        client: mock((_) {
+          calls++;
+          return calls == 1
+              ? http.Response('Too many requests', 429)
+              : http.Response.bytes(
+                  utf8.encode(fixtureText('off_product_hummus.json')),
+                  200,
+                  headers: {'content-type': 'application/json; charset=utf-8'},
+                );
+        }),
+      );
+      final state = tester.state(find.byType(AddFoodScreen)) as dynamic;
+      state.lookupBarcode('7290000066318');
+      await settle(tester);
+      expect(find.text('Could not look it up'), findsOneWidget);
+      expect(find.textContaining('limiting requests'), findsOneWidget);
+      expect(find.text('Add from label'), findsNothing);
+      await tester.tap(find.text('Try again'));
+      await settle(tester);
+      expect(calls, 2);
+      expect(find.byType(PortionScreen), findsOneWidget);
+      // Nothing was made up from a label.
+      final foods = await tester.runAsync(() => db.select(db.foods).get());
+      expect(foods!.single.source, 'off');
+      await finish(tester);
+    });
+
+    testWidgets('a QR code that is not a product barcode: scan again', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+      );
+      final state = tester.state(find.byType(AddFoodScreen)) as dynamic;
+      state.lookupBarcode('https://example.com/menu');
+      await settle(tester);
+      expect(find.text('Not a product barcode'), findsOneWidget);
+      expect(find.text('Scan again'), findsOneWidget);
+      expect(find.text('Add from label'), findsNothing);
+      expect(requests, isEmpty);
+      await tester.tap(find.text('Cancel'));
+      await settle(tester);
+      await finish(tester);
+    });
+
     testWidgets('Search tab finds common foods as you type; picking one '
         'saves it and opens the portion screen', (tester) async {
       await pump(
@@ -464,6 +600,58 @@ void main() {
         await finish(tester);
       },
     );
+
+    testWidgets(
+      'Open Food Facts failing while USDA finds nothing shows the error',
+      (tester) async {
+        await pump(
+          tester,
+          const AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch),
+          client: mock(
+            (req) => req.url.host == 'world.openfoodfacts.org'
+                ? http.Response('Too many requests', 429)
+                : http.Response.bytes(
+                    utf8.encode(fixtureText('usda_search_empty.json')),
+                    200,
+                    headers: {
+                      'content-type': 'application/json; charset=utf-8',
+                    },
+                  ),
+          ),
+        );
+        await tester.tap(find.text('Search'));
+        await settle(tester);
+        await tester.enterText(
+          find.byKey(const Key('search-field')),
+          'nutella',
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        await settle(tester);
+        expect(find.textContaining('limiting requests'), findsOneWidget);
+        expect(find.byKey(const Key('try-again')), findsOneWidget);
+        await finish(tester);
+      },
+    );
+
+    test('merge: an error only shows when nothing was found', () {
+      const food = RemoteFood(source: 'usda', externalId: '1', name: 'Rice');
+      final err = AsyncValue<List<RemoteFood>>.error(
+        const FoodApiException(FoodApiErrorKind.rateLimited, 'wait'),
+        StackTrace.empty,
+      );
+      expect(
+        mergeSearchResults([
+          err,
+          const AsyncData([food]),
+        ]).value,
+        [food],
+      );
+      expect(mergeSearchResults([err, const AsyncData([])]).hasError, isTrue);
+      expect(
+        mergeSearchResults([const AsyncData([]), const AsyncData([])]).value,
+        isEmpty,
+      );
+    });
 
     testWidgets(
       'both sources return results: both are shown, Open Food Facts first',

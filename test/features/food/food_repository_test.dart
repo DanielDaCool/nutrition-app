@@ -491,29 +491,53 @@ void main() {
     );
 
     test(
-      'not found / no nutrition / network error -> add from label',
+      'network, rate limit and non-product codes fail without a label',
       () async {
-        final notFound = await BarcodeLookup(
-          repo,
-          off(404, fixtureText('off_product_not_found.json')),
-        ).lookup('7290000000017');
-        expect(notFound, isA<BarcodeNeedsLabel>());
-        expect(notFound.barcode, '7290000000017');
-
-        final noNutrition = await BarcodeLookup(
-          repo,
-          off(200, fixtureText('off_product_no_nutrition.json')),
-        ).lookup('7290104720064') as BarcodeNeedsLabel;
-        expect(noNutrition.draft!.name, 'Cottage Cheese 5%');
-        expect(noNutrition.message, contains('no calories'));
-
-        final failed = await BarcodeLookup(
+        final offline = await BarcodeLookup(
           repo,
           OffClient(MockClient((_) => throw http.ClientException('offline'))),
-        ).lookup('7290000066318') as BarcodeNeedsLabel;
-        expect(failed.message, contains('Could not reach'));
+        ).lookup('7290000066318');
+        expect(offline, isA<BarcodeFailed>());
+        expect((offline as BarcodeFailed).canRetry, isTrue);
+        expect(offline.message, contains('Could not reach'));
+
+        final limited = await BarcodeLookup(
+          repo,
+          off(429, '{}'),
+        ).lookup('7290000066318');
+        expect(limited, isA<BarcodeFailed>());
+        expect((limited as BarcodeFailed).canRetry, isTrue);
+
+        var calls = 0;
+        final lookup = BarcodeLookup(
+          repo,
+          off(200, '{}', onCall: () => calls++),
+        );
+        for (final code in ['https://example.com', '123456789012345', 'abc']) {
+          final r = await lookup.lookup(code);
+          expect(r, isA<BarcodeFailed>(), reason: code);
+          expect((r as BarcodeFailed).canRetry, isFalse);
+        }
+        expect(calls, 0);
         expect(await db.select(db.foods).get(), isEmpty);
       },
     );
+
+    test('not found / no nutrition -> add from label', () async {
+      final notFound = await BarcodeLookup(
+        repo,
+        off(404, fixtureText('off_product_not_found.json')),
+      ).lookup('7290000000017');
+      expect(notFound, isA<BarcodeNeedsLabel>());
+      expect(notFound.barcode, '7290000000017');
+
+      final noNutrition = await BarcodeLookup(
+        repo,
+        off(200, fixtureText('off_product_no_nutrition.json')),
+      ).lookup('7290104720064') as BarcodeNeedsLabel;
+      expect(noNutrition.draft!.name, 'Cottage Cheese 5%');
+      expect(noNutrition.message, contains('no calories'));
+      expect(await db.select(db.foods).get(), isEmpty);
+    });
   });
 }

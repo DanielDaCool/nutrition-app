@@ -84,8 +84,10 @@ double? parseAmount(String text) {
   return v;
 }
 
+// The lookahead also rules out Hebrew letters, so "1 גביע" (a cup) or
+// "2 גלילים" (rolls) isn't read as grams from its leading ג.
 final _gramsInText = RegExp(
-  r'(\d+(?:[.,]\d+)?)\s*(?:g|gr|grams?|גרם|ג)(?![a-z])',
+  r'(\d+(?:[.,]\d+)?)\s*(?:g|gr|grams?|גרם|ג)(?![a-z\u05D0-\u05EA])',
   caseSensitive: false,
 );
 

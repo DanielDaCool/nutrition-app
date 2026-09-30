@@ -45,12 +45,25 @@ Future<List<DayActivity>> loadActivityRange(
     );
   }
   for (final m in manualRows) {
+    // Anchored to the exercise's own dayKey (with createdAt's time-of-day
+    // carried over) rather than to createdAt outright: a workout logged
+    // today for an earlier day must show among that day's workouts, at a
+    // plausible time for that day - not at today's clock time.
+    final day = startOfDay(m.dayKey);
+    final start = DateTime(
+      day.year,
+      day.month,
+      day.day,
+      m.createdAt.hour,
+      m.createdAt.minute,
+      m.createdAt.second,
+    );
     (workoutsByDay[m.dayKey] ??= []).add(
       WorkoutSummary(
         id: 'manual-${m.id}',
         title: m.activityName,
-        start: m.createdAt,
-        end: m.createdAt.add(Duration(seconds: (m.durationMin * 60).round())),
+        start: start,
+        end: start.add(Duration(seconds: (m.durationMin * 60).round())),
         kcal: m.kcal,
         isManual: true,
         distanceKm: m.distanceKm,

@@ -55,6 +55,32 @@ class WeightRepository {
       _db.weighIns,
     )..where((t) => t.dayKey.equals(dayKey))).go();
   }
+
+  /// Restores [dayKey] to [weightKg] (or removes it, when null) and, if
+  /// [oldDayKey] differs, restores it to [oldWeightKg] the same way — all in
+  /// one transaction, so Undo never leaves a moment with no weigh-in for
+  /// watchers to see and can't partially fail.
+  Future<void> restore({
+    required String dayKey,
+    required double? weightKg,
+    String? oldDayKey,
+    double? oldWeightKg,
+  }) {
+    return _db.transaction(() async {
+      if (weightKg != null) {
+        await upsert(dayKey, weightKg);
+      } else {
+        await delete(dayKey);
+      }
+      if (oldDayKey != null && oldDayKey != dayKey) {
+        if (oldWeightKg != null) {
+          await upsert(oldDayKey, oldWeightKg);
+        } else {
+          await delete(oldDayKey);
+        }
+      }
+    });
+  }
 }
 
 /// The [WeightRepository] on the app database, stamping `createdAt` with the

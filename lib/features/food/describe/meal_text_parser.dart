@@ -311,10 +311,88 @@ MealTextParse parseMealText(
 
   final phrases = <ParsedPhrase>[];
   for (final part in t.split(_separators)) {
-    final p = parsePhrase(part.replaceAll('_', ' '));
-    if (p != null) phrases.add(p);
+    for (final run in _splitRuns(part)) {
+      final p = parsePhrase(run.replaceAll('_', ' '));
+      if (p != null) phrases.add(p);
+    }
   }
   return MealTextParse(phrases: phrases);
+}
+
+/// Splits a part with several foods and no separator between them: "2
+/// bananas 1 apple" before the "1", "eggs 3 toast 2" before "toast". Written
+/// amount-first, a number right after a food word starts the next item;
+/// written food-first (the part starts with a food and ends with an
+/// amount), a food word right after an amount does. A piece left without
+/// food words ("1 cup milk 3") stays with the one before.
+List<String> _splitRuns(String part) {
+  final raw = [
+    for (final t in part.trim().split(RegExp(r'\s+')))
+      if (t.isNotEmpty) t,
+  ];
+  if (raw.length < 3) return [part];
+  final tokens = [for (final r in raw) r.replaceAll(_tokenEdge, '')];
+  bool isNum(int i) => _isDigits(tokens[i]) || _fraction.hasMatch(tokens[i]);
+  bool isFood(int i) {
+    final t = tokens[i];
+    return t.isNotEmpty &&
+        _numberValue(t) == null &&
+        !_fillers.contains(t) &&
+        t != 'x' &&
+        !_unitWords.containsKey(t) &&
+        _readUnit(tokens, i) == null;
+  }
+
+  var lastNum = -1;
+  for (var i = tokens.length - 1; i > 0; i--) {
+    if (isNum(i)) {
+      lastNum = i;
+      break;
+    }
+  }
+  final foodFirst =
+      isFood(0) &&
+      lastNum > 0 &&
+      _readAmount(tokens, lastNum)?.end == tokens.length;
+
+  final starts = <int>[0];
+  var segHasFood = false;
+  var afterAmount = false;
+  for (var i = 0; i < tokens.length; i++) {
+    if (isNum(i)) {
+      if (!foodFirst && i > 0 && segHasFood && isFood(i - 1)) {
+        starts.add(i);
+        segHasFood = false;
+      }
+      if (foodFirst && segHasFood) {
+        final end = _readAmount(tokens, i)?.end ?? i + 1;
+        afterAmount = true;
+        i = end - 1;
+      }
+      continue;
+    }
+    if (!isFood(i)) continue;
+    if (foodFirst && afterAmount) {
+      starts.add(i);
+      afterAmount = false;
+    }
+    segHasFood = true;
+  }
+  if (starts.length == 1) return [part];
+
+  final runs = <List<String>>[];
+  for (var s = 0; s < starts.length; s++) {
+    final end = s + 1 < starts.length ? starts[s + 1] : tokens.length;
+    final hasFood = [for (var i = starts[s]; i < end; i++) isFood(i)]
+        .any((f) => f);
+    final words = raw.sublist(starts[s], end);
+    if (!hasFood && runs.isNotEmpty) {
+      runs.last.addAll(words);
+    } else {
+      runs.add(words);
+    }
+  }
+  return [for (final r in runs) r.join(' ')];
 }
 
 /// Lowercases and rewrites the forms the tokenizer doesn't handle: unicode

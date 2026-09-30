@@ -156,6 +156,48 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('a "Walk" speed above a brisk pace is rejected', (tester) async {
+    // A7: the ACSM walking formula is only valid up to ~6 km/h; "Walk" is
+    // capped at a realistic walking pace instead of accepting up to 30 km/h.
+    await addWeighIn80();
+    await pump(tester);
+    await openDialog(tester);
+    await selectType(tester, 'Walk');
+
+    await tester.enterText(find.byKey(const Key('exerciseSpeedField')), '10');
+    await save(tester);
+
+    expect(find.text('Too fast for a walk - use Run'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('a "Walk" speed at a brisk pace is accepted', (tester) async {
+    await addWeighIn80();
+    await pump(tester);
+    await openDialog(tester);
+    await selectType(tester, 'Walk');
+
+    await tester.enterText(find.byKey(const Key('exerciseSpeedField')), '8');
+    await save(tester);
+
+    expect(find.byType(AlertDialog), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('a "Run" can still go faster than a walk', (tester) async {
+    await addWeighIn80();
+    await pump(tester);
+    await openDialog(tester);
+    await selectType(tester, 'Run');
+
+    await tester.enterText(find.byKey(const Key('exerciseSpeedField')), '15');
+    await save(tester);
+
+    expect(find.byType(AlertDialog), findsNothing);
+    await unmount(tester);
+  });
+
   testWidgets('typing calories overrides the estimate, no weight needed', (
     tester,
   ) async {

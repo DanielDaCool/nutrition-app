@@ -1,10 +1,12 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/core/day_key.dart';
 import 'package:nutrition_app/data/db/database.dart';
+import 'package:nutrition_app/features/weight/weight_providers.dart';
 import 'package:nutrition_app/features/weight/weight_screen.dart';
 
 import '../../helpers/test_db.dart';
@@ -35,7 +37,10 @@ void main() {
     }
   }
 
-  Future<void> pumpScreen(WidgetTester tester) async {
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    List<Override> extra = const [],
+  }) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -44,6 +49,7 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           clockProvider.overrideWithValue(() => DateTime(2026, 9, 25, 8)),
+          ...extra,
         ],
         child: const MaterialApp(home: WeightScreen()),
       ),
@@ -254,4 +260,51 @@ void main() {
     expect(tester.takeException(), isNull);
     await unmount(tester);
   });
+
+  testWidgets(
+    'delete Undo shows a snackbar instead of throwing when the restore '
+    'write fails',
+    (tester) async {
+      await addWeighIn('2026-09-22', 83.6);
+      await pumpScreen(
+        tester,
+        extra: [
+          weightRepositoryProvider.overrideWith(
+            (ref) => _ThrowingUpsertRepo(db, () => DateTime(2026, 9, 25, 8)),
+          ),
+        ],
+      );
+
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('weighIn-2026-09-22')),
+          matching: find.byTooltip('Delete'),
+        ),
+      );
+      await settle(tester);
+      expect((await stored()).length, 0); // delete itself still works
+
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.text('Undo'));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text("Couldn't undo that. Please try again."),
+        findsOneWidget,
+      );
+      await unmount(tester);
+    },
+  );
+}
+
+/// A [WeightRepository] whose `upsert` always fails, for exercising the
+/// delete Undo failure path.
+class _ThrowingUpsertRepo extends WeightRepository {
+  _ThrowingUpsertRepo(super.db, super.now);
+
+  @override
+  Future<void> upsert(String dayKey, double weightKg) =>
+      Future<void>.error(StateError('upsert failed'));
 }
