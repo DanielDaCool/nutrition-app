@@ -35,6 +35,34 @@ class FoodSearchPanel extends ConsumerStatefulWidget {
   ConsumerState<FoodSearchPanel> createState() => _FoodSearchPanelState();
 }
 
+/// Combines the online sources' results, in order. Errors are dropped as
+/// long as some source found foods. When nothing was found and a source
+/// failed (e.g. Open Food Facts rate-limited while USDA has nothing for
+/// "Nutella"), the first error is returned rather than a misleading "no
+/// results".
+AsyncValue<List<RemoteFood>> mergeSearchResults(
+  List<AsyncValue<List<RemoteFood>>> results,
+) {
+  final found = <RemoteFood>[];
+  Object? firstError;
+  StackTrace? firstStackTrace;
+  for (final r in results) {
+    switch (r) {
+      case AsyncData(:final value):
+        found.addAll(value);
+      case AsyncError(:final error, :final stackTrace):
+        firstError ??= error;
+        firstStackTrace ??= stackTrace;
+      default:
+        break;
+    }
+  }
+  if (found.isEmpty && firstError != null) {
+    return AsyncError(firstError, firstStackTrace ?? StackTrace.empty);
+  }
+  return AsyncData(found);
+}
+
 class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
     with AutomaticKeepAliveClientMixin {
   late final _query = TextEditingController(text: widget.initialQuery);
@@ -82,31 +110,9 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel>
       AsyncValue.guard(() => ref.read(offClientProvider).search(q)),
       AsyncValue.guard(() => ref.read(usdaClientProvider).search(q)),
     ]);
-    if (mounted && id == _requestId) setState(() => _results = _merge(results));
-  }
-
-  /// Combines both sources' results. Errors are dropped as long as at least
-  /// one source came back with something (even an empty list); only when
-  /// both fail is the first error shown.
-  static AsyncValue<List<RemoteFood>> _merge(
-    List<AsyncValue<List<RemoteFood>>> results,
-  ) {
-    final lists = <List<RemoteFood>>[];
-    Object? firstError;
-    StackTrace? firstStackTrace;
-    for (final r in results) {
-      switch (r) {
-        case AsyncData(:final value):
-          lists.add(value);
-        case AsyncError(:final error, :final stackTrace):
-          firstError ??= error;
-          firstStackTrace ??= stackTrace;
-        default:
-          break;
-      }
+    if (mounted && id == _requestId) {
+      setState(() => _results = mergeSearchResults(results));
     }
-    if (lists.isEmpty) return AsyncError(firstError!, firstStackTrace!);
-    return AsyncData([for (final l in lists) ...l]);
   }
 
   bool get _local => widget.onPickLocal != null;
