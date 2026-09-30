@@ -376,11 +376,18 @@ class _StepsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final activity = ref.watch(activityRangeProvider(window));
+    // A week of lead-in data so the trailing 7-day average is real even on
+    // the first day shown; the headline below still uses the narrower
+    // `activity` window.
+    final avgWindow = (addDays(window.$1, -6), window.$2);
+    final avgActivity = ref.watch(activityRangeProvider(avgWindow));
     const title = 'Steps per day';
-    final pending = _pending(
-      activity,
-      () => ref.invalidate(activityRangeProvider(window)),
-    );
+    final pending =
+        _pending(activity, () => ref.invalidate(activityRangeProvider(window))) ??
+        _pending(
+          avgActivity,
+          () => ref.invalidate(activityRangeProvider(avgWindow)),
+        );
     if (pending != null) return _Section(title: title, child: pending);
 
     final days = activity.value!;
@@ -409,7 +416,9 @@ class _StepsSection extends ConsumerWidget {
                 label: const Text('Connect Health Connect'),
               ),
             )
-          : _StepsChart(days: stepsWithAverage(days)),
+          : _StepsChart(
+              days: stepsWithAverage(avgActivity.value!, from: window.$1),
+            ),
     );
   }
 }
@@ -560,15 +569,22 @@ class _WorkoutsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final activity = ref.watch(activityRangeProvider(window));
+    // Chart buckets need every week to be a full 7 days, so fetch from the
+    // Monday on/before `from` (the headline below still uses the narrower
+    // `activity` window, whose day count matches the selected range).
+    final chartWindow = (weekStartOf(window.$1), window.$2);
+    final chartActivity = ref.watch(activityRangeProvider(chartWindow));
     const title = 'Workouts per week';
-    final pending = _pending(
-      activity,
-      () => ref.invalidate(activityRangeProvider(window)),
-    );
+    final pending =
+        _pending(activity, () => ref.invalidate(activityRangeProvider(window))) ??
+        _pending(
+          chartActivity,
+          () => ref.invalidate(activityRangeProvider(chartWindow)),
+        );
     if (pending != null) return _Section(title: title, child: pending);
 
     final days = activity.value!;
-    final weeks = workoutsPerWeek(days);
+    final weeks = workoutsPerWeek(chartActivity.value!);
     final empty = weeks.every((w) => w.count == 0);
     if (empty && hideWhenEmpty) return const SizedBox.shrink();
     return _Section(
