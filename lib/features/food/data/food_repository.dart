@@ -43,6 +43,15 @@ class LoggedItem {
   final DateTime createdAt;
 }
 
+/// What [FoodRepository.logMany] wrote: the new entries, and the value each
+/// remembered `describe.*` row had before (null when it didn't exist).
+class LoggedBatch {
+  const LoggedBatch({required this.entryIds, this.previousMemory = const {}});
+
+  final List<int> entryIds;
+  final Map<String, String?> previousMemory;
+}
+
 /// What the user typed for a custom food, already converted to per 100 g.
 class CustomFoodInput {
   const CustomFoodInput({
@@ -267,8 +276,9 @@ class FoodRepository {
 
   /// Logs several foods into one meal at once (a described meal): all of
   /// them or none. [remember] rows (from [DescribeMemory]) are saved in the
-  /// same transaction. Returns the entry ids in order.
-  Future<List<int>> logMany({
+  /// same transaction. Returns the entry ids in order and what the
+  /// remembered rows held before, so [undoLogMany] can take it all back.
+  Future<LoggedBatch> logMany({
     required String dayKey,
     required Meal meal,
     required List<({int foodId, double grams})> items,
@@ -287,16 +297,41 @@ class FoodRepository {
         for (final i in items)
           await _insertEntry(dayKey, meal, i.foodId, i.grams),
       ];
+      final previous = <String, String?>{};
       for (final e in remember.entries) {
+        final old = await (_db.select(
+          _db.keyValues,
+        )..where((t) => t.key.equals(e.key))).getSingleOrNull();
+        previous[e.key] = old?.value;
         await _db
             .into(_db.keyValues)
             .insertOnConflictUpdate(
               KeyValuesCompanion.insert(key: e.key, value: e.value),
             );
       }
-      return ids;
+      return LoggedBatch(entryIds: ids, previousMemory: previous);
     });
   }
+
+  /// Undoes [logMany]: deletes its entries and puts the remembered rows
+  /// back as they were (deleting the ones that were new).
+  Future<void> undoLogMany(LoggedBatch batch) => _db.transaction(() async {
+    await deleteEntries(batch.entryIds);
+    for (final e in batch.previousMemory.entries) {
+      final old = e.value;
+      if (old == null) {
+        await (_db.delete(
+          _db.keyValues,
+        )..where((t) => t.key.equals(e.key))).go();
+      } else {
+        await _db
+            .into(_db.keyValues)
+            .insertOnConflictUpdate(
+              KeyValuesCompanion.insert(key: e.key, value: old),
+            );
+      }
+    }
+  });
 
   /// Inserts one entry with its nutrition snapshot and marks the food as
   /// used. Call inside a transaction.
@@ -399,11 +434,12 @@ class FoodRepository {
               ]))
             .get();
     if (source.isEmpty) return const [];
-    return logMany(
+    final batch = await logMany(
       dayKey: toDay,
       meal: toMeal,
       items: [for (final e in source) (foodId: e.foodId, grams: e.grams)],
     );
+    return batch.entryIds;
   }
 
   /// Grams of the most recent log entry of [foodId], or null if it was never

@@ -311,18 +311,19 @@ class _DescribeFoodScreenState extends ConsumerState<DescribeFoodScreen> {
           if (g != null) remember[g.key] = g.value;
         }
       }
-      final ids = await repo.logMany(
+      final batch = await repo.logMany(
         dayKey: widget.dayKey,
         meal: meal,
         items: items,
         remember: remember,
       );
       if (mounted) Navigator.of(context).pop(true);
-      showAddedSnack(
+      // Undo also forgets what this add taught (a wrong food picked for a
+      // phrase shouldn't keep coming back).
+      showUndoSnack(
         messenger,
-        repo,
         'Added ${itemsLabel(items.length)} to ${mealLabel(meal)}',
-        ids,
+        () => repo.undoLogMany(batch),
       );
     } catch (e, st) {
       final message = friendlyError(e, st);

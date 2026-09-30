@@ -184,6 +184,40 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('Undo after adding also forgets the picked food', (tester) async {
+    await pumpApp(tester);
+    await type(tester, 'qwzx');
+    await tester.tap(find.text('Pick a food'));
+    await settle(tester);
+    await tester.enterText(find.byKey(const Key('picker-field')), 'banana');
+    await tester.pump();
+    await tester.tap(find.text('Banana'));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('describe-add')));
+    await settle(tester);
+    Future<Map<String, String>> kv() async => {
+      for (final r in (await tester.runAsync(
+        () => db.select(db.keyValues).get(),
+      ))!)
+        r.key: r.value,
+    };
+    expect(await kv(), containsPair('describe.alias.qwzx', 'builtin:banana'));
+
+    await tester.tap(find.text('Undo'));
+    await settle(tester);
+    expect(await entries(tester), isEmpty);
+    expect(await kv(), isNot(contains('describe.alias.qwzx')));
+
+    // Next time the words are not understood as banana any more.
+    await tester.tap(find.text('open'));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('describe-button')));
+    await settle(tester);
+    await type(tester, 'qwzx');
+    expect(find.text('Didn\'t catch "qwzx"'), findsOneWidget);
+    await finish(tester);
+  });
+
   testWidgets('edits survive typing more; items can be removed', (
     tester,
   ) async {
