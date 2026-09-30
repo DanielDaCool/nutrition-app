@@ -1,0 +1,7 @@
+{
+  "totalHits": 0,
+  "currentPage": 1,
+  "totalPages": 0,
+  "foodSearchCriteria": {"query": "nutella", "dataType": ["Foundation", "SR Legacy"], "pageSize": 25},
+  "foods": []
+}
