@@ -56,19 +56,45 @@ Future<void> _checkAndMaybeNotify() async {
     }
 
     await initWalkReminderNotifications();
-    await showWalkReminderNotification();
-    await markWalkReminderSent(db, todayKey);
+    await sendWalkReminderIfMarkedSent(
+      markSent: () => markWalkReminderSent(db, todayKey),
+      notify: showWalkReminderNotification,
+    );
   } finally {
     await db.close();
   }
 }
 
+/// Marks today's reminder sent, then shows it — never the other way around.
+///
+/// This background task opens its own DB connection, separate from any
+/// foreground sync, so [markSent] can lose to SQLITE_BUSY. If it fails, this
+/// skips [notify] for this run and lets the next periodic run retry, rather
+/// than show the notification and then fail to record it — which could show
+/// it again next run even though the user already saw (and maybe dismissed)
+/// it. A top-level function (not inlined) so the ordering is covered by a
+/// plain unit test, without a database or notification plugin.
+Future<void> sendWalkReminderIfMarkedSent({
+  required Future<void> Function() markSent,
+  required Future<void> Function() notify,
+}) async {
+  await markSent();
+  await notify();
+}
+
 /// Today's steps: a fresh Health Connect read when available, otherwise the
 /// last value synced into the local DB.
+///
+/// A fresh read only happens with both the steps permission AND the
+/// background-read permission granted: without the latter, Health Connect
+/// refuses reads from a non-foreground app, so a read attempted here would
+/// just fail (or, worse, silently return a stale/incomplete value) — going
+/// straight to the local copy is both cheaper and no less accurate.
 Future<int> _currentSteps(AppDatabase db, String todayKey) async {
   try {
     final source = HealthPackageSource();
-    if (await source.hasPermissions()) {
+    if (await source.hasStepsPermission() &&
+        await source.isBackgroundAuthorized()) {
       final fresh = await source.totalSteps(
         startOfDay(todayKey),
         endOfDay(todayKey),
