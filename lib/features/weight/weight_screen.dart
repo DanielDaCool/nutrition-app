@@ -65,16 +65,27 @@ class WeightScreen extends ConsumerWidget {
       );
       return;
     }
+
+    Future<void> undoDelete() async {
+      try {
+        await repo.upsert(dayKey, kg);
+      } catch (e, st) {
+        debugPrint('Undoing weigh-in delete failed: $e\n$st');
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't undo that. Please try again."),
+          ),
+        );
+      }
+    }
+
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           content: Text('Deleted weigh-in for $label'),
           persist: false,
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () => repo.upsert(dayKey, kg),
-          ),
+          action: SnackBarAction(label: 'Undo', onPressed: undoDelete),
         ),
       );
   }
