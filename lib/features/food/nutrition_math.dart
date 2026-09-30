@@ -116,6 +116,23 @@ double? parseServingGrams({
   return (v != null && v > 0) ? v : null;
 }
 
+/// Picks the per-100g kcal value from a label/API source that gives both a
+/// kcal figure and a kJ figure, guarding against a real, documented Open
+/// Food Facts data problem: contributors sometimes type the kJ number into
+/// the kcal field (or vice versa), which inflates kcal by roughly the 4.184
+/// kJ-per-kcal factor. When both are present but don't agree with that
+/// conversion within OFF's own tolerance (about 15% + 5 kcal, matching the
+/// tolerance OFF's own data-quality checker uses), the kJ figure is trusted
+/// since it is the label's legally required field. Falls back to whichever
+/// figure is present when only one is.
+double? resolveKcal({required double? kcalField, required double? kjField}) {
+  if (kjField == null) return kcalField;
+  final fromKj = kjField / kjPerKcal;
+  if (kcalField == null) return fromKj;
+  final tolerance = fromKj.abs() * 0.15 + 5;
+  return (kcalField - fromKj).abs() <= tolerance ? kcalField : fromKj;
+}
+
 /// Lenient number conversion for JSON values (num or numeric string).
 double? toDouble(Object? v) {
   if (v is num) return v.isFinite ? v.toDouble() : null;
