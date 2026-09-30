@@ -226,6 +226,114 @@ void main() {
     await settle(tester);
   });
 
+  group('accept after midnight', () {
+    late DateTime clock;
+    Widget clockApp(AppDatabase db) => ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        clockProvider.overrideWithValue(() => clock),
+      ],
+      child: const MaterialApp(home: CheckInScreen()),
+    );
+    Future<List<String>> days(WidgetTester tester, AppDatabase db) async {
+      final rows = await tester.runAsync(
+        () => (db.select(
+          db.targetHistory,
+        )..orderBy([(t) => OrderingTerm.asc(t.effectiveFrom)])).get(),
+      );
+      return [for (final r in rows!) r.effectiveFrom];
+    }
+
+    testWidgets('unchanged numbers are saved as effective today', (
+      tester,
+    ) async {
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      // Formula only (one weigh-in, no logs): the numbers don't move
+      // overnight.
+      await tester.runAsync(() async {
+        await db
+            .into(db.profiles)
+            .insert(
+              ProfilesCompanion.insert(
+                sex: Sex.male.index,
+                birthDate: DateTime(1996, 9, 25),
+                heightCm: 180,
+                activityLevel: ActivityLevel.moderate.index,
+                goalWeightKg: 80,
+                updatedAt: now,
+              ),
+            );
+        await db
+            .into(db.weighIns)
+            .insert(
+              WeighInsCompanion.insert(
+                dayKey: '2026-09-26',
+                weightKg: 90,
+                createdAt: now,
+              ),
+            );
+      });
+      clock = DateTime(2026, 9, 27, 23, 59);
+      await tester.pumpWidget(clockApp(db));
+      await settle(tester);
+
+      clock = DateTime(2026, 9, 28, 0, 1);
+      await tester.ensureVisible(find.text('Accept'));
+      await tester.tap(find.text('Accept'));
+      await settle(tester);
+
+      // The first target was auto-created on the 27th when the screen
+      // opened; Accept adds today's, not a stale row for the 27th.
+      expect(await days(tester, db), ['2026-09-27', '2026-09-28']);
+      expect(find.textContaining('New target:'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+    });
+
+    testWidgets('changed numbers are shown again before saving', (
+      tester,
+    ) async {
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() => seed(db)); // current target 2026-09-20
+      clock = DateTime(2026, 9, 27, 23, 59);
+      await tester.pumpWidget(clockApp(db));
+      await settle(tester);
+
+      // After midnight, with a new weigh-in for yesterday: the numbers for
+      // today differ from the ones on screen.
+      clock = DateTime(2026, 9, 28, 0, 1);
+      await tester.runAsync(
+        () => db
+            .into(db.weighIns)
+            .insert(
+              WeighInsCompanion.insert(
+                dayKey: '2026-09-27',
+                weightKg: 80,
+                createdAt: clock,
+              ),
+            ),
+      );
+      await tester.ensureVisible(find.text('Accept'));
+      await tester.tap(find.text('Accept'));
+      await settle(tester);
+
+      expect(await days(tester, db), ['2026-09-20']);
+      expect(find.textContaining("It's a new day"), findsOneWidget);
+      expect(find.byType(CheckInScreen), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Accept'));
+      await tester.tap(find.text('Accept'));
+      await settle(tester);
+      expect(await days(tester, db), ['2026-09-20', '2026-09-28']);
+
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+    });
+  });
+
   test('change text', () {
     expect(formatChange(2030, 2150, 'kcal').text, '+120 kcal');
     expect(formatChange(2150, 2070, 'kcal').text, '−80 kcal');
