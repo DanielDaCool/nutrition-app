@@ -104,17 +104,85 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     return (v != null && v > 0) ? v : null;
   }
 
+  List<TextEditingController> get _nutritionFields => [
+    _kcal,
+    _protein,
+    _fat,
+    _carbs,
+  ];
+
+  /// The per-100 g value behind each field this screen converted to per
+  /// serving (when the basis was switched). Such a field follows the
+  /// serving size until the user types over it, so switching the basis
+  /// never changes the food's nutrition.
+  final _converted = <TextEditingController, double>{};
+
   /// Values as entered, converted to per 100 g; null while incomplete.
   Macros? get _per100g {
-    final k = parseAmount(_kcal.text);
-    final p = parseAmount(_protein.text.isEmpty ? '0' : _protein.text);
-    final f = parseAmount(_fat.text.isEmpty ? '0' : _fat.text);
-    final c = parseAmount(_carbs.text.isEmpty ? '0' : _carbs.text);
-    if ([k, p, f, c].any((v) => v == null || v < 0)) return null;
-    final entered = Macros(kcal: k!, proteinG: p!, fatG: f!, carbsG: c!);
-    if (_basis == LabelBasis.per100g) return entered;
     final s = _servingG;
-    return s == null ? null : per100gFromServing(entered, s);
+    final perServing = _basis == LabelBasis.perServing;
+    double? value(TextEditingController c, {bool optional = true}) {
+      final exact = _converted[c];
+      if (perServing && exact != null) return exact;
+      final v = parseAmount(optional && c.text.isEmpty ? '0' : c.text);
+      if (v == null || v < 0) return null;
+      if (!perServing) return v;
+      return s == null ? null : v * 100 / s;
+    }
+
+    final k = value(_kcal, optional: false);
+    final p = value(_protein);
+    final f = value(_fat);
+    final c = value(_carbs);
+    if ([k, p, f, c].any((v) => v == null)) return null;
+    return Macros(kcal: k!, proteinG: p!, fatG: f!, carbsG: c!);
+  }
+
+  /// Switches what the nutrition fields mean, converting the numbers in them
+  /// so the food stays the same. Going to per serving needs a serving size
+  /// when there are numbers to convert.
+  void _setBasis(LabelBasis basis) {
+    if (basis == _basis) return;
+    final s = _servingG;
+    final hasValues = _nutritionFields.any((c) => c.text.trim().isNotEmpty);
+    if (basis == LabelBasis.perServing && s == null && hasValues) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Enter the serving size first, so the values can be converted.',
+            ),
+          ),
+        );
+      return;
+    }
+    for (final c in _nutritionFields) {
+      final typed = parseAmount(c.text);
+      if (basis == LabelBasis.perServing) {
+        if (typed == null) continue;
+        _converted[c] = typed;
+        c.text = fmtNum(typed * s! / 100, decimals: 2);
+      } else {
+        final per100 =
+            _converted[c] ??
+            (typed == null || s == null ? null : typed * 100 / s);
+        if (per100 != null) c.text = fmtNum(per100, decimals: 2);
+      }
+    }
+    if (basis == LabelBasis.per100g) _converted.clear();
+    setState(() => _basis = basis);
+  }
+
+  /// A new serving size: converted per-serving numbers follow it.
+  void _servingChanged() {
+    final s = _servingG;
+    if (_basis == LabelBasis.perServing && s != null) {
+      _converted.forEach((c, per100) {
+        c.text = fmtNum(per100 * s / 100, decimals: 2);
+      });
+    }
+    setState(() {});
   }
 
   /// Form validator for an optional (or [required]) non-negative number.
@@ -186,7 +254,11 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: dec(label, suffix: suffix),
       validator: (v) => _nonNegative(v, required: required),
-      onChanged: (_) => setState(() {}),
+      onChanged: (_) {
+        // Typed over: now it's the user's number, not a conversion.
+        _converted.remove(c);
+        setState(() {});
+      },
     );
 
     return Scaffold(
@@ -234,7 +306,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
                 ),
               ],
               selected: {_basis},
-              onSelectionChanged: (s) => setState(() => _basis = s.first),
+              onSelectionChanged: (s) => _setBasis(s.first),
             ),
             const SizedBox(height: 12),
             Row(
@@ -259,7 +331,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
                       }
                       return null;
                     },
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (_) => _servingChanged(),
                   ),
                 ),
                 const SizedBox(width: 12),
