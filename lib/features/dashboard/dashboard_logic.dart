@@ -120,7 +120,12 @@ class StepsDay {
 
 /// Sorts [days] by day and adds a trailing 7-day average of the days that
 /// have step data (days without data are skipped, not counted as zero).
-List<StepsDay> stepsWithAverage(List<DayActivity> days) {
+///
+/// Pass [from] to fetch a week of lead-in data ([days] starting 6 days
+/// before the range shown) so the average is a real trailing 7-day window
+/// even for the first day shown, then only that range is returned; days
+/// before [from] are used for the average but left out of the result.
+List<StepsDay> stepsWithAverage(List<DayActivity> days, {String? from}) {
   final sorted = [...days]..sort((a, b) => a.dayKey.compareTo(b.dayKey));
   final out = <StepsDay>[];
   for (var i = 0; i < sorted.length; i++) {
@@ -141,7 +146,11 @@ List<StepsDay> stepsWithAverage(List<DayActivity> days) {
       ),
     );
   }
-  return out;
+  if (from == null) return out;
+  return [
+    for (final d in out)
+      if (d.dayKey.compareTo(from) >= 0) d,
+  ];
 }
 
 /// True when at least one day has step data.
@@ -235,24 +244,30 @@ String? stepsHeadline(List<DayActivity> days) {
   return 'Avg ${_rounded(avg, 100)}/day';
 }
 
-/// "Avg 2,150 of 2,300 kcal": average intake over fully logged days against
-/// the average target on those days (rounded to 10). Without any target it's
-/// "Avg 2,150 kcal". Null when no day is fully logged.
+/// "Avg 2,150 of 2,300 kcal": average intake and average target, both over
+/// the same days — fully logged days that also have a target in effect
+/// (rounded to 10). Without any target it's "Avg 2,150 kcal" over all fully
+/// logged days. Null when no day is fully logged.
 String? intakeHeadline(List<DayIntake> days, List<TargetPoint> targets) {
   final logged = [
     for (final d in days)
       if (d.fullyLogged) d,
   ];
   if (logged.isEmpty) return null;
-  final avg =
-      logged.fold<double>(0, (s, d) => s + d.total.kcal) / logged.length;
-  final dayTargets = [
+  final withTarget = [
     for (final d in logged)
-      if (targetOn(targets, d.dayKey) case final t?) t.kcal,
+      if (targetOn(targets, d.dayKey) case final t?) (d, t.kcal),
   ];
-  if (dayTargets.isEmpty) return 'Avg ${_rounded(avg, 10)} kcal';
+  if (withTarget.isEmpty) {
+    final avg =
+        logged.fold<double>(0, (s, d) => s + d.total.kcal) / logged.length;
+    return 'Avg ${_rounded(avg, 10)} kcal';
+  }
+  final avg =
+      withTarget.fold<double>(0, (s, e) => s + e.$1.total.kcal) /
+      withTarget.length;
   final target =
-      dayTargets.fold<double>(0, (s, v) => s + v) / dayTargets.length;
+      withTarget.fold<double>(0, (s, e) => s + e.$2) / withTarget.length;
   return 'Avg ${_rounded(avg, 10)} of ${_rounded(target, 10)} kcal';
 }
 

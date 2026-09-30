@@ -1,5 +1,6 @@
-// Today screen's calorie card: kcal remaining against the current target and
-// protein/fat/carb progress bars.
+// Today screen's calorie card: kcal remaining against the target that was in
+// effect on the shown day, and protein/fat/carb progress bars.
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import '../../../domain/models.dart';
 import '../../food/food_providers.dart';
 import '../../settings/setup_screen.dart';
 import '../../targets/targets_providers.dart';
+import '../../weight/table_watch.dart';
 import '../../weight/weight_providers.dart';
 import '../../weight/widgets/weigh_in_dialog.dart';
 
@@ -17,6 +19,63 @@ final _kcalFormat = NumberFormat.decimalPattern('en_US');
 
 /// Formats kcal rounded to a whole number with thousands separators.
 String formatKcal(double kcal) => _kcalFormat.format(kcal.round());
+
+/// All accepted target rows (with macros), oldest `effectiveFrom` first.
+///
+/// Separate from `dashboard`'s `targetHistoryProvider` because that one
+/// drops the macro breakdown this card needs; both read the same table.
+final _targetHistoryProvider = StreamProvider<List<DailyTargets>>((ref) {
+  final db = ref.watch(databaseProvider);
+  final query = db.select(db.targetHistory)
+    ..orderBy([
+      (t) => OrderingTerm.asc(t.effectiveFrom),
+      (t) => OrderingTerm.asc(t.id),
+    ]);
+  return watchTables(db, [db.targetHistory], () async {
+    final rows = await query.get();
+    return [
+      for (final r in rows)
+        DailyTargets(
+          effectiveFrom: r.effectiveFrom,
+          macros: Macros(
+            kcal: r.kcal,
+            proteinG: r.proteinG,
+            fatG: r.fatG,
+            carbsG: r.carbsG,
+          ),
+          maintenanceKcal: r.maintenanceKcal,
+          method: TargetMethod.values[r.method],
+        ),
+    ];
+  });
+});
+
+/// The target in effect on [dayKey] ([targets] sorted by `effectiveFrom`
+/// ascending; later entries win ties). Null if none applies yet.
+DailyTargets? _targetOn(List<DailyTargets> targets, String dayKey) {
+  DailyTargets? result;
+  for (final t in targets) {
+    if (t.effectiveFrom.compareTo(dayKey) <= 0) {
+      result = t;
+    } else {
+      break;
+    }
+  }
+  return result;
+}
+
+/// Targets in effect on [dayKey]: today's live target (which may still be
+/// creating itself) for today, or a lookup into target history for a past
+/// day.
+final _targetsForDayProvider = Provider.family<AsyncValue<DailyTargets?>, String>(
+  (ref, dayKey) {
+    final today = dayKeyOf(ref.watch(clockProvider)());
+    if (dayKey == today) return ref.watch(currentTargetsProvider);
+    return ref.watch(_targetHistoryProvider).whenData(
+      (targets) => _targetOn(targets, dayKey),
+    );
+  },
+);
 
 /// Target minus intake for [dayKey], with macro progress bars.
 ///
@@ -31,7 +90,9 @@ class CalorieCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final targetsAsync = ref.watch(currentTargetsProvider);
+    final today = dayKeyOf(ref.read(clockProvider)());
+    final isToday = dayKey == today;
+    final targetsAsync = ref.watch(_targetsForDayProvider(dayKey));
     final intakeAsync = ref.watch(dayIntakeProvider(dayKey));
     final targets = targetsAsync.value;
     final intake = intakeAsync.value;
@@ -43,7 +104,9 @@ class CalorieCard extends ConsumerWidget {
         icon: Icons.error_outline,
         text: "Couldn't load your targets",
         actionLabel: 'Try again',
-        onAction: () => ref.invalidate(currentTargetsProvider),
+        onAction: () => isToday
+            ? ref.invalidate(currentTargetsProvider)
+            : ref.invalidate(_targetHistoryProvider),
       );
     }
     if (intakeAsync.hasError && intake == null) {
@@ -57,9 +120,22 @@ class CalorieCard extends ConsumerWidget {
       );
     }
     if (!targetsAsync.hasValue) return const _LoadingCard();
-    if (targets == null) return const _NoTargetsCard();
-    final eaten = intake?.total ?? Macros.zero;
-    return _TargetsCard(target: targets.macros, eaten: eaten);
+    if (targets == null) {
+      // Today: guide the user through whatever setup is missing. A past
+      // day just never had a target in effect yet (e.g. before the profile
+      // was set up) — nothing to fix, so say so plainly.
+      return isToday
+          ? const _NoTargetsCard()
+          : const _MessageCard(
+              key: Key('noTargetForDayCard'),
+              icon: Icons.info_outline,
+              text: 'No target was set for this day',
+            );
+    }
+    // Intake still loading: show the loading state rather than treating it
+    // as "0 eaten", which would flash a wrong "full target remaining".
+    if (!intakeAsync.hasValue) return const _LoadingCard();
+    return _TargetsCard(target: targets.macros, eaten: intake!.total);
   }
 }
 
@@ -111,8 +187,19 @@ class _NoTargetsCard extends ConsumerWidget {
       );
     }
     if (weighIns.value?.isNotEmpty ?? false) {
-      // Profile and weigh-in exist: the first target is being worked out.
-      return const _LoadingCard();
+      // currentTargetsProvider already resolved to null with a profile and
+      // a weigh-in in place, so this is a real terminal state — e.g. every
+      // target is dated in the future, or every weigh-in is dated after
+      // today (say, after a timezone change) — not still being worked out.
+      // Showing a spinner here would never resolve.
+      return _MessageCard(
+        key: const Key('noCurrentTargetCard'),
+        icon: Icons.error_outline,
+        text: 'No target is active for today',
+        subtitle: "Check your weigh-in and target dates, or try again.",
+        actionLabel: 'Try again',
+        onAction: () => ref.invalidate(currentTargetsProvider),
+      );
     }
     return _MessageCard(
       key: const Key('noWeighInCard'),

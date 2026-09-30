@@ -29,11 +29,14 @@ class CheckInScreen extends ConsumerStatefulWidget {
 class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   bool _saving = false;
 
-  Future<void> _finish(Future<void> Function() action, String message) async {
+  /// Runs [action]; on success shows the message it returns and closes the
+  /// screen. A null message means the action handled the outcome itself and
+  /// the screen stays open.
+  Future<void> _finish(Future<String?> Function() action) async {
     setState(() => _saving = true);
     try {
-      await action();
-      if (!mounted) return;
+      final message = await action();
+      if (!mounted || message == null) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
       Navigator.of(context).maybePop();
@@ -46,7 +49,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           action: SnackBarAction(
             label: 'Try again',
             onPressed: () {
-              if (mounted) _finish(action, message);
+              if (mounted) _finish(action);
             },
           ),
         ),
@@ -55,6 +58,44 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  /// Saves [shown], the recommendation on screen. If the day has rolled over
+  /// since it was worked out (opened before midnight, accepted after), it is
+  /// worked out again for today: saved straight away when the numbers are
+  /// unchanged, otherwise the screen refreshes so the new numbers can be
+  /// reviewed first. Returns the success message, or null when refreshed.
+  Future<String?> _accept(Recommendation shown, TargetsRepository repo) async {
+    var rec = shown;
+    if (rec.effectiveFrom != repo.today) {
+      final fresh = await repo.recommendToday();
+      if (fresh == null) throw StateError('No recommendation for today');
+      if (!_sameNumbers(shown, fresh)) {
+        ref.invalidate(checkInRecommendationProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "It's a new day, so your targets were worked out again. "
+                'Check them and tap Accept.',
+              ),
+            ),
+          );
+        }
+        return null;
+      }
+      rec = fresh;
+    }
+    await repo.saveRecommendation(rec);
+    return 'New target: ${kcal(rec.macros.kcal)}';
+  }
+
+  static bool _sameNumbers(Recommendation a, Recommendation b) =>
+      a.macros.kcal == b.macros.kcal &&
+      a.macros.proteinG == b.macros.proteinG &&
+      a.macros.fatG == b.macros.fatG &&
+      a.macros.carbsG == b.macros.carbsG &&
+      a.maintenanceKcal.round() == b.maintenanceKcal.round() &&
+      a.method == b.method;
 
   @override
   Widget build(BuildContext context) {
@@ -103,12 +144,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
         const SizedBox(height: 16),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          onPressed: _saving
-              ? null
-              : () => _finish(
-                  () => repo.saveRecommendation(r),
-                  'New target: ${kcal(r.macros.kcal)}',
-                ),
+          onPressed: _saving ? null : () => _finish(() => _accept(r, repo)),
           child: const Text('Accept'),
         ),
         if (cur != null) ...[
@@ -119,10 +155,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             ),
             onPressed: _saving
                 ? null
-                : () => _finish(
-                    repo.keepCurrentTarget,
-                    'Keeping ${kcal(cur.macros.kcal)}',
-                  ),
+                : () => _finish(() async {
+                    await repo.keepCurrentTarget();
+                    return 'Keeping ${kcal(cur.macros.kcal)}';
+                  }),
             child: const Text('Skip, keep my current targets'),
           ),
         ],

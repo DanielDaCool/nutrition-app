@@ -20,6 +20,7 @@ class ParsedItem {
     required this.matches,
     this.match,
     this.estimate,
+    this.countedAsPieces = false,
   });
 
   /// Stable while the phrase's text stays the same, so edits to this item
@@ -36,9 +37,15 @@ class ParsedItem {
   /// Grams for [match]; null when there is no match.
   final GramsEstimate? estimate;
 
+  /// A bare number the parser took as grams ("25 almonds") was counted as
+  /// pieces for [match] instead; [unit] says so.
+  final bool countedAsPieces;
+
   String get originalText => phrase.original;
   double get quantity => phrase.quantity;
-  MeasureUnit? get unit => phrase.unit;
+
+  /// The unit [estimate] used: what was said, or pieces when counted so.
+  MeasureUnit? get unit => countedAsPieces ? MeasureUnit.piece : phrase.unit;
   String get foodPhrase => phrase.foodText;
   double? get grams => estimate?.grams;
   String? get gramsExplanation => estimate?.explanation;
@@ -116,12 +123,14 @@ class DescribeEngine {
     final match = top != null && top.score >= FoodMatcher.acceptScore
         ? top
         : null;
+    final est = match == null ? null : estimatePhrase(match.candidate, p);
     return ParsedItem(
       key: key,
       phrase: p,
       matches: matches,
       match: match,
-      estimate: match == null ? null : _estimate(match.candidate, p),
+      estimate: est?.estimate,
+      countedAsPieces: est != null && est.unit != p.unit,
     );
   }
 
@@ -145,14 +154,21 @@ class DescribeEngine {
     );
   }
 
-  /// Grams for [p]; "25 almonds" counts pieces when the food has a known
-  /// piece weight, otherwise a bare number of 20+ stays grams.
-  GramsEstimate _estimate(FoodCandidate food, ParsedPhrase p) {
+  /// Grams of [food] for what [p] said, and the unit that was used: "25
+  /// almonds" counts pieces when the food has a known piece weight,
+  /// otherwise a bare number of 20+ stays grams. Used again when the user
+  /// picks another food for the phrase.
+  ({GramsEstimate estimate, MeasureUnit? unit}) estimatePhrase(
+    FoodCandidate food,
+    ParsedPhrase p,
+  ) {
     if (p.gramsAssumed && !p.numberAfterFood && _looksPlural(p.foodText)) {
       final pieces = gramsFor(food, p.quantity, MeasureUnit.piece);
-      if (pieces.confidence != WeightConfidence.guess) return pieces;
+      if (pieces.confidence != WeightConfidence.guess) {
+        return (estimate: pieces, unit: MeasureUnit.piece);
+      }
     }
-    return gramsFor(food, p.quantity, p.unit);
+    return (estimate: gramsFor(food, p.quantity, p.unit), unit: p.unit);
   }
 
   static bool _looksPlural(String foodText) {

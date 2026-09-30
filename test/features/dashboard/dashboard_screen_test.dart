@@ -7,6 +7,7 @@ import 'package:nutrition_app/core/day_key.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
+import 'package:nutrition_app/features/dashboard/dashboard_logic.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_screen.dart';
 import 'package:nutrition_app/features/food/food_providers.dart';
 
@@ -229,4 +230,61 @@ void main() {
       await unmount(tester);
     }
   });
+
+  testWidgets(
+    'workouts chart fetches full Monday-aligned weeks, not a partial '
+    'first/last week',
+    (tester) async {
+      await addProfileAndWeighIn();
+      final requestedWindows = <(String, String)>[];
+      final extra = [
+        activityRangeProvider.overrideWith((ref, r) {
+          requestedWindows.add(r);
+          return Stream.value(const []);
+        }),
+      ];
+      await pumpDashboard(tester, extra: extra);
+      expect(tester.takeException(), isNull);
+
+      // The dashboard window itself: today - 27 .. today (not Monday-
+      // aligned in general).
+      const today = '2026-09-25';
+      final plainWindow = (addDays(today, -27), today);
+      expect(requestedWindows, contains(plainWindow));
+
+      // The workouts chart fetches from the Monday on/before that `from`,
+      // so every bucketed week (including the first) is a full 7 days.
+      final chartWindow = (weekStartOf(plainWindow.$1), today);
+      expect(chartWindow.$1, isNot(plainWindow.$1)); // the range isn't
+      // already Monday-aligned, so this genuinely exercises the fix.
+      expect(requestedWindows, contains(chartWindow));
+
+      await unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'steps chart fetches 6 lead-in days for a real trailing 7-day average',
+    (tester) async {
+      await addProfileAndWeighIn();
+      final requestedWindows = <(String, String)>[];
+      final extra = [
+        activityRangeProvider.overrideWith((ref, r) {
+          requestedWindows.add(r);
+          return Stream.value(const []);
+        }),
+      ];
+      await pumpDashboard(tester, extra: extra);
+      expect(tester.takeException(), isNull);
+
+      const today = '2026-09-25';
+      final plainWindow = (addDays(today, -27), today);
+      expect(requestedWindows, contains(plainWindow));
+
+      final avgWindow = (addDays(plainWindow.$1, -6), today);
+      expect(requestedWindows, contains(avgWindow));
+
+      await unmount(tester);
+    },
+  );
 }

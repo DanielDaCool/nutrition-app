@@ -540,6 +540,50 @@ void main() {
       expect(r.macros.kcal, 1200);
     });
 
+    test('floor applies in maintenance mode too', () {
+      // Female, 50 y, 155 cm, at goal (52 kg), sedentary: formula
+      // maintenance ~1,290, BMR ~1,075, floor 1,200. Heavy under-logging
+      // (intake 700 with a stable weight) drags measured maintenance to the
+      // 0.6 x formula clamp (~775).
+      final p = profile(
+        sex: Sex.female,
+        birthDate: DateTime(1976, 1, 1),
+        heightCm: 155,
+        activity: ActivityLevel.sedentary,
+        goalWeightKg: 52,
+      );
+      final h = history(maintenanceKcal: 700, intakeKcal: 700, startKg: 52);
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: p,
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.maintenanceMode, isTrue);
+      expect(r.maintenanceKcal, lessThan(1000));
+      expect(r.explanation.floorApplied, isTrue);
+      expect(r.macros.kcal, 1200);
+      expect(
+        explainLines(r.explanation).join(' '),
+        contains('held at the minimum of 1,200 kcal'),
+      );
+    });
+
+    test('maintenance mode above the floor is not floored', () {
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(goalWeightKg: 90),
+          weighIns: {today: 89},
+          intake: const {},
+        ),
+      );
+      expect(r.explanation.floorApplied, isFalse);
+      expect(r.macros.kcal, roundTo(r.maintenanceKcal, 10));
+    });
+
     test('deficit capped at 750 kcal', () {
       final r = recommend(
         EngineInput(
@@ -837,7 +881,45 @@ void main() {
         ..remove('rateCapped')
         ..remove('smoothedMeasuredKcal')
         ..remove('measuredVarianceKcal2');
-      expect(() => Explanation.fromJson(legacyJson), returnsNormally);
+      final back = Explanation.fromJson(legacyJson);
+      // Missing fields that feed the next check-in read as "no data".
+      expect(back.phaseStartDayKey, isNull);
+      expect(back.weeklyRatePctRaw, isNull);
+      expect(back.smoothedMeasuredKcal, isNull);
+    });
+
+    test('a legacy previous target does not fake a new phase', () {
+      // 1 %/week profile after a legacy target: a made-up 0.5 default would
+      // look like a rate change and skip the first 14 days of the window.
+      final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
+      final legacy =
+          recommend(
+              EngineInput(
+                today: today,
+                profile: profile(),
+                weighIns: h.weighIns,
+                intake: h.intake,
+              ),
+            ).explanation.toJson()
+            ..remove('phaseStartDayKey')
+            ..remove('weeklyRatePctRaw');
+      final prev = Explanation.fromJson(legacy);
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(weeklyRatePct: 0.75),
+          weighIns: h.weighIns,
+          intake: h.intake,
+          previousMaintenanceKcal: prev.maintenanceKcal,
+          previousPhaseStartDayKey: prev.phaseStartDayKey,
+          previousWeeklyRatePctRaw: prev.weeklyRatePctRaw,
+          previousFormulaKcal: prev.formulaKcal,
+          previousMaintenanceMode: prev.maintenanceMode,
+        ),
+      );
+      expect(r.explanation.phaseStartDayKey, isNot(today));
+      expect(r.explanation.measurementStart, addDays(today, -kWindowDays));
+      expect(r.explanation.measuredKcal, isNotNull);
     });
 
     test('plain-English why mentions intake, trend and maintenance', () {
@@ -857,6 +939,76 @@ void main() {
       );
       expect(text, contains('your weight went down'));
       expect(text, contains('so your maintenance is about 2,'));
+    });
+
+    test('partial weight names weigh-ins when they limit it', () {
+      // Logged every day, but only 8 weigh-ins spread over the window:
+      // weigh-ins (not logged days) limit w to (8-6)/4 = 50%.
+      final start = addDays(today, -kWindowDays);
+      final weighDays = {for (var i = 0; i < 8; i++) addDays(start, i * 3)};
+      final h = history(
+        maintenanceKcal: 2500,
+        intakeKcal: 2000,
+        weighed: weighDays.contains,
+      );
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.weight, closeTo(0.5, 1e-9));
+      final text = explainLines(r.explanation).join(' ');
+      expect(text, contains('With 8 weigh-ins that counts 50%'));
+      expect(text, isNot(contains('With $kWindowDays fully logged days')));
+    });
+
+    test('partial weight names logged days when they limit it', () {
+      final h = history(
+        maintenanceKcal: 2500,
+        intakeKcal: 2000,
+        logged: (day) => day.compareTo(addDays(today, -10)) >= 0, // 10 days
+      );
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.weight, greaterThan(0));
+      expect(r.explanation.weight, lessThan(1));
+      final text = explainLines(r.explanation).join(' ');
+      expect(text, contains('With 10 fully logged days that counts'));
+    });
+
+    test('w = 0 with a measured value still gives a reason', () {
+      final h = history(
+        maintenanceKcal: 2500,
+        intakeKcal: 2000,
+        logged: (day) => day.compareTo(addDays(today, -7)) >= 0, // exactly 7
+      );
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.measuredKcal, isNotNull);
+      expect(r.explanation.weight, 0);
+      final text = explainLines(r.explanation).join(' ');
+      expect(
+        text,
+        contains(
+          '(only 7 fully logged days so far, not yet enough for your '
+          'own data to count)',
+        ),
+      );
     });
 
     test('formula-only why gives the reason', () {

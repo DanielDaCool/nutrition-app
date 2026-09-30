@@ -10,7 +10,8 @@ Pure Dart in `lib/features/targets/engine/`. No Flutter or DB imports. All numbe
 - Intake per day with a `fullyLogged` flag. Only fully-logged days count.
 - Previous accepted target (may be null): its maintenance, and — decoded from its stored
   explanation, when readable — its phase-start day, weekly rate, formula, maintenance mode,
-  and Kalman state (§3). A row with no readable explanation (e.g. a check-in "skip", or one
+  and Kalman state (§3). A check-in "skip" row carries the kept target's explanation forward
+  (see §6), so it reads like the target it kept. A row with no readable explanation (e.g. one
   from before this design) is treated the same as no previous target for these fields, which
   safely starts a fresh phase and prior rather than crashing.
 
@@ -101,7 +102,13 @@ lean mass the less fat there is to lose.
 - Else deficit = effectiveRatePct/100 × trendKg × kcalPerKg / 7, capped at 25% of maintenance and
   750 kcal (lowered from 1000 — beyond that, lean-mass loss starts showing up under a lifting
   program).
-- target = maintenance − deficit, floored at max(BMR × 1.0, male ? 1500 : 1200).
+- target = maintenance − deficit.
+- In both modes the target is floored at max(BMR × 1.0, male ? 1500 : 1200). The floor used to
+  apply only below goal weight; it now applies in maintenance mode too, as a safety measure — a
+  maintenance estimate dragged down by under-logging must not produce an implausibly low target
+  (e.g. ~775 kcal for someone whose formula maintenance is ~1,290). When maintenance itself is
+  below the floor, the target is the floor in either mode, even though that is above the
+  (probably under-measured) maintenance.
 - Round kcal to nearest 10.
 
 ## 5. Macros
@@ -120,11 +127,17 @@ lean mass the less fat there is to lose.
   and whether capped), Kalman-smoothed measured value and its variance, deficit, floor applied?,
   maintenance mode?.
 - Accepting stores a TargetHistory row with effectiveFrom = today and the explanation as JSON.
+- Skipping stores a copy of the current target's numbers with effectiveFrom = today, and copies
+  the current target's explanation JSON forward with `skipped: true` / `keptFrom: <id>` added, so
+  the next check-in keeps the phase start, rate, formula, maintenance mode and Kalman prior. The
+  Kalman variance grows by one week of process noise (as for any week without a fresh
+  measurement). Older skip rows that hold only the marker are followed back to the kept target.
 
 ## What stays as is
 Mifflin-St Jeor on trend weight; not eating back exercise calories (measured maintenance already
-includes average exercise); the 0.6–1.6× formula clamp; the calorie/macro floors and rounding;
-maintenance mode at or below goal weight; no explicit metabolic-adaptation term (the weekly
+includes average exercise); the 0.6–1.6× formula clamp; the calorie/macro floors and rounding
+(the calorie floor now also covers maintenance mode, see §4); maintenance mode at or below goal
+weight; no explicit metabolic-adaptation term (the weekly
 re-measurement already captures any real drop in expenditure).
 
 ## Tests (required)

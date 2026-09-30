@@ -264,19 +264,146 @@ List<MeasureUnit> sensibleUnits(FoodWeightInfo food, {MeasureUnit? current}) {
   ];
 }
 
-/// Whether [unit] names the food's serving: always for "serving", for
-/// "piece" when the food has a serving, or when the serving's name says the
-/// unit ("1 slice (30 g)", "cup").
-bool _servingFits(FoodWeightInfo food, MeasureUnit? unit) {
-  if (food.servingGrams == null || food.servingGrams! <= 0) return false;
-  if (unit == null || unit == MeasureUnit.serving) return true;
-  if (unit == MeasureUnit.piece) return true;
-  final name = food.servingName;
-  if (name == null) return false;
-  return name
-      .toLowerCase()
-      .split(RegExp(r'[^a-z]+'))
-      .any((w) => unitFromWord(w) == unit);
+/// One amount said in a serving's name: "2 tbsp" in "2 tbsp (32 g)", "slice"
+/// in "slice", "2 eggs" in "portion (2 eggs)". A count of a noun that isn't
+/// a unit ("2 eggs", "1 bar") is a count of pieces.
+class _ServingAmount {
+  const _ServingAmount(this.count, this.unit, this.text, {this.inMain = true});
+
+  final double count;
+
+  /// Null for a weight or volume ("28 g", "1 oz"), which says nothing about
+  /// spoons, slices or pieces.
+  final MeasureUnit? unit;
+
+  /// As written, e.g. "2 tbsp".
+  final String text;
+
+  /// Before any "(": the serving itself rather than what's in it.
+  final bool inMain;
+}
+
+/// Weight and volume words a label may use that the meal parser doesn't.
+const _weightWords = {'oz', 'ounce', 'ounces', 'lb', 'lbs', 'fl', 'floz'};
+
+final _servingToken = RegExp(r'\d+(?:[.,]\d+)?(?:/\d+)?|[a-z]+');
+final _servingFraction = RegExp(r'^(\d+)/(\d+)$');
+
+double? _servingNumber(String t) {
+  final f = _servingFraction.firstMatch(t);
+  if (f != null) {
+    final d = int.parse(f.group(2)!);
+    return d == 0 ? null : int.parse(f.group(1)!) / d;
+  }
+  return double.tryParse(t.replaceAll(',', '.'));
+}
+
+bool _isWeightWord(String w) {
+  final u = unitFromWord(w);
+  return _weightWords.contains(w) || (u != null && u.isMeasured);
+}
+
+/// The amounts a serving's name says, in order.
+List<_ServingAmount> _servingAmounts(String name) {
+  final lower = name.toLowerCase();
+  final paren = lower.indexOf('(');
+  final tokens = _servingToken.allMatches(lower).toList();
+  final out = <_ServingAmount>[];
+  for (var i = 0; i < tokens.length; i++) {
+    final t = tokens[i].group(0)!;
+    final inMain = paren < 0 || tokens[i].start < paren;
+    final n = _servingNumber(t);
+    if (n == null) {
+      // A unit with no number is one of it: "slice", "cup".
+      final u = unitFromWord(t);
+      if (_isWeightWord(t)) {
+        out.add(_ServingAmount(1, null, t, inMain: inMain));
+      } else if (u != null) {
+        out.add(_ServingAmount(1, u, t, inMain: inMain));
+      }
+      continue;
+    }
+    // A number, then what it counts, allowing one describing word between:
+    // "2 tbsp", "2 large slices", "2 eggs", "28 g".
+    MeasureUnit? unit;
+    var weight = false;
+    var end = i;
+    for (var j = i + 1; j < tokens.length && j <= i + 2; j++) {
+      final w = tokens[j].group(0)!;
+      if (_servingNumber(w) != null) break;
+      if (_isWeightWord(w)) {
+        weight = true;
+        end = j;
+        break;
+      }
+      final u = unitFromWord(w);
+      if (u != null) {
+        unit = u;
+        end = j;
+        break;
+      }
+      // A noun that isn't a unit ("eggs", "bar"): a count of pieces, unless
+      // a unit follows ("2 large slices").
+      if (j == i + 1) {
+        unit = MeasureUnit.piece;
+        end = j;
+      }
+    }
+    if (end == i) continue; // a bare number
+    out.add(
+      _ServingAmount(
+        n,
+        weight ? null : unit,
+        lower.substring(tokens[i].start, tokens[end].end),
+        inMain: inMain,
+      ),
+    );
+    i = end;
+  }
+  return out;
+}
+
+/// How much one [unit] of [food] is by its serving: grams per unit, and the
+/// part of the serving's name it was divided from ("2 tbsp") when that isn't
+/// one unit. Null when the serving doesn't say what one [unit] is.
+///
+/// - "serving", or no unit: the whole serving.
+/// - The name counts [unit] ("2 tbsp (32 g)", "1 slice", "slice"): the
+///   serving divided by that count.
+/// - A piece, when the serving is exactly one of something ("1 bar", "cup"),
+///   or for a built-in food whose serving just names the item ("large egg").
+///   A weight ("1 oz (28 g)") says nothing about pieces.
+({double grams, String? from})? _servingPerUnit(
+  FoodWeightInfo food,
+  MeasureUnit? unit,
+) {
+  final g = food.servingGrams;
+  if (g == null || g <= 0) return null;
+  if (unit == null || unit == MeasureUnit.serving) {
+    return (grams: g, from: null);
+  }
+  final name = food.servingName ?? '';
+  final amounts = _servingAmounts(name);
+  for (final a in amounts) {
+    if (a.unit != unit || a.count <= 0) continue;
+    return a.count == 1
+        ? (grams: g, from: null)
+        : (grams: g / a.count, from: a.text);
+  }
+  if (unit == MeasureUnit.piece) {
+    final main = [
+      for (final a in amounts)
+        if (a.inMain) a,
+    ];
+    if (main.isEmpty) {
+      final namesItem =
+          food.servingIsTypical && RegExp('[a-z]').hasMatch(name.toLowerCase());
+      return namesItem ? (grams: g, from: null) : null;
+    }
+    final first = main.first;
+    if (first.unit != null && first.count == 1) return (grams: g, from: null);
+  }
+  return null;
 }
 
 String _fmt(double v) {
@@ -333,8 +460,26 @@ GramsEstimate estimateGrams({
     );
   }
 
-  if (_servingFits(food, unit)) {
-    final g = food.servingGrams!;
+  final perUnit = _servingPerUnit(food, unit);
+  if (perUnit != null && perUnit.from != null) {
+    // Part of the serving: "2 tbsp (32 g)" makes a tbsp 16 g.
+    final per = _perUnit(
+      q,
+      unit!,
+      perUnit.grams,
+      food.servingIsTypical ? WeightConfidence.typical : WeightConfidence.exact,
+    );
+    final whole = _fmt(food.servingGrams!);
+    return GramsEstimate(
+      grams: per.grams,
+      confidence: per.confidence,
+      explanation: food.servingIsTypical
+          ? '${per.explanation} (${perUnit.from} ≈ $whole g)'
+          : '${per.explanation} (label: ${perUnit.from} = $whole g)',
+    );
+  }
+  if (perUnit != null) {
+    final g = perUnit.grams;
     if (food.servingIsTypical) {
       final name = food.servingName ?? 'serving';
       if (unit != null && unitFromWord(name) == unit) {

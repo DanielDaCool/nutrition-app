@@ -36,6 +36,27 @@ class YesterdayPrompt extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     final repo = ref.read(foodRepositoryProvider);
     ref.read(yesterdayPromptAnsweredProvider.notifier).answer(today);
+
+    // Sets yesterday's fully-logged flag, retrying via [onRetry] and showing
+    // a snackbar on failure instead of letting the error go unhandled.
+    Future<void> setFullyLogged(bool value, VoidCallback onRetry) async {
+      try {
+        await repo.setFullyLogged(yesterday, value);
+      } catch (e, st) {
+        debugPrint('Setting yesterday fully-logged failed: $e\n$st');
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text("Couldn't save that."),
+            persist: false,
+            action: SnackBarAction(label: 'Try again', onPressed: onRetry),
+          ),
+        );
+      }
+    }
+
+    void undo() => setFullyLogged(false, undo);
+    void markComplete() => setFullyLogged(true, markComplete);
+
     try {
       await repo.setFullyLogged(yesterday, true);
     } catch (e, st) {
@@ -44,10 +65,7 @@ class YesterdayPrompt extends ConsumerWidget {
         SnackBar(
           content: const Text("Couldn't save that."),
           persist: false,
-          action: SnackBarAction(
-            label: 'Try again',
-            onPressed: () => repo.setFullyLogged(yesterday, true),
-          ),
+          action: SnackBarAction(label: 'Try again', onPressed: markComplete),
         ),
       );
       return;
@@ -58,10 +76,7 @@ class YesterdayPrompt extends ConsumerWidget {
         SnackBar(
           content: const Text('Yesterday marked as complete'),
           persist: false,
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () => repo.setFullyLogged(yesterday, false),
-          ),
+          action: SnackBarAction(label: 'Undo', onPressed: undo),
         ),
       );
   }

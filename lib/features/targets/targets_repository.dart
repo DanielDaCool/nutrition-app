@@ -124,11 +124,25 @@ class TargetsRepository {
 
   /// Skip at check-in: re-stores the current target for today, which marks
   /// the check-in as done without changing any number.
+  ///
+  /// The kept target's own explanation is copied forward (tagged `skipped`)
+  /// so the next check-in still sees the real phase and Kalman state; the
+  /// Kalman variance grows by one week of process noise, like any other week
+  /// without a fresh measurement (docs/engine.md §3).
   Future<void> keepCurrentTarget() async {
     final day = today;
     final current = await latestTarget(day);
     if (current == null) return;
     if (current.effectiveFrom == day) return;
+    final kept = await _explanationMap(current);
+    final variance = (kept?['measuredVarianceKcal2'] as num?)?.toDouble();
+    final explanation = <String, Object?>{
+      ...?kept,
+      if (variance != null)
+        'measuredVarianceKcal2': variance + kProcessNoiseVarianceKcal2,
+      'skipped': true,
+      'keptFrom': current.id,
+    };
     await _saveRow(
       effectiveFrom: day,
       macros: Macros(
@@ -139,8 +153,34 @@ class TargetsRepository {
       ),
       maintenanceKcal: current.maintenanceKcal,
       method: TargetMethod.values[current.method],
-      explanationJson: jsonEncode({'skipped': true, 'keptFrom': current.id}),
+      explanationJson: jsonEncode(explanation),
     );
+  }
+
+  /// The stored explanation of [row] as a JSON map. A skip row written
+  /// before skips copied the explanation forward holds only
+  /// `{'skipped': true, 'keptFrom': id}`; that marker is followed back to the
+  /// target it kept. Null when there is no readable explanation.
+  Future<Map<String, Object?>?> _explanationMap(TargetRecord? row) async {
+    var r = row;
+    // Bounded, in case of a (never expected) cycle of markers.
+    for (var hops = 0; r != null && hops < 20; hops++) {
+      final json = r.explanationJson;
+      if (json == null) return null;
+      final Map<String, Object?> map;
+      try {
+        map = jsonDecode(json) as Map<String, Object?>;
+      } on Object {
+        return null;
+      }
+      if (map.containsKey('formulaKcal')) return map;
+      final keptFrom = map['keptFrom'];
+      if (keptFrom is! int) return null;
+      r = await (db.select(
+        db.targetHistory,
+      )..where((t) => t.id.equals(keptFrom))).getSingleOrNull();
+    }
+    return null;
   }
 
   // Replaces any row for the same effectiveFrom day in one transaction.
@@ -219,16 +259,13 @@ class TargetsRepository {
 
     final previous = await latestTarget(d, before: true);
     Explanation? previousExplanation;
-    final json = previous?.explanationJson;
-    if (json != null) {
+    final map = await _explanationMap(previous);
+    if (map != null) {
       try {
-        previousExplanation = Explanation.fromJson(
-          jsonDecode(json) as Map<String, Object?>,
-        );
+        previousExplanation = Explanation.fromJson(map);
       } on Object {
-        // Not a real explanation (e.g. the check-in "skip" marker, or a
-        // row from before this engine version). Phase/Kalman state falls
-        // back to null below, which starts a fresh phase and prior.
+        // A row from before this engine version that can't be decoded.
+        // Phase/Kalman state falls back to null below (no signal).
       }
     }
     return EngineInput(

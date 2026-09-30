@@ -6,6 +6,10 @@ import 'food_repository.dart';
 import 'off_client.dart';
 import 'remote_food.dart';
 
+/// Whether [code] looks like a product barcode (EAN/UPC/GTIN: 6 to 14
+/// digits), as opposed to e.g. a QR code with a link.
+bool isProductBarcode(String code) => RegExp(r'^\d{6,14}$').hasMatch(code);
+
 /// Result of looking up a scanned barcode.
 sealed class BarcodeResult {
   const BarcodeResult(this.barcode);
@@ -31,6 +35,20 @@ class BarcodeNeedsLabel extends BarcodeResult {
   final String message;
 }
 
+/// The lookup didn't get an answer (offline, rate-limited, server trouble)
+/// or the code isn't a product barcode at all. Not a reason to add a food
+/// from the label: that food would shadow the real Open Food Facts entry for
+/// good. [canRetry] is true for transient failures worth trying again.
+class BarcodeFailed extends BarcodeResult {
+  const BarcodeFailed(
+    super.barcode, {
+    required this.message,
+    this.canRetry = true,
+  });
+  final String message;
+  final bool canRetry;
+}
+
 /// Lookup order: local foods, then Open Food Facts, then "Add from label".
 class BarcodeLookup {
   BarcodeLookup(this._repo, this._off);
@@ -39,18 +57,34 @@ class BarcodeLookup {
   final OffClient _off;
 
   /// Looks up [barcode]. Never throws for API failures: network, rate-limit
-  /// and bad-response errors become a [BarcodeNeedsLabel] with the error
-  /// message. A complete OFF product is saved locally before it's returned.
+  /// and bad-response errors become a [BarcodeFailed] with the error
+  /// message, as does a code that isn't a product barcode. Only a product
+  /// Open Food Facts doesn't have (or has without nutrition) is a
+  /// [BarcodeNeedsLabel]. A complete OFF product is saved locally before
+  /// it's returned.
   Future<BarcodeResult> lookup(String barcode) async {
     final code = barcode.trim();
+    // A food the user saved under this code wins, whatever the code looks
+    // like.
     final local = await _repo.findByBarcode(code);
     if (local != null) return BarcodeFound(code, local, fromCache: true);
+    if (!isProductBarcode(code)) {
+      return BarcodeFailed(
+        code,
+        message: 'That doesn\'t look like a product barcode.',
+        canRetry: false,
+      );
+    }
 
     final RemoteFood? remote;
     try {
       remote = await _off.product(code);
     } on FoodApiException catch (e) {
-      return BarcodeNeedsLabel(code, message: e.message);
+      return BarcodeFailed(
+        code,
+        message: e.message,
+        canRetry: e.kind != FoodApiErrorKind.notFound,
+      );
     }
     if (remote == null) {
       return BarcodeNeedsLabel(
