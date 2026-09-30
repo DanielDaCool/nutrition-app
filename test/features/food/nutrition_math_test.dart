@@ -80,6 +80,21 @@ void main() {
       expect(parseServingGrams(servingSize: '1 cup'), isNull);
       expect(parseServingGrams(servingQuantity: 40), isNull);
     });
+    test('Hebrew words starting with ג are not grams', () {
+      expect(parseServingGrams(servingSize: '1 גביע'), isNull);
+      expect(parseServingGrams(servingSize: '2 גלילים'), isNull);
+      expect(parseServingGrams(servingSize: '1גביע'), isNull);
+      // The unit still needs the text to say grams.
+      expect(
+        parseServingGrams(servingSize: '1 גביע', servingQuantity: 1),
+        isNull,
+      );
+      // Grams in Hebrew still work, spelled out or abbreviated.
+      expect(parseServingGrams(servingSize: '1 גביע (200 גרם)'), 200);
+      expect(parseServingGrams(servingSize: '1 גביע (150 ג)'), 150);
+      expect(parseServingGrams(servingSize: '30ג'), 30);
+      expect(parseServingGrams(servingSize: '2 גלילים (40 ג\')'), 40);
+    });
   });
 
   test('evenServings: whole or half servings only', () {
