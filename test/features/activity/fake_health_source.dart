@@ -6,9 +6,22 @@ import 'package:nutrition_app/features/activity/health_source.dart';
 /// In-memory [HealthSource] that records what was asked of it.
 class FakeHealthSource implements HealthSource {
   HcAvailability availabilityValue = HcAvailability.available;
+
+  /// Default for all three granular permissions below, unless overridden.
   bool permissionsGranted = true;
+
+  /// Set to override the steps permission independently of
+  /// [permissionsGranted] (e.g. to test one permission declined while
+  /// another is granted).
+  bool? stepsPermissionOverride;
+  bool? workoutPermissionOverride;
+  bool? activeCaloriesPermissionOverride;
+
   bool historyAvailable = true;
   bool historyAuthorized = false;
+
+  bool backgroundAvailable = true;
+  bool backgroundAuthorized = false;
 
   /// Granted when requested (simulates the user tapping "Allow").
   bool grantOnRequest = true;
@@ -29,6 +42,7 @@ class FakeHealthSource implements HealthSource {
   int availabilityCalls = 0;
   int requestPermissionCalls = 0;
   int requestHistoryCalls = 0;
+  int requestBackgroundCalls = 0;
   int installCalls = 0;
   final List<(DateTime, DateTime)> stepCalls = [];
   final List<(DateTime, DateTime)> workoutCalls = [];
@@ -41,13 +55,31 @@ class FakeHealthSource implements HealthSource {
   }
 
   @override
-  Future<bool> hasPermissions() async => permissionsGranted;
+  Future<bool> hasPermissions() async =>
+      await hasStepsPermission() || await hasWorkoutPermission();
+
+  @override
+  Future<bool> hasStepsPermission() async =>
+      stepsPermissionOverride ?? permissionsGranted;
+
+  @override
+  Future<bool> hasWorkoutPermission() async =>
+      workoutPermissionOverride ?? permissionsGranted;
+
+  @override
+  Future<bool> hasActiveCaloriesPermission() async =>
+      activeCaloriesPermissionOverride ?? permissionsGranted;
 
   @override
   Future<bool> requestPermissions() async {
     requestPermissionCalls++;
-    if (grantOnRequest) permissionsGranted = true;
-    return permissionsGranted;
+    if (grantOnRequest) {
+      permissionsGranted = true;
+      stepsPermissionOverride = null;
+      workoutPermissionOverride = null;
+      activeCaloriesPermissionOverride = null;
+    }
+    return hasPermissions();
   }
 
   @override
@@ -64,6 +96,19 @@ class FakeHealthSource implements HealthSource {
   }
 
   @override
+  Future<bool> isBackgroundAvailable() async => backgroundAvailable;
+
+  @override
+  Future<bool> isBackgroundAuthorized() async => backgroundAuthorized;
+
+  @override
+  Future<bool> requestBackgroundAuthorization() async {
+    requestBackgroundCalls++;
+    if (grantOnRequest) backgroundAuthorized = true;
+    return backgroundAuthorized;
+  }
+
+  @override
   Future<int?> totalSteps(DateTime start, DateTime end) async {
     stepCalls.add((start, end));
     final key = dayKeyOf(start);
@@ -73,9 +118,7 @@ class FakeHealthSource implements HealthSource {
   @override
   Future<double?> totalActiveCalories(DateTime start, DateTime end) async {
     final key = dayKeyOf(start);
-    return activeCaloriesByDay.containsKey(key)
-        ? activeCaloriesByDay[key]
-        : 0;
+    return activeCaloriesByDay.containsKey(key) ? activeCaloriesByDay[key] : 0;
   }
 
   @override

@@ -55,18 +55,45 @@ abstract interface class HealthSource {
   /// Whether Health Connect is installed and usable on this phone.
   Future<HcAvailability> availability();
 
-  /// True when read access to steps and exercise sessions is granted.
+  /// True when read access to steps or exercise sessions is granted (the two
+  /// are requested and checked independently — see [hasStepsPermission] and
+  /// [hasWorkoutPermission] — so this is true as soon as either one is).
   Future<bool> hasPermissions();
+
+  /// True when read access to step counts is granted, on its own.
+  Future<bool> hasStepsPermission();
+
+  /// True when read access to exercise sessions is granted, on its own.
+  /// Health Connect reads a session's distance and calorie sub-records along
+  /// with it, so this also requires those to be granted (see
+  /// `HealthPackageSource`'s comment on `_workoutTypes`).
+  Future<bool> hasWorkoutPermission();
+
+  /// True when read access to active-energy-burned records is granted, on
+  /// its own.
+  Future<bool> hasActiveCaloriesPermission();
 
   /// Shows the Health Connect permission screen for steps + exercise (read).
   Future<bool> requestPermissions();
 
   /// Whether the "read data older than 30 days" feature exists on this phone.
   Future<bool> isHistoryAvailable();
+
   /// Whether the history permission has been granted.
   Future<bool> isHistoryAuthorized();
+
   /// Shows the history permission screen; true when granted.
   Future<bool> requestHistoryAuthorization();
+
+  /// Whether the "read health data while the app isn't running" feature
+  /// exists on this phone (Health Connect's background-read permission).
+  Future<bool> isBackgroundAvailable();
+
+  /// Whether the background-read permission has been granted.
+  Future<bool> isBackgroundAuthorized();
+
+  /// Shows the background-read permission screen; true when granted.
+  Future<bool> requestBackgroundAuthorization();
 
   /// Total steps in [start, end). Null when the read failed.
   Future<int?> totalSteps(DateTime start, DateTime end);

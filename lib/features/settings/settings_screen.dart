@@ -248,6 +248,9 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
   double _proteinPerKg = 1.8;
   int _weekday = DateTime.sunday;
   bool _loaded = false;
+
+  /// `updatedAt` of the profile row the fields were last loaded from.
+  DateTime? _loadedUpdatedAt;
   bool _saving = false;
   bool _editing = false;
   String? _birthError;
@@ -263,6 +266,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     if (_loaded) return;
     _loaded = true;
     if (p == null) return;
+    _loadedUpdatedAt = p.updatedAt;
     _sex = Sex.values[p.sex];
     _birthDate = p.birthDate;
     _height.text = _num(p.heightCm);
@@ -406,6 +410,21 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
 
   @override
   Widget build(BuildContext context) {
+    // Reload the fields when the stored profile appears or changes while
+    // they aren't being edited: e.g. this form was built (empty) before
+    // first-run setup saved a profile, or the profile was saved elsewhere.
+    // Without this the form would keep stale defaults, and saving it would
+    // overwrite the real profile with them.
+    ref.listen<AsyncValue<Profile?>>(profileProvider, (_, next) {
+      final p = next.value;
+      if (p == null || _editing || _saving) return;
+      if (_loaded && p.updatedAt == _loadedUpdatedAt) return;
+      setState(() {
+        _loaded = false;
+        _birthError = null;
+        _load(p);
+      });
+    });
     final profile = ref.watch(profileProvider);
     if (profile.isLoading && !_loaded) {
       return const Padding(
@@ -428,7 +447,6 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     final trendKg = ref.watch(weightTrendProvider).value?.lastOrNull?.trendKg;
     final goalKg = _parse(_goal.text);
     final atGoal = trendKg != null && goalKg != null && trendKg <= goalKg;
-    final rateKg = trendKg == null ? null : trendKg * _ratePct / 100;
     final theme = Theme.of(context);
 
     // Faster loss is only capped once there's a weight, height and birth
@@ -450,7 +468,12 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
       rateMax = maxWeeklyRatePct(bmi: bmi, bodyFatPercent: bodyFat);
     }
     final effectiveRateMax = rateMax ?? 1.0;
-    if (_ratePct > effectiveRateMax) _ratePct = effectiveRateMax;
+    // Shown (and used by the engine) capped, but the stored choice isn't
+    // changed unless the user moves the slider: silently lowering it would
+    // look like a rate change to the engine and restart the diet phase.
+    final shownRatePct = math.min(_ratePct, effectiveRateMax);
+    final rateOverCap = _ratePct > effectiveRateMax;
+    final rateKg = trendKg == null ? null : trendKg * shownRatePct / 100;
 
     return Form(
       key: _formKey,
@@ -584,30 +607,32 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
             Text(
               atGoal
                   ? "You're at your goal, targets will hold your weight"
-                  : 'Weekly loss rate: ${_ratePct.toStringAsFixed(2)} % per '
+                  : 'Weekly loss rate: ${shownRatePct.toStringAsFixed(2)} % per '
                         'week${rateKg == null ? '' : ' (≈ ${rateKg.toStringAsFixed(2)} kg/week)'}',
               key: const Key('rateText'),
             ),
             Slider(
               key: const Key('weeklyRate'),
-              value: _ratePct,
+              value: shownRatePct,
               min: 0.25,
               max: effectiveRateMax,
               divisions: ((effectiveRateMax - 0.25) / 0.05).round(),
-              label: '${_ratePct.toStringAsFixed(2)} %',
+              label: '${shownRatePct.toStringAsFixed(2)} %',
               onChanged: locked ? null : (v) => setState(() => _ratePct = v),
             ),
             if (rateMax != null && rateMax < 1.0)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'Capped at ${rateMax.toStringAsFixed(2)} % for now, based '
+                  '${rateOverCap ? 'Your chosen ${_ratePct.toStringAsFixed(2)} % is capped' : 'Capped'}'
+                  ' at ${rateMax.toStringAsFixed(2)} % for now, based '
                   'on your current weight and height — faster loss costs '
                   'more muscle the leaner you are.',
+                  key: const Key('rateCapNote'),
                   style: theme.textTheme.bodySmall,
                 ),
               ),
-            if (_ratePct > 0.75)
+            if (shownRatePct > 0.75)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(

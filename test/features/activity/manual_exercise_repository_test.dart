@@ -11,55 +11,61 @@ void main() {
   setUp(() => db = openTestDatabase());
   tearDown(() => db.close());
 
-  test('a manual exercise shows up in loadActivityRange as a workout', () async {
-    await addManualExercise(
-      db,
-      dayKey: '2026-09-25',
-      activityName: 'Cycling, moderate',
-      durationMin: 30,
-      kcal: 320,
-      metValue: 8.0,
-      now: now,
-    );
+  test(
+    'a manual exercise shows up in loadActivityRange as a workout',
+    () async {
+      await addManualExercise(
+        db,
+        dayKey: '2026-09-25',
+        activityName: 'Cycling, moderate',
+        durationMin: 30,
+        kcal: 320,
+        metValue: 8.0,
+        now: now,
+      );
 
-    final days = await loadActivityRange(db, '2026-09-25', '2026-09-25');
-    expect(days, hasLength(1));
-    expect(days.single.workouts, hasLength(1));
-    final w = days.single.workouts.single;
-    expect(w.title, 'Cycling, moderate');
-    expect(w.isManual, isTrue);
-    expect(w.kcal, 320);
-    expect(w.duration, const Duration(minutes: 30));
-    expect(w.id, startsWith('manual-'));
-  });
+      final days = await loadActivityRange(db, '2026-09-25', '2026-09-25');
+      expect(days, hasLength(1));
+      expect(days.single.workouts, hasLength(1));
+      final w = days.single.workouts.single;
+      expect(w.title, 'Cycling, moderate');
+      expect(w.isManual, isTrue);
+      expect(w.kcal, 320);
+      expect(w.duration, const Duration(minutes: 30));
+      expect(w.id, startsWith('manual-'));
+    },
+  );
 
-  test('merges with Health Connect workouts on the same day, sorted by time', () async {
-    await db
-        .into(db.workouts)
-        .insert(
-          WorkoutsCompanion.insert(
-            id: 'hc1',
-            dayKey: '2026-09-25',
-            title: 'Strength training',
-            startTime: DateTime(2026, 9, 25, 18),
-            endTime: DateTime(2026, 9, 25, 18, 45),
-            syncedAt: now,
-          ),
-        );
-    await addManualExercise(
-      db,
-      dayKey: '2026-09-25',
-      activityName: 'Treadmill walk',
-      durationMin: 20,
-      kcal: 100,
-      metValue: 3.5,
-      now: DateTime(2026, 9, 25, 7),
-    );
+  test(
+    'merges with Health Connect workouts on the same day, sorted by time',
+    () async {
+      await db
+          .into(db.workouts)
+          .insert(
+            WorkoutsCompanion.insert(
+              id: 'hc1',
+              dayKey: '2026-09-25',
+              title: 'Strength training',
+              startTime: DateTime(2026, 9, 25, 18),
+              endTime: DateTime(2026, 9, 25, 18, 45),
+              syncedAt: now,
+            ),
+          );
+      await addManualExercise(
+        db,
+        dayKey: '2026-09-25',
+        activityName: 'Treadmill walk',
+        durationMin: 20,
+        kcal: 100,
+        metValue: 3.5,
+        now: DateTime(2026, 9, 25, 7),
+      );
 
-    final days = await loadActivityRange(db, '2026-09-25', '2026-09-25');
-    final titles = days.single.workouts.map((w) => w.title).toList();
-    expect(titles, ['Treadmill walk', 'Strength training']);
-  });
+      final days = await loadActivityRange(db, '2026-09-25', '2026-09-25');
+      final titles = days.single.workouts.map((w) => w.title).toList();
+      expect(titles, ['Treadmill walk', 'Strength training']);
+    },
+  );
 
   test('deleteManualExercise removes only that entry', () async {
     await addManualExercise(
@@ -94,6 +100,31 @@ void main() {
     expect(days.single.workouts, hasLength(1));
     expect(days.single.workouts.single.title, 'Swimming');
   });
+
+  test(
+    'a workout logged today for a past day is anchored to that day, not '
+    "today's clock time",
+    () async {
+      // Logged "now" (2026-09-25, 10:30) for a day a week earlier.
+      await addManualExercise(
+        db,
+        dayKey: '2026-09-18',
+        activityName: 'Walk',
+        durationMin: 30,
+        kcal: 150,
+        now: now,
+      );
+
+      final days = await loadActivityRange(db, '2026-09-18', '2026-09-18');
+      final w = days.single.workouts.single;
+      expect(w.start.year, 2026);
+      expect(w.start.month, 9);
+      expect(w.start.day, 18); // the exercise's own day, not the 25th
+      expect(w.start.hour, now.hour);
+      expect(w.start.minute, now.minute);
+      expect(w.end.difference(w.start), const Duration(minutes: 30));
+    },
+  );
 
   test('an overridden estimate is stored with a null metValue', () async {
     await addManualExercise(

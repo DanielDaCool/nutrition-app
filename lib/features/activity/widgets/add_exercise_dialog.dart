@@ -283,7 +283,18 @@ class _AddExerciseDialogState extends ConsumerState<_AddExerciseDialog> {
                                 ? null
                                 : 'Enter distance or speed';
                           }
-                          return speed > 30 ? 'Too fast' : null;
+                          // The ACSM walking formula (estimateGaitKcal) is
+                          // only valid up to a brisk walking pace; past that
+                          // it roughly halves the true calorie burn, so
+                          // "Walk" is capped here and "Run" should be used
+                          // above it.
+                          final max = _type.gait == Gait.walk ? 8.0 : 30.0;
+                          if (speed > max) {
+                            return _type.gait == Gait.walk
+                                ? 'Too fast for a walk - use Run'
+                                : 'Too fast';
+                          }
+                          return null;
                         },
                       ),
                     ),
