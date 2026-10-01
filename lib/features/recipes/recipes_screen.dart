@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../core/day_key.dart';
 import '../../domain/models.dart';
+import 'recipe_filters.dart';
 import 'recipes_providers.dart';
 
 const _categories = [Meal.breakfast, Meal.lunch, Meal.dinner, Meal.snack];
@@ -19,24 +20,234 @@ String _categoryLabel(Meal m) => switch (m) {
   Meal.snack => 'Snacks',
 };
 
-/// Recipes tab: recommendations plus a browsable catalog by meal category.
-class RecipesScreen extends ConsumerWidget {
+/// Recipes tab: recommendations plus a browsable, searchable, filterable
+/// catalog by meal category.
+class RecipesScreen extends ConsumerStatefulWidget {
   const RecipesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RecipesScreen> createState() => _RecipesScreenState();
+}
+
+class _RecipesScreenState extends ConsumerState<RecipesScreen> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: ref.read(recipeFiltersProvider).query,
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final todayKey = dayKeyOf(ref.watch(clockProvider)());
+    final filters = ref.watch(recipeFiltersProvider);
+    final hasGoalFilters =
+        filters.maxKcal != null ||
+        filters.minProteinG != null ||
+        filters.maxCarbsG != null ||
+        filters.maxFatG != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Recipes')),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Search by name or ingredient',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (value) {
+                    ref.read(recipeFiltersProvider.notifier).update(
+                      (f) => f.copyWith(query: value),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                isSelected: hasGoalFilters,
+                onPressed: () => _openGoalFiltersSheet(context),
+                icon: const Icon(Icons.tune),
+                tooltip: 'Filter by goals',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           _RecommendedSection(dayKey: todayKey),
           for (final category in _categories)
             _CategorySection(category: category),
         ],
       ),
+    );
+  }
+
+  void _openGoalFiltersSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const _GoalFiltersSheet(),
+    );
+  }
+}
+
+/// Bottom sheet with numeric inputs for the macro goal bounds: max calories,
+/// min protein, max carbs, max fat. Writes straight into
+/// [recipeFiltersProvider] as the user types.
+class _GoalFiltersSheet extends ConsumerStatefulWidget {
+  const _GoalFiltersSheet();
+
+  @override
+  ConsumerState<_GoalFiltersSheet> createState() => _GoalFiltersSheetState();
+}
+
+class _GoalFiltersSheetState extends ConsumerState<_GoalFiltersSheet> {
+  late final TextEditingController _maxKcal;
+  late final TextEditingController _minProtein;
+  late final TextEditingController _maxCarbs;
+  late final TextEditingController _maxFat;
+
+  @override
+  void initState() {
+    super.initState();
+    final f = ref.read(recipeFiltersProvider);
+    _maxKcal = TextEditingController(text: _fmt(f.maxKcal));
+    _minProtein = TextEditingController(text: _fmt(f.minProteinG));
+    _maxCarbs = TextEditingController(text: _fmt(f.maxCarbsG));
+    _maxFat = TextEditingController(text: _fmt(f.maxFatG));
+  }
+
+  static String _fmt(double? v) => v == null ? '' : v.round().toString();
+
+  @override
+  void dispose() {
+    _maxKcal.dispose();
+    _minProtein.dispose();
+    _maxCarbs.dispose();
+    _maxFat.dispose();
+    super.dispose();
+  }
+
+  void _apply() {
+    ref.read(recipeFiltersProvider.notifier).update(
+      (f) => f.copyWith(
+        maxKcal: double.tryParse(_maxKcal.text),
+        clearMaxKcal: double.tryParse(_maxKcal.text) == null,
+        minProteinG: double.tryParse(_minProtein.text),
+        clearMinProteinG: double.tryParse(_minProtein.text) == null,
+        maxCarbsG: double.tryParse(_maxCarbs.text),
+        clearMaxCarbsG: double.tryParse(_maxCarbs.text) == null,
+        maxFatG: double.tryParse(_maxFat.text),
+        clearMaxFatG: double.tryParse(_maxFat.text) == null,
+      ),
+    );
+  }
+
+  void _clearAll() {
+    setState(() {
+      _maxKcal.clear();
+      _minProtein.clear();
+      _maxCarbs.clear();
+      _maxFat.clear();
+    });
+    ref.read(recipeFiltersProvider.notifier).update(
+      (f) => RecipeFilters(query: f.query),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        16 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Filter by goals', style: theme.textTheme.titleLarge),
+              TextButton(onPressed: _clearAll, child: const Text('Clear')),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _GoalField(
+            label: 'Max calories (kcal)',
+            controller: _maxKcal,
+            onChanged: (_) => _apply(),
+          ),
+          const SizedBox(height: 12),
+          _GoalField(
+            label: 'Min protein (g)',
+            controller: _minProtein,
+            onChanged: (_) => _apply(),
+          ),
+          const SizedBox(height: 12),
+          _GoalField(
+            label: 'Max carbs (g)',
+            controller: _maxCarbs,
+            onChanged: (_) => _apply(),
+          ),
+          const SizedBox(height: 12),
+          _GoalField(
+            label: 'Max fat (g)',
+            controller: _maxFat,
+            onChanged: (_) => _apply(),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoalField extends StatelessWidget {
+  const _GoalField({
+    required this.label,
+    required this.controller,
+    required this.onChanged,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      onChanged: onChanged,
     );
   }
 }
@@ -111,7 +322,8 @@ class _CategorySection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final recipes = ref.watch(recipesByCategoryProvider(category));
+    final recipes = ref.watch(filteredRecipesByCategoryProvider(category));
+    final hasFilters = !ref.watch(recipeFiltersProvider).isEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -122,7 +334,7 @@ class _CategorySection extends ConsumerWidget {
           const SizedBox(height: 8),
           if (recipes.isEmpty)
             Text(
-              'No recipes yet',
+              hasFilters ? 'No recipes match' : 'No recipes yet',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
