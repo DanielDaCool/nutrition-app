@@ -4,7 +4,21 @@ library;
 
 import 'package:nutrition_app/domain/models.dart';
 
+import 'recipe_catalog_extra_breakfast_lunch.dart';
+import 'recipe_catalog_extra_dinner_snack.dart';
+
+/// The full bundled catalog: the original curated set plus the later
+/// additions, kept in separate files so they could be generated in
+/// parallel without merge conflicts.
 const List<Recipe> recipeCatalog = [
+  ..._coreCatalog,
+  ...recipeCatalogExtraBreakfast,
+  ...recipeCatalogExtraLunch,
+  ...recipeCatalogExtraDinner,
+  ...recipeCatalogExtraSnack,
+];
+
+const List<Recipe> _coreCatalog = [
   // --- Breakfast ---
   Recipe(
     id: 'breakfast-1',
