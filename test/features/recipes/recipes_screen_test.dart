@@ -36,7 +36,21 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Breakfast'), findsOneWidget);
     expect(find.text('Lunch'), findsOneWidget);
+
+    // The catalog now has 25 recipes per category, so Dinner/Snacks sit
+    // past the initial cache extent and need scrolling into view.
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('Dinner'),
+      500,
+      scrollable: scrollable,
+    );
     expect(find.text('Dinner'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Snacks'),
+      500,
+      scrollable: scrollable,
+    );
     expect(find.text('Snacks'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
