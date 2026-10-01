@@ -158,3 +158,25 @@ class TrendPoint {
   /// The actual weigh-in on this day, if there was one.
   final double? scaleKg;
 }
+
+/// A bundled recipe suggestion: ingredients, steps, and the macros for one
+/// serving. Static catalog data, not stored in the DB.
+class Recipe {
+  const Recipe({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.servings,
+    required this.perServing,
+    required this.ingredients,
+    required this.steps,
+  });
+
+  final String id;
+  final String name;
+  final Meal category; // reuse the existing Meal enum (breakfast/lunch/dinner/snack)
+  final int servings;
+  final Macros perServing;
+  final List<String> ingredients;
+  final List<String> steps;
+}
