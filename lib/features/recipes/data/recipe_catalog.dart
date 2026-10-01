@@ -1,0 +1,125 @@
+// PLACEHOLDER: minimal stand-in for the sibling task's real catalog, just
+// enough to compile and test the recipes UI against. Will be overwritten
+// when that task's file is merged in.
+import '../../../domain/models.dart';
+
+const List<Recipe> recipeCatalog = [
+  Recipe(
+    id: 'breakfast-oats',
+    name: 'Overnight oats',
+    category: Meal.breakfast,
+    servings: 1,
+    perServing: Macros(kcal: 350, proteinG: 15, fatG: 10, carbsG: 50),
+    ingredients: ['80g rolled oats', '200ml milk', '1 tbsp honey', 'Berries'],
+    steps: [
+      'Combine oats and milk in a jar.',
+      'Stir in honey.',
+      'Refrigerate overnight.',
+      'Top with berries before eating.',
+    ],
+  ),
+  Recipe(
+    id: 'breakfast-eggs',
+    name: 'Scrambled eggs on toast',
+    category: Meal.breakfast,
+    servings: 1,
+    perServing: Macros(kcal: 400, proteinG: 24, fatG: 20, carbsG: 28),
+    ingredients: ['3 eggs', '2 slices bread', '1 tsp butter', 'Salt, pepper'],
+    steps: [
+      'Whisk the eggs with salt and pepper.',
+      'Melt butter in a pan over low heat.',
+      'Cook eggs, stirring gently, until just set.',
+      'Serve on toasted bread.',
+    ],
+  ),
+  Recipe(
+    id: 'lunch-chicken-salad',
+    name: 'Chicken salad bowl',
+    category: Meal.lunch,
+    servings: 2,
+    perServing: Macros(kcal: 450, proteinG: 40, fatG: 18, carbsG: 30),
+    ingredients: [
+      '300g chicken breast',
+      'Mixed greens',
+      'Cherry tomatoes',
+      'Olive oil',
+      'Lemon juice',
+    ],
+    steps: [
+      'Grill the chicken and slice it.',
+      'Toss greens and tomatoes with olive oil and lemon juice.',
+      'Top with chicken and serve.',
+    ],
+  ),
+  Recipe(
+    id: 'lunch-wrap',
+    name: 'Turkey wrap',
+    category: Meal.lunch,
+    servings: 1,
+    perServing: Macros(kcal: 420, proteinG: 28, fatG: 14, carbsG: 45),
+    ingredients: ['1 tortilla', '120g turkey', 'Lettuce', 'Hummus'],
+    steps: [
+      'Spread hummus on the tortilla.',
+      'Layer turkey and lettuce.',
+      'Roll tightly and slice in half.',
+    ],
+  ),
+  Recipe(
+    id: 'dinner-salmon',
+    name: 'Baked salmon with vegetables',
+    category: Meal.dinner,
+    servings: 2,
+    perServing: Macros(kcal: 520, proteinG: 38, fatG: 26, carbsG: 25),
+    ingredients: [
+      '2 salmon fillets',
+      'Broccoli',
+      'Carrots',
+      'Olive oil',
+      'Garlic',
+    ],
+    steps: [
+      'Preheat the oven to 200C.',
+      'Toss vegetables with olive oil and garlic on a tray.',
+      'Place salmon on the tray and season.',
+      'Bake for 18-20 minutes.',
+    ],
+  ),
+  Recipe(
+    id: 'dinner-pasta',
+    name: 'Veggie pasta',
+    category: Meal.dinner,
+    servings: 3,
+    perServing: Macros(kcal: 480, proteinG: 16, fatG: 12, carbsG: 75),
+    ingredients: [
+      '300g pasta',
+      'Zucchini',
+      'Bell peppers',
+      'Tomato sauce',
+      'Parmesan',
+    ],
+    steps: [
+      'Cook the pasta according to package instructions.',
+      'Sauté zucchini and peppers until soft.',
+      'Stir in tomato sauce and simmer.',
+      'Toss with pasta and top with parmesan.',
+    ],
+  ),
+  Recipe(
+    id: 'snack-yogurt',
+    name: 'Greek yogurt with nuts',
+    category: Meal.snack,
+    servings: 1,
+    perServing: Macros(kcal: 220, proteinG: 18, fatG: 10, carbsG: 14),
+    ingredients: ['200g Greek yogurt', '15g mixed nuts', 'Drizzle of honey'],
+    steps: ['Spoon yogurt into a bowl.', 'Top with nuts and honey.'],
+  ),
+  Recipe(
+    id: 'snack-protein-shake',
+    name: 'Protein shake',
+    category: Meal.snack,
+    servings: 1,
+    perServing: Macros(kcal: 180, proteinG: 25, fatG: 3, carbsG: 12),
+    ingredients: ['1 scoop protein powder', '250ml milk', 'Ice'],
+    steps: ['Add everything to a shaker.', 'Shake well and serve cold.'],
+  ),
+];

@@ -144,6 +144,31 @@ class DayActivity {
   final List<WorkoutSummary> workouts;
 }
 
+// PLACEHOLDER: added by the recipes UI agent to unblock itself while the
+// calorie-engine/food-agent sibling task that owns the real Recipe type and
+// `recipeCatalog`/`rankRecipesByFit` lands separately. Keep the shape below
+// in sync with that task; the orchestrator resolves any conflict on merge.
+/// A recipe: ingredients and steps for one dish, with its per-serving macros.
+class Recipe {
+  const Recipe({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.servings,
+    required this.perServing,
+    required this.ingredients,
+    required this.steps,
+  });
+
+  final String id;
+  final String name;
+  final Meal category;
+  final int servings;
+  final Macros perServing;
+  final List<String> ingredients;
+  final List<String> steps;
+}
+
 /// One point of the smoothed weight trend.
 class TrendPoint {
   const TrendPoint({
