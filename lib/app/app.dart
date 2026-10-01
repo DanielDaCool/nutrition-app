@@ -10,6 +10,7 @@ import '../core/day_key.dart';
 import '../features/activity/activity_providers.dart';
 import '../features/dashboard/dashboard_providers.dart';
 import '../features/dashboard/dashboard_screen.dart';
+import '../features/recipes/recipes_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/settings/setup_screen.dart';
 import '../features/targets/targets_providers.dart';
@@ -63,6 +64,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     TodayScreen(),
     WeightScreen(),
     DashboardScreen(),
+    RecipesScreen(),
     SettingsScreen(),
   ];
 
@@ -141,6 +143,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
           const NavigationDestination(
             icon: Icon(Icons.insights_outlined),
             label: 'Dashboard',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.restaurant_menu),
+            label: 'Recipes',
           ),
           NavigationDestination(
             icon: Badge(
