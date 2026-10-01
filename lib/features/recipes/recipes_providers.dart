@@ -7,12 +7,40 @@ import '../../domain/models.dart';
 import '../food/food_providers.dart';
 import '../targets/targets_providers.dart';
 import 'data/recipe_catalog.dart';
+import 'recipe_filters.dart';
 import 'recipe_scoring.dart';
 
 /// Recipes in [category], in catalog order.
 final recipesByCategoryProvider = Provider.family<List<Recipe>, Meal>(
   (ref, category) =>
       recipeCatalog.where((r) => r.category == category).toList(),
+);
+
+/// Current search text and goal bounds for the Recipes tab (ingredient
+/// search + max calories/carbs/fat, min protein). Defaults to no filtering.
+final recipeFiltersProvider =
+    NotifierProvider<RecipeFiltersNotifier, RecipeFilters>(
+  RecipeFiltersNotifier.new,
+);
+
+/// Holds and updates the current [RecipeFilters] for the Recipes tab.
+class RecipeFiltersNotifier extends Notifier<RecipeFilters> {
+  @override
+  RecipeFilters build() => RecipeFilters.empty;
+
+  /// Replaces the current filters with the result of applying [update].
+  void update(RecipeFilters Function(RecipeFilters) update) {
+    state = update(state);
+  }
+}
+
+/// Recipes in [category] that match the current [recipeFiltersProvider].
+final filteredRecipesByCategoryProvider = Provider.family<List<Recipe>, Meal>(
+  (ref, category) {
+    final recipes = ref.watch(recipesByCategoryProvider(category));
+    final filters = ref.watch(recipeFiltersProvider);
+    return applyRecipeFilters(recipes, filters);
+  },
 );
 
 /// Top 5 recipes that best fit what's left of today's targets, for the day
