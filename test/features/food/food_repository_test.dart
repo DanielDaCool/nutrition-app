@@ -320,6 +320,67 @@ void main() {
     );
 
     test(
+      'copyDay copies every meal of the source day, keeping categories, '
+      'without touching the source entries',
+      () async {
+        final a = await repo.createCustom(custom('A'));
+        final b = await repo.createCustom(custom('B'));
+        await repo.logFood(
+          dayKey: '2026-09-24',
+          meal: Meal.breakfast,
+          foodId: a.id,
+          grams: 50,
+        );
+        await repo.logFood(
+          dayKey: '2026-09-24',
+          meal: Meal.breakfast,
+          foodId: b.id,
+          grams: 120,
+        );
+        await repo.logFood(
+          dayKey: '2026-09-24',
+          meal: Meal.lunch,
+          foodId: b.id,
+          grams: 300,
+        );
+
+        final ids = await repo.copyDay(
+          fromDay: '2026-09-24',
+          toDay: '2026-09-25',
+        );
+        expect(ids, hasLength(3));
+
+        final copied = await (db.select(
+          db.foodLogEntries,
+        )..where((t) => t.dayKey.equals('2026-09-25'))).get();
+        expect(copied.map((e) => (e.foodId, e.grams, e.meal)), [
+          (a.id, 50.0, Meal.breakfast.index),
+          (b.id, 120.0, Meal.breakfast.index),
+          (b.id, 300.0, Meal.lunch.index),
+        ]);
+        expect(copied.map((e) => e.kcal), [50.0, 120.0, 300.0]);
+
+        // The source day is untouched (copy, not move).
+        final source = await (db.select(
+          db.foodLogEntries,
+        )..where((t) => t.dayKey.equals('2026-09-24'))).get();
+        expect(source, hasLength(3));
+
+        // Undo deletes exactly the copied rows.
+        await repo.deleteEntries(ids);
+        expect(await db.select(db.foodLogEntries).get(), hasLength(3));
+      },
+    );
+
+    test('copyDay returns nothing when the source day is empty', () async {
+      expect(
+        await repo.copyDay(fromDay: '2026-09-24', toDay: '2026-09-25'),
+        isEmpty,
+      );
+      expect(await db.select(db.foodLogEntries).get(), isEmpty);
+    });
+
+    test(
       'lastGrams and watchLastGrams return the newest entry per food',
       () async {
         final a = await repo.createCustom(custom('A'));
