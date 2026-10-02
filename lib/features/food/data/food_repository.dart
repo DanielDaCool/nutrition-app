@@ -442,6 +442,30 @@ class FoodRepository {
     return batch.entryIds;
   }
 
+  /// Copies everything logged on [fromDay] into [toDay] (same foods, grams
+  /// and meal categories; fresh nutrition snapshots). Returns the new entry
+  /// ids in source order, empty when there was nothing to copy.
+  Future<List<int>> copyDay({
+    required String fromDay,
+    required String toDay,
+  }) async {
+    final source =
+        await (_db.select(_db.foodLogEntries)
+              ..where((t) => t.dayKey.equals(fromDay))
+              ..orderBy([
+                (t) => OrderingTerm.asc(t.createdAt),
+                (t) => OrderingTerm.asc(t.id),
+              ]))
+            .get();
+    if (source.isEmpty) return const [];
+    return _db.transaction(
+      () async => [
+        for (final e in source)
+          await _insertEntry(toDay, _mealOf(e.meal), e.foodId, e.grams),
+      ],
+    );
+  }
+
   /// Grams of the most recent log entry of [foodId], or null if it was never
   /// logged (or every entry was deleted).
   Future<double?> lastGrams(int foodId) async {
