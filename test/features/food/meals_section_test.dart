@@ -404,6 +404,83 @@ void main() {
     await tearDownTree(tester);
   });
 
+  testWidgets('copy whole day from yesterday into an empty day', (
+    tester,
+  ) async {
+    await tester.runAsync(logYesterdayBreakfast);
+    await pumpSection(tester);
+
+    await tester.tap(find.byKey(const Key('copy-day-menu')));
+    await settle(tester);
+    await tester.tap(find.text('Copy whole day from yesterday'));
+    await settle(tester);
+
+    final today = await tester.runAsync(
+      () => (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals(_day))).get(),
+    );
+    expect(today!.map((e) => e.grams), [50, 200]);
+    expect(today.every((e) => e.meal == Meal.breakfast.index), isTrue);
+    expect(find.text("Added 2 items to today's log"), findsOneWidget);
+
+    // The source day (yesterday) keeps its own entries.
+    final yesterday = await tester.runAsync(
+      () => (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals('2026-09-24'))).get(),
+    );
+    expect(yesterday, hasLength(2));
+    await tearDownTree(tester);
+  });
+
+  testWidgets('copy whole day reports an empty source day', (tester) async {
+    await pumpSection(tester);
+    await tester.tap(find.byKey(const Key('copy-day-menu')));
+    await settle(tester);
+    await tester.tap(find.text('Copy whole day from yesterday'));
+    await settle(tester);
+    expect(find.text('Nothing logged yesterday'), findsOneWidget);
+    await tearDownTree(tester);
+  });
+
+  testWidgets('copy whole day from another day uses the date picker', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final f = await repo.createCustom(
+        const CustomFoodInput(
+          name: 'Soup',
+          per100g: Macros(kcal: 50, proteinG: 2, fatG: 1, carbsG: 8),
+        ),
+      );
+      await repo.logFood(
+        dayKey: '2026-09-20',
+        meal: Meal.dinner,
+        foodId: f.id,
+        grams: 400,
+      );
+    });
+    await pumpSection(tester);
+    await tester.tap(find.byKey(const Key('copy-day-menu')));
+    await settle(tester);
+    await tester.tap(find.text('Copy whole day from another day…'));
+    await settle(tester);
+    await tester.tap(find.text('20'));
+    await tester.tap(find.text('OK'));
+    await settle(tester);
+
+    final today = await tester.runAsync(
+      () => (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals(_day))).get(),
+    );
+    expect(today!.single.grams, 400);
+    expect(today.single.meal, Meal.dinner.index);
+    expect(find.text("Added 1 item to today's log"), findsOneWidget);
+    await tearDownTree(tester);
+  });
+
   testWidgets('ErrorRetry shows a short message and retries', (tester) async {
     var retried = 0;
     await tester.pumpWidget(
