@@ -55,12 +55,21 @@ class MealsSection extends ConsumerWidget {
         children: [
           ListTile(
             title: Text('Meals', style: theme.textTheme.titleMedium),
-            trailing: total == null
-                ? null
-                : Text(
-                    '${fmtKcal(total.kcal)} · P ${fmtNum(total.proteinG, decimals: 0)} g',
-                    style: theme.textTheme.titleSmall,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (total != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Text(
+                      '${fmtKcal(total.kcal)} · '
+                      'P ${fmtNum(total.proteinG, decimals: 0)} g',
+                      style: theme.textTheme.titleSmall,
+                    ),
                   ),
+                _CopyDayMenu(dayKey: dayKey),
+              ],
+            ),
           ),
           body,
           const Divider(height: 1),
@@ -143,6 +152,108 @@ Future<void> copyMealWithUndo({
     'Added ${itemsLabel(ids.length)} to ${mealLabel(toMeal)}',
     ids,
   );
+}
+
+/// Copies every entry of [fromDay] into [toDay] and confirms with an Undo
+/// snackbar ("Added 6 items to today's log").
+Future<void> copyDayWithUndo({
+  required ScaffoldMessengerState messenger,
+  required FoodRepository repo,
+  required String fromDay,
+  required String toDay,
+  required String todayKey,
+}) async {
+  final List<int> ids;
+  try {
+    ids = await repo.copyDay(fromDay: fromDay, toDay: toDay);
+  } catch (e, st) {
+    showInfoSnack(messenger, 'Could not copy it. ${friendlyError(e, st)}');
+    return;
+  }
+  if (ids.isEmpty) {
+    final when = switch (otherDayLabel(fromDay, todayKey)) {
+      null => 'today',
+      'Yesterday' => 'yesterday',
+      'Tomorrow' => 'tomorrow',
+      final day => 'on $day',
+    };
+    showInfoSnack(messenger, 'Nothing logged $when');
+    return;
+  }
+  final target = switch (otherDayLabel(toDay, todayKey)) {
+    null => "today's log",
+    final day => "$day's log",
+  };
+  showAddedSnack(
+    messenger,
+    repo,
+    'Added ${itemsLabel(ids.length)} to $target',
+    ids,
+  );
+}
+
+/// Actions in the "copy a whole day" menu.
+enum _CopyDayAction { copyYesterday, copyOtherDay }
+
+/// The "copy whole day" action next to the Meals header's totals.
+class _CopyDayMenu extends ConsumerWidget {
+  const _CopyDayMenu({required this.dayKey});
+
+  final String dayKey;
+
+  Future<void> _copyFrom(
+    BuildContext context,
+    WidgetRef ref,
+    String fromDay,
+  ) => copyDayWithUndo(
+    messenger: ScaffoldMessenger.of(context),
+    repo: ref.read(foodRepositoryProvider),
+    fromDay: fromDay,
+    toDay: dayKey,
+    todayKey: dayKeyOf(ref.read(clockProvider)()),
+  );
+
+  Future<void> _onMenu(
+    BuildContext context,
+    WidgetRef ref,
+    _CopyDayAction action,
+  ) async {
+    switch (action) {
+      case _CopyDayAction.copyYesterday:
+        await _copyFrom(context, ref, addDays(dayKey, -1));
+      case _CopyDayAction.copyOtherDay:
+        final day = startOfDay(dayKey);
+        final picked = await showDatePicker(
+          context: context,
+          helpText: 'Copy day from',
+          initialDate: DateTime(day.year, day.month, day.day - 1),
+          firstDate: DateTime(day.year - 3),
+          lastDate: day,
+        );
+        if (picked == null || !context.mounted) return;
+        await _copyFrom(context, ref, dayKeyOf(picked));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<_CopyDayAction>(
+      key: const Key('copy-day-menu'),
+      tooltip: 'Copy a day into this one',
+      icon: const Icon(Icons.content_copy),
+      onSelected: (a) => _onMenu(context, ref, a),
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: _CopyDayAction.copyYesterday,
+          child: Text('Copy whole day from yesterday'),
+        ),
+        PopupMenuItem(
+          value: _CopyDayAction.copyOtherDay,
+          child: Text('Copy whole day from another day…'),
+        ),
+      ],
+    );
+  }
 }
 
 /// Actions in a meal header's overflow menu.
