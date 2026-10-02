@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/nutrition_widget_background"
+    android:padding="12dp"
+    android:id="@+id/nutrition_widget_container">
+
+    <TextView
+        android:id="@+id/nutrition_widget_kcal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#8C9EFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        tools:text="1,450 kcal left" />
+
+    <TextView
+        android:id="@+id/nutrition_widget_steps"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="#E7E8F0"
+        android:textSize="14sp"
+        tools:text="8,200 steps" />
+</LinearLayout>
