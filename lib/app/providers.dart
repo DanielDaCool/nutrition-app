@@ -1,6 +1,7 @@
-// App-wide Riverpod providers shared by all features: database, clock and
-// the day selected on the Today screen.
+// App-wide Riverpod providers shared by all features: database, clock,
+// platform and the day selected on the Today screen.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/day_key.dart';
@@ -13,6 +14,11 @@ final databaseProvider = Provider<AppDatabase>(
 
 /// Current time source; override in tests to pin "now".
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+/// True in the web build. Android-only features (Health Connect, the home
+/// widget, lock-screen notification, walk reminders, file export) hide
+/// themselves when set; override in tests to check the web layout.
+final isWebProvider = Provider<bool>((ref) => kIsWeb);
 
 /// The day shown on the Today screen (defaults to today; user can browse back).
 final selectedDayProvider = NotifierProvider<SelectedDay, String>(

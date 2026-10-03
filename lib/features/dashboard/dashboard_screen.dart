@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../app/providers.dart';
 import '../../core/day_key.dart';
 import '../activity/activity_providers.dart';
 import '../food/food_providers.dart';
@@ -32,6 +33,8 @@ class DashboardScreen extends ConsumerWidget {
     ref.invalidate(earliestDataDayProvider);
     ref.invalidate(dashboardWindowProvider);
     ref.invalidate(weightTrendProvider);
+    // No Health Connect on web.
+    if (ref.read(isWebProvider)) return;
     try {
       await ref.read(healthSyncProvider.notifier).syncNow();
     } catch (e) {
@@ -48,6 +51,9 @@ class DashboardScreen extends ConsumerWidget {
     final needsProfile = profile.hasValue && profile.value == null;
     final needsWeighIn = weighIns.hasValue && weighIns.value!.isEmpty;
     final setupIncomplete = needsProfile || needsWeighIn;
+    // Steps and workouts come from Health Connect (and the Today activity
+    // card, which web also hides), so web has no data for these charts.
+    final isWeb = ref.watch(isWebProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
@@ -79,8 +85,10 @@ class DashboardScreen extends ConsumerWidget {
               final w? => [
                 _WeightSection(window: w, hideWhenEmpty: setupIncomplete),
                 _IntakeSection(window: w, hideWhenEmpty: setupIncomplete),
-                _StepsSection(window: w, hideWhenEmpty: setupIncomplete),
-                _WorkoutsSection(window: w, hideWhenEmpty: setupIncomplete),
+                if (!isWeb) ...[
+                  _StepsSection(window: w, hideWhenEmpty: setupIncomplete),
+                  _WorkoutsSection(window: w, hideWhenEmpty: setupIncomplete),
+                ],
                 _MaintenanceSection(window: w, hideWhenEmpty: setupIncomplete),
               ],
               null when window.hasError => [

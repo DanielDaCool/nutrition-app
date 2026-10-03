@@ -5,9 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
+import 'package:nutrition_app/features/activity/widgets/activity_card.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
 import 'package:nutrition_app/features/food/data/food_repository.dart';
 import 'package:nutrition_app/features/food/food_providers.dart';
+import 'package:nutrition_app/features/food/widgets/meals_section.dart';
 import 'package:nutrition_app/features/targets/targets_providers.dart';
 import 'package:nutrition_app/features/today/today_screen.dart';
 
@@ -488,6 +490,20 @@ void main() {
         await unmount(tester);
       },
     );
+  });
+
+  testWidgets('the activity card shows on Android and is left out on web', (
+    tester,
+  ) async {
+    await pumpToday(tester);
+    expect(find.byType(ActivityCard), findsOneWidget);
+    await unmount(tester);
+
+    await pumpToday(tester, extra: [isWebProvider.overrideWithValue(true)]);
+    expect(find.byType(ActivityCard), findsNothing);
+    expect(find.byType(MealsSection), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
   });
 }
 

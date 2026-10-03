@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/data/db/database.dart';
+import 'package:nutrition_app/features/activity/widgets/health_connect_tile.dart';
 import 'package:nutrition_app/features/settings/setup_screen.dart';
 import 'package:nutrition_app/features/weight/weight_providers.dart';
 
@@ -92,5 +93,41 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
+  });
+
+  testWidgets('Health Connect is offered on Android but not on web', (
+    tester,
+  ) async {
+    final db = openTestDatabase();
+    addTearDown(db.close);
+
+    for (final isWeb in [false, true]) {
+      await tester.pumpWidget(
+        ProviderScope(
+          key: ValueKey(isWeb),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            clockProvider.overrideWithValue(() => now),
+            isWebProvider.overrideWithValue(isWeb),
+          ],
+          child: const MaterialApp(home: SetupScreen()),
+        ),
+      );
+      await settle(tester);
+      await tester.scrollUntilVisible(
+        find.text("I'll do this later"),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        find.byType(HealthConnectSettingsTile),
+        isWeb ? findsNothing : findsOneWidget,
+      );
+      expect(
+        find.text('Steps and workouts (optional)'),
+        isWeb ? findsNothing : findsOneWidget,
+      );
+    }
+    await tester.pumpWidget(const SizedBox());
   });
 }
