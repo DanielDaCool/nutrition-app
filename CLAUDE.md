@@ -48,9 +48,10 @@ Contract names (keep them; replace stub bodies):
 
 Need a change in a file you don't own (schema, pubspec, manifest, contracts)? Don't edit it: report what and why to the lead.
 
-* Feature hub. Every new user-facing feature must be switchable in Settings → Feature hub:
-   1. Add a value to the `AppFeature` enum in `lib/core/app_features.dart` with a `storageKey`, a short `label` and a one-sentence `description`. Do not pass `baseline` (that is only for the features that existed when the hub was introduced). Set `androidOnly: true` if the feature can't work in the web build.
-   2. Wrap every place the feature shows up (screens, tabs, buttons, cards) in `if (ref.watch(featureEnabledProvider(AppFeature.yourFeature)))` (from `lib/features/settings/feature_flags.dart`). With the switch off, the app must look and behave as if the feature didn't exist.
-   3. Add a widget test that the feature's UI is absent when its flag is off (override `initialFeatureFlagsProvider`).
-Never rename a `storageKey` and only append enum values: the user's on/off choice is stored under that key. Don't touch the Feature hub screen itself; new enum values appear there automatically.
-* PR labels. Label every PR with exactly one of `feature`, `bug fix`, `design`, `docs`, `ci`. A PR labeled `feature` must include steps 1–3 above. Bug fixes, design, docs and CI changes don't get a hub entry.
+* Feature gates. Every PR labeled `feature` must register the feature and gate its UI, so that builds which let the user switch features off (a fork does; this app does not) can hide it. In this app the gate is always on, so this changes nothing here.
+   1. Append a value to the `AppFeature` enum in `lib/core/app_features.dart` with a `storageKey` (stable, never renamed), a short `label`, and a one-sentence `description` of what the feature shows. Set `androidOnly: true` if it can't work in the web build. Only append values; never rename or remove one.
+   2. Wrap every entry point of the feature's UI (tabs, screens, cards, buttons, settings rows) in `if (ref.watch(featureEnabledProvider(AppFeature.yourFeature)))`. With the gate off, the app must look and behave exactly as it did before the feature existed: no dead buttons, no empty gaps, and existing data still works.
+   3. Gate only UI and user-triggered behavior. Never gate database schema changes, migrations, or changes to models and enums: those must always run.
+   4. Add a widget test that overrides `featureEnabledProvider` to return false for the feature, and checks that its UI is gone and the screen still renders without errors.
+Do not add a settings screen or any storage for these gates, and do not change `featureEnabledProvider` itself: here it always returns true.
+* PR labels. Label every PR with exactly one of `feature`, `bug fix`, `design`, `docs`, `ci`. Only `feature` PRs follow the steps above.
