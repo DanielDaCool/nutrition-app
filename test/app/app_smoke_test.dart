@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/app.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
+import 'package:nutrition_app/features/dashboard/dashboard_screen.dart';
+import 'package:nutrition_app/features/recipes/recipes_screen.dart';
+import 'package:nutrition_app/features/settings/feature_flags.dart';
+import 'package:nutrition_app/features/settings/feature_hub.dart';
+import 'package:nutrition_app/features/settings/settings_screen.dart';
 import 'package:nutrition_app/features/settings/setup_screen.dart';
+import 'package:nutrition_app/features/today/today_screen.dart';
 import 'package:nutrition_app/features/weight/weight_providers.dart';
 
 import '../features/activity/fake_health_source.dart';
@@ -16,11 +24,12 @@ import '../helpers/test_db.dart';
 /// Friday.
 final now = DateTime(2026, 9, 25, 9);
 
-Widget app(AppDatabase db) => ProviderScope(
+Widget app(AppDatabase db, {List<Override> extra = const []}) => ProviderScope(
   overrides: [
     databaseProvider.overrideWithValue(db),
     clockProvider.overrideWithValue(() => now),
     healthSourceProvider.overrideWithValue(FakeHealthSource()),
+    ...extra,
   ],
   child: const NutritionApp(),
 );
@@ -271,6 +280,151 @@ void main() {
       tester.element(find.byType(NavigationBar)),
     );
     expect(container.read(selectedDayProvider), '2026-09-25');
+    await unmount(tester);
+  });
+
+  Finder destination(String label) => find.descendant(
+    of: find.byType(NavigationBar),
+    matching: find.widgetWithText(NavigationDestination, label),
+  );
+
+  int selectedIndex(WidgetTester tester) =>
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex;
+
+  testWidgets('the Recipes tab is there by default', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
+    expect(destination('Recipes'), findsOneWidget);
+    expect(find.byType(RecipesScreen, skipOffstage: false), findsOneWidget);
+
+    await tester.tap(destination('Recipes'));
+    await settle(tester);
+    expect(selectedIndex(tester), 3);
+    expect(find.byType(RecipesScreen), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the Recipes tab is left out when switched off', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      app(
+        db,
+        extra: [
+          initialFeatureFlagsProvider.overrideWithValue(const {
+            AppFeature.recipes: false,
+          }),
+        ],
+      ),
+    );
+    await settle(tester);
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    expect(destination('Recipes'), findsNothing);
+    expect(find.byType(RecipesScreen, skipOffstage: false), findsNothing);
+
+    // The remaining tabs still open the right screens.
+    await tester.tap(destination('Settings'));
+    await settle(tester);
+    expect(selectedIndex(tester), 3);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    await tester.tap(destination('Dashboard'));
+    await settle(tester);
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(find.byType(SettingsScreen), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('switching Recipes off in the Feature hub stays on Settings, '
+      'Feature hub', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    await tester.tap(destination('Settings'));
+    await settle(tester);
+    expect(selectedIndex(tester), 4);
+    await tester.tap(find.text('Feature hub'));
+    await tester.pumpAndSettle();
+    expect(find.byType(FeatureHub), findsOneWidget);
+    final settingsState = tester.state(
+      find.byType(DefaultTabController).hitTestable(),
+    );
+
+    await tester.tap(find.byKey(const Key('feature-recipes')));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(destination('Recipes'), findsNothing);
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    // Still on Settings (now the 4th tab), still on its Feature hub tab,
+    // and it is the same Settings state as before, not a rebuilt one.
+    expect(selectedIndex(tester), 3);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byType(FeatureHub), findsOneWidget);
+    expect(find.byKey(const Key('profileForm')).hitTestable(), findsNothing);
+    expect(
+      tester.state(find.byType(DefaultTabController).hitTestable()),
+      same(settingsState),
+    );
+    expect(
+      tester
+          .widget<SwitchListTile>(find.byKey(const Key('feature-recipes')))
+          .value,
+      isFalse,
+    );
+    expect(await tester.runAsync(() => loadFeatureFlags(db)), {
+      AppFeature.recipes: false,
+    });
+
+    // And back on: Recipes returns, Settings → Feature hub is still shown.
+    await tester.tap(find.byKey(const Key('feature-recipes')));
+    await settle(tester);
+    expect(destination('Recipes'), findsOneWidget);
+    expect(selectedIndex(tester), 4);
+    expect(find.byType(FeatureHub), findsOneWidget);
+    expect(
+      tester.state(find.byType(DefaultTabController).hitTestable()),
+      same(settingsState),
+    );
+    await unmount(tester);
+  });
+
+  testWidgets('a tab that is switched off while selected falls back to Today', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    await tester.tap(destination('Recipes'));
+    await settle(tester);
+    expect(selectedIndex(tester), 3);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(NavigationBar)),
+    );
+    await tester.runAsync(
+      () => container
+          .read(featureFlagsProvider.notifier)
+          .setEnabled(AppFeature.recipes, false),
+    );
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(destination('Recipes'), findsNothing);
+    expect(selectedIndex(tester), 0);
+    expect(find.byType(TodayScreen), findsOneWidget);
     await unmount(tester);
   });
 }

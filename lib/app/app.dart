@@ -6,11 +6,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_features.dart';
 import '../core/day_key.dart';
 import '../features/activity/activity_providers.dart';
 import '../features/dashboard/dashboard_providers.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/recipes/recipes_screen.dart';
+import '../features/settings/feature_flags.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/settings/setup_screen.dart';
 import '../features/targets/targets_providers.dart';
@@ -42,6 +44,7 @@ class NutritionApp extends StatelessWidget {
 /// whenever the app returns to the foreground, opens the "Get started" setup
 /// once per app start while there is no profile, badges Settings when a
 /// check-in is due, and jumps Today back to today when its tab is re-tapped.
+/// The Recipes tab is left out while it is switched off in the Feature hub.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -49,9 +52,21 @@ class HomeShell extends ConsumerStatefulWidget {
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
+/// The top-level tabs. The selection is tracked by tab, not by position, so
+/// it stays put when a tab is switched off.
+enum _Tab { today, weight, dashboard, recipes, settings }
+
 class _HomeShellState extends ConsumerState<HomeShell>
     with WidgetsBindingObserver {
-  int _index = 0;
+  _Tab _tab = _Tab.today;
+
+  /// One key per tab, so a page keeps its State (scroll position, Settings'
+  /// inner tab) when another tab is added or removed and it changes position.
+  /// Global keys because IndexedStack wraps its children in unkeyed widgets,
+  /// so a plain ValueKey on the page would not be matched across positions.
+  final _pageKeys = {
+    for (final t in _Tab.values) t: GlobalKey(debugLabel: 'page-${t.name}'),
+  };
 
   /// Setup was already offered in this app session (don't nag after Later).
   bool _setupOffered = false;
@@ -61,13 +76,46 @@ class _HomeShellState extends ConsumerState<HomeShell>
   /// own once the app resumes.
   late String _lastDayKey;
 
-  static const _pages = <Widget>[
-    TodayScreen(),
-    WeightScreen(),
-    DashboardScreen(),
-    RecipesScreen(),
-    SettingsScreen(),
-  ];
+  Widget _page(_Tab tab) {
+    final key = _pageKeys[tab];
+    return switch (tab) {
+      _Tab.today => TodayScreen(key: key),
+      _Tab.weight => WeightScreen(key: key),
+      _Tab.dashboard => DashboardScreen(key: key),
+      _Tab.recipes => RecipesScreen(key: key),
+      _Tab.settings => SettingsScreen(key: key),
+    };
+  }
+
+  NavigationDestination _destination(_Tab tab, {required bool checkInDue}) {
+    return switch (tab) {
+      _Tab.today => const NavigationDestination(
+        icon: Icon(Icons.today),
+        label: 'Today',
+      ),
+      _Tab.weight => const NavigationDestination(
+        icon: Icon(Icons.monitor_weight_outlined),
+        label: 'Weight',
+      ),
+      _Tab.dashboard => const NavigationDestination(
+        icon: Icon(Icons.insights_outlined),
+        label: 'Dashboard',
+      ),
+      _Tab.recipes => const NavigationDestination(
+        icon: Icon(Icons.restaurant_menu),
+        label: 'Recipes',
+      ),
+      _Tab.settings => NavigationDestination(
+        icon: Badge(
+          key: const Key('settingsBadge'),
+          isLabelVisible: checkInDue,
+          child: const Icon(Icons.settings_outlined),
+        ),
+        tooltip: checkInDue ? 'Settings, check-in ready' : null,
+        label: 'Settings',
+      ),
+    };
+  }
 
   @override
   void initState() {
@@ -123,44 +171,35 @@ class _HomeShellState extends ConsumerState<HomeShell>
     });
   }
 
-  void _select(int i) {
-    if (i == 0 && _index == 0) {
+  void _select(_Tab tab) {
+    if (tab == _Tab.today && _tab == _Tab.today) {
       ref.read(selectedDayProvider.notifier).today();
     }
-    setState(() => _index = i);
+    setState(() => _tab = tab);
   }
 
   @override
   Widget build(BuildContext context) {
     final checkInDue = ref.watch(checkInDueProvider).value ?? false;
+    final showRecipes = ref.watch(featureEnabledProvider(AppFeature.recipes));
+    final tabs = [
+      for (final t in _Tab.values)
+        if (t != _Tab.recipes || showRecipes) t,
+    ];
+    // The selected tab was switched off: fall back to Today for good, so it
+    // doesn't jump back when the tab returns.
+    if (!tabs.contains(_tab)) _tab = _Tab.today;
+    final index = tabs.indexOf(_tab);
     return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
+      body: IndexedStack(
+        index: index,
+        children: [for (final t in tabs) _page(t)],
+      ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _select,
+        selectedIndex: index,
+        onDestinationSelected: (i) => _select(tabs[i]),
         destinations: [
-          const NavigationDestination(icon: Icon(Icons.today), label: 'Today'),
-          const NavigationDestination(
-            icon: Icon(Icons.monitor_weight_outlined),
-            label: 'Weight',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            label: 'Dashboard',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.restaurant_menu),
-            label: 'Recipes',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              key: const Key('settingsBadge'),
-              isLabelVisible: checkInDue,
-              child: const Icon(Icons.settings_outlined),
-            ),
-            tooltip: checkInDue ? 'Settings, check-in ready' : null,
-            label: 'Settings',
-          ),
+          for (final t in tabs) _destination(t, checkInDue: checkInDue),
         ],
       ),
     );

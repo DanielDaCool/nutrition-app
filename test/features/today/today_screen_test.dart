@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/widgets/activity_card.dart';
@@ -10,8 +11,10 @@ import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
 import 'package:nutrition_app/features/food/data/food_repository.dart';
 import 'package:nutrition_app/features/food/food_providers.dart';
 import 'package:nutrition_app/features/food/widgets/meals_section.dart';
+import 'package:nutrition_app/features/settings/feature_flags.dart';
 import 'package:nutrition_app/features/targets/targets_providers.dart';
 import 'package:nutrition_app/features/today/today_screen.dart';
+import 'package:nutrition_app/features/today/widgets/yesterday_prompt.dart';
 
 import '../../helpers/test_db.dart';
 
@@ -502,6 +505,58 @@ void main() {
     await pumpToday(tester, extra: [isWebProvider.overrideWithValue(true)]);
     expect(find.byType(ActivityCard), findsNothing);
     expect(find.byType(MealsSection), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
+  });
+
+  testWidgets('the activity card is left out when switched off', (
+    tester,
+  ) async {
+    await pumpToday(
+      tester,
+      extra: [
+        initialFeatureFlagsProvider.overrideWithValue(const {
+          AppFeature.activity: false,
+        }),
+      ],
+    );
+    expect(find.byType(ActivityCard), findsNothing);
+    expect(find.byType(MealsSection), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
+  });
+
+  testWidgets('the yesterday prompt is left out when switched off', (
+    tester,
+  ) async {
+    // Yesterday has food and isn't marked complete: the prompt would show.
+    DayIntake intake(String dayKey) => DayIntake(
+      dayKey: dayKey,
+      total: dayKey == '2026-09-24'
+          ? const Macros(kcal: 1800, proteinG: 0, fatG: 0, carbsG: 0)
+          : Macros.zero,
+      byMeal: const {},
+      fullyLogged: false,
+    );
+    await pumpToday(tester, targets: targets, intakeFor: intake);
+    expect(find.byType(YesterdayPrompt), findsOneWidget);
+    expect(find.byKey(const Key('yesterdayPrompt')), findsOneWidget);
+    await unmount(tester);
+
+    await pumpToday(
+      tester,
+      targets: targets,
+      intakeFor: intake,
+      extra: [
+        initialFeatureFlagsProvider.overrideWithValue(const {
+          AppFeature.yesterdayPrompt: false,
+        }),
+      ],
+    );
+    expect(find.byType(YesterdayPrompt), findsNothing);
+    expect(find.text('Was yesterday complete?'), findsNothing);
+    // The rest of Today is untouched.
+    expect(find.byType(ActivityCard), findsOneWidget);
     expect(tester.takeException(), isNull);
     await unmount(tester);
   });

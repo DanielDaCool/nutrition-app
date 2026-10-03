@@ -10,10 +10,12 @@ import 'package:workmanager/workmanager.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
+import 'core/app_features.dart';
 import 'core/persistent_storage.dart';
 import 'data/db/database.dart';
 import 'features/activity/walk_reminder_background.dart';
 import 'features/activity/walk_reminder_notifications.dart';
+import 'features/settings/feature_flags.dart';
 
 /// Opens the SQLite database and injects it via [databaseProvider].
 void main() async {
@@ -33,9 +35,20 @@ void main() async {
   // The whole database lives in browser storage on web; ask the browser not
   // to evict it. Not awaited, so it can never delay or break startup.
   if (kIsWeb) unawaited(requestPersistentStorage());
+  // Loaded before the first frame so a feature the user switched off never
+  // flashes on screen. If it fails, everything stays on.
+  var featureFlags = const <AppFeature, bool>{};
+  try {
+    featureFlags = await loadFeatureFlags(db);
+  } catch (e, s) {
+    debugPrint('Loading feature flags failed: $e\n$s');
+  }
   runApp(
     ProviderScope(
-      overrides: [databaseProvider.overrideWithValue(db)],
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        initialFeatureFlagsProvider.overrideWithValue(featureFlags),
+      ],
       child: const NutritionApp(),
     ),
   );

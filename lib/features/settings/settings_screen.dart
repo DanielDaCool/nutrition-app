@@ -1,6 +1,6 @@
 // OWNER: engine agent (A). Contract stub: keep the class name and constructor.
-// Settings tab: current targets, check-in entry, profile form, Health
-// Connect and data export.
+// Settings tab: "Personal details" (current targets, check-in entry, profile
+// form, Health Connect and data export) and the "Feature hub".
 
 import 'dart:math' as math;
 
@@ -21,13 +21,67 @@ import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
 import 'data_export.dart';
 import 'error_retry.dart';
+import 'feature_hub.dart';
 
-/// The Settings tab of the home shell.
+/// The Settings tab of the home shell: "Personal details" (targets, check-in,
+/// profile, Health Connect, export) and the "Feature hub" ([FeatureHub]).
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Settings'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Personal details'),
+              Tab(text: 'Feature hub'),
+            ],
+          ),
+        ),
+        // Kept alive so a half-edited profile survives a look at the other
+        // tab.
+        body: const TabBarView(
+          children: [
+            _KeepAlive(child: _PersonalDetails()),
+            _KeepAlive(child: FeatureHub()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Keeps [child]'s state while its tab is off screen.
+class _KeepAlive extends StatefulWidget {
+  const _KeepAlive({required this.child});
+  final Widget child;
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
+/// The "Personal details" tab.
 ///
 /// Until a profile exists the profile form comes first, since nothing else
 /// works without it.
-class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({super.key});
+class _PersonalDetails extends ConsumerWidget {
+  const _PersonalDetails();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,38 +96,35 @@ class SettingsScreen extends ConsumerWidget {
       CurrentTargetsCard(key: Key('targetsCard')),
       CheckInTile(key: Key('checkInTile')),
     ];
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          if (missingProfile) ...[
-            const Padding(
-              key: Key('startHere'),
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Text(
-                'Start here: fill in your profile to get your daily targets.',
-              ),
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        if (missingProfile) ...[
+          const Padding(
+            key: Key('startHere'),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Text(
+              'Start here: fill in your profile to get your daily targets.',
             ),
-            ...profileSection,
-            const Divider(),
-            ...targetsSection,
-          ] else ...[
-            ...targetsSection,
-            const Divider(),
-            ...profileSection,
-          ],
-          // Health Connect, walk reminders and file export are Android-only;
-          // the step goal only applies to Health Connect steps.
-          if (!isWeb) ...const [
-            Divider(),
-            HealthConnectSettingsTile(),
-            StepGoalSettingsTile(),
-            WalkReminderSettingsTile(),
-            ExportDataTile(),
-          ],
+          ),
+          ...profileSection,
+          const Divider(),
+          ...targetsSection,
+        ] else ...[
+          ...targetsSection,
+          const Divider(),
+          ...profileSection,
         ],
-      ),
+        // Health Connect, walk reminders and file export are Android-only;
+        // the step goal only applies to Health Connect steps.
+        if (!isWeb) ...const [
+          Divider(),
+          HealthConnectSettingsTile(),
+          StepGoalSettingsTile(),
+          WalkReminderSettingsTile(),
+          ExportDataTile(),
+        ],
+      ],
     );
   }
 }

@@ -9,9 +9,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
+import '../../core/app_features.dart';
 import '../../core/day_key.dart';
 import '../activity/activity_providers.dart';
 import '../food/food_providers.dart';
+import '../settings/feature_flags.dart';
 import '../settings/settings_screen.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weigh_in_actions.dart';
@@ -52,8 +54,9 @@ class DashboardScreen extends ConsumerWidget {
     final needsWeighIn = weighIns.hasValue && weighIns.value!.isEmpty;
     final setupIncomplete = needsProfile || needsWeighIn;
     // Steps and workouts come from Health Connect (and the Today activity
-    // card, which web also hides), so web has no data for these charts.
-    final isWeb = ref.watch(isWebProvider);
+    // card, which web also hides), so web has no data for these charts. On
+    // Android they can be switched off in Settings → Feature hub.
+    final showActivity = ref.watch(featureEnabledProvider(AppFeature.activity));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
@@ -85,7 +88,7 @@ class DashboardScreen extends ConsumerWidget {
               final w? => [
                 _WeightSection(window: w, hideWhenEmpty: setupIncomplete),
                 _IntakeSection(window: w, hideWhenEmpty: setupIncomplete),
-                if (!isWeb) ...[
+                if (showActivity) ...[
                   _StepsSection(window: w, hideWhenEmpty: setupIncomplete),
                   _WorkoutsSection(window: w, hideWhenEmpty: setupIncomplete),
                 ],
