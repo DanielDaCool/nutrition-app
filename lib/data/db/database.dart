@@ -32,8 +32,20 @@ class AppDatabase extends _$AppDatabase {
   /// Opens on [e]; tests pass an in-memory executor.
   AppDatabase(super.e);
 
-  /// The on-device database file (nutrition.sqlite in app documents).
-  AppDatabase.defaults() : super(driftDatabase(name: 'nutrition'));
+  /// The on-device database file (nutrition.sqlite in app documents). On web
+  /// drift runs sqlite3.wasm in drift_worker.js (both from the drift 2.35.0
+  /// release, in web/) and stores the database in the browser. The URIs are
+  /// relative so they resolve against `<base href>` when served from a subpath.
+  AppDatabase.defaults()
+    : super(
+        driftDatabase(
+          name: 'nutrition',
+          web: DriftWebOptions(
+            sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+            driftWorker: Uri.parse('drift_worker.js'),
+          ),
+        ),
+      );
 
   @override
   int get schemaVersion => 2;
