@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:nutrition_app/features/food/data/remote_food.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/food/data/food_repository.dart';
@@ -42,6 +43,7 @@ void main() {
     WidgetTester tester,
     Widget home, {
     http.Client? client,
+    Set<AppFeature> featuresOff = const {},
   }) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.5;
@@ -54,6 +56,10 @@ void main() {
           foodHttpClientProvider.overrideWithValue(
             client ?? mock((_) => throw StateError('no network in tests')),
           ),
+          if (featuresOff.isNotEmpty)
+            featureEnabledProvider.overrideWith(
+              (ref, f) => !featuresOff.contains(f),
+            ),
         ],
         child: MaterialApp(home: home),
       ),
@@ -432,6 +438,33 @@ void main() {
   });
 
   group('AddFoodScreen', () {
+    testWidgets('the Scan button is left out when scanning is switched off', (
+      tester,
+    ) async {
+      const screen = AddFoodScreen(dayKey: '2026-09-25', meal: Meal.lunch);
+      await pump(tester, screen);
+      expect(find.byKey(const Key('scan-button')), findsOneWidget);
+      final halfWidth = tester
+          .getSize(find.byKey(const Key('describe-button')))
+          .width;
+      await finish(tester);
+
+      await pump(
+        tester,
+        screen,
+        featuresOff: const {AppFeature.barcodeScan},
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('scan-button')), findsNothing);
+      expect(find.text('Scan'), findsNothing);
+      // "Type it" stays and takes the freed width.
+      expect(
+        tester.getSize(find.byKey(const Key('describe-button'))).width,
+        greaterThan(halfWidth * 1.9),
+      );
+      await finish(tester);
+    });
+
     testWidgets('unknown barcode offers Add from label with the barcode', (
       tester,
     ) async {
