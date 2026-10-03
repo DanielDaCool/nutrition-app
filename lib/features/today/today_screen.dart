@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
+import '../../core/app_features.dart';
 import '../../core/day_key.dart';
 import '../activity/widgets/activity_card.dart';
 import '../dashboard/dashboard_providers.dart';
@@ -77,6 +78,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final weighIns = ref.watch(weighInsProvider).value;
     final isToday = dayKey == today;
     final canGoForward = dayKey.compareTo(today) < 0;
+    // Both are behind a feature gate (see featureEnabledProvider).
+    final showActivity = ref.watch(featureEnabledProvider(AppFeature.activity));
+    final showYesterdayPrompt = ref.watch(
+      featureEnabledProvider(AppFeature.yesterdayPrompt),
+    );
 
     final Widget? weight = weighIns == null
         ? null
@@ -141,13 +147,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
             const SizedBox(height: 4),
           ],
-          if (isToday) YesterdayPrompt(today: today),
+          if (isToday && showYesterdayPrompt) YesterdayPrompt(today: today),
           if (isToday && weight != null) weight,
           CalorieCard(dayKey: dayKey),
           if (!isToday && weight != null) weight,
           MealsSection(dayKey: dayKey),
-          // Steps and workouts come from Health Connect, which web lacks.
-          if (!ref.watch(isWebProvider)) ActivityCard(dayKey: dayKey),
+          // Steps and workouts come from Health Connect, which web lacks;
+          // the gate is off there.
+          if (showActivity) ActivityCard(dayKey: dayKey),
         ],
       ),
     );
