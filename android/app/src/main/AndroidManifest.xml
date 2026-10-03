@@ -21,6 +21,13 @@
          rescheduling the periodic background check after a reboot. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- RESEARCH (not shipped in current version): Android 16 "Live Updates" /
+         ProgressStyle promoted notifications. Ignored by the OS below API 36;
+         still declared so the API 36+ path in
+         LiveUpdatesLockScreenNotification.kt can call
+         NotificationManager.canPostPromotedNotifications(). See
+         android/app/src/main/kotlin/.../LiveUpdatesLockScreenNotification.kt. -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS"/>
 
     <application
         android:label="Nutrition"

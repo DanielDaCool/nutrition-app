@@ -20,7 +20,13 @@ val releaseStoreFile = signingValue("storeFile", "ANDROID_KEYSTORE_PATH")
 
 android {
     namespace = "com.danieldacool.nutrition_app"
-    compileSdk = flutter.compileSdkVersion
+    // RESEARCH BRANCH (claude/lockscreen-live-updates-research): bumped past
+    // Flutter's default so Notification.ProgressStyle / "Live Updates" (API 36,
+    // Android 16 "Baklava") symbols are available to compile against. Does NOT
+    // bump targetSdk/minSdk — only the compiled-against API surface changes,
+    // so this is lower-risk than a real targetSdk bump. Don't carry this to
+    // the shipping branch without the lead's sign-off; see LiveUpdatesLockScreenNotification.kt.
+    compileSdk = maxOf(flutter.compileSdkVersion, 36)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
