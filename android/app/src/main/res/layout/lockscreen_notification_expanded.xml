@@ -32,6 +32,35 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
+            android:gravity="end">
+
+            <!-- Own row, zero height when hidden (visibility="gone"), so it
+                 never competes with the steps/goal row below for width —
+                 that competition used to wrap "/ 10,000 steps" onto
+                 several lines and push the big step count off-screen
+                 (found via Remote Control on a real emulator, 5-digit step
+                 counts in the goal-hit state). -->
+            <TextView
+                android:id="@+id/lockscreen_goal_pill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/lockscreen_goal_pill_background"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:text="GOAL HIT"
+                android:textColor="@color/lockscreen_bg"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:gravity="bottom">
 
             <TextView
@@ -55,23 +84,9 @@
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:fontFeatureSettings="tnum"
+                android:singleLine="true"
+                android:ellipsize="end"
                 tools:text="/ 10,000 steps"/>
-
-            <TextView
-                android:id="@+id/lockscreen_goal_pill"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="4dp"
-                android:background="@drawable/lockscreen_goal_pill_background"
-                android:paddingLeft="8dp"
-                android:paddingRight="8dp"
-                android:paddingTop="3dp"
-                android:paddingBottom="3dp"
-                android:text="GOAL HIT"
-                android:textColor="@color/lockscreen_bg"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:visibility="gone"/>
         </LinearLayout>
 
         <LinearLayout
