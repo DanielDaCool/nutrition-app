@@ -406,6 +406,48 @@ void main() {
     await settle(tester);
   });
 
+  testWidgets('picking Gain weight saves goalDirection as gain', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    await tester.tap(find.byKey(const Key('birthDate')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(TextField),
+      ),
+      '09/25/1996',
+    );
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('heightCm')), '180');
+    await tester.enterText(find.byKey(const Key('goalWeightKg')), '85');
+
+    await tester.ensureVisible(find.byKey(const Key('goalDirection')));
+    await tester.tap(find.text('Gain weight'));
+    await tester.pump();
+
+    final save = find.byKey(const Key('saveProfile'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await settle(tester);
+
+    final profile = await tester.runAsync(
+      () => db.select(db.profiles).getSingle(),
+    );
+    expect(profile!.goalDirection, GoalDirection.gain.index);
+
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
   test('age counts whole years', () {
     expect(ageOn(DateTime(1996, 9, 25), DateTime(2026, 9, 25)), 30);
     expect(ageOn(DateTime(1996, 9, 26), DateTime(2026, 9, 25)), 29);

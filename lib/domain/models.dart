@@ -8,6 +8,11 @@ enum Meal { breakfast, lunch, dinner, snack }
 /// Biological sex for the BMR formula. Stored by `.index`: only append values.
 enum Sex { male, female }
 
+/// Which way the user wants their weight to move toward [goalWeightKg].
+/// Stored by `.index`: only append values. `lose` is index 0 so existing
+/// installs (saved before this field existed) keep their current behavior.
+enum GoalDirection { lose, gain }
+
 /// Multipliers applied to BMR (Mifflin-St Jeor) for the starting estimate.
 enum ActivityLevel {
   sedentary(1.2),

@@ -17,6 +17,7 @@ EngineProfile profile({
   double goalWeightKg = 80,
   double weeklyRatePct = 0.5,
   double proteinPerKg = 2.0,
+  GoalDirection goalDirection = GoalDirection.lose,
 }) => EngineProfile(
   sex: sex,
   birthDate: birthDate ?? DateTime(1996, 9, 25),
@@ -25,6 +26,7 @@ EngineProfile profile({
   goalWeightKg: goalWeightKg,
   weeklyRatePct: weeklyRatePct,
   proteinPerKg: proteinPerKg,
+  goalDirection: goalDirection,
 );
 
 /// kcal per kg the engine will use for the default test profile (male, 30 y,
@@ -605,6 +607,114 @@ void main() {
     });
   });
 
+  group('gain direction', () {
+    test('below goal weight -> real surplus applied, unlike loss semantics', () {
+      // trendKg (85) <= goalWeightKg (95): under the old lose-only rule
+      // (trendKg <= goalWeightKg) this would be maintenance-locked, but for
+      // a gain goal it means "not there yet", so a real surplus applies.
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(goalWeightKg: 95, goalDirection: GoalDirection.gain),
+          weighIns: {today: 85},
+          intake: const {},
+        ),
+      );
+      expect(85 <= 95, isTrue); // the lose-semantics condition, for contrast
+      expect(r.explanation.maintenanceMode, isFalse);
+      expect(r.maintenanceKcal, isNotNull);
+      expect(r.macros.kcal, greaterThan(roundTo(r.maintenanceKcal, 10)));
+      expect(r.explanation.deficitKcal, greaterThan(0));
+    });
+
+    test('at or above goal weight -> maintenance mode', () {
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(goalWeightKg: 80, goalDirection: GoalDirection.gain),
+          weighIns: {today: 85},
+          intake: const {},
+        ),
+      );
+      expect(r.explanation.maintenanceMode, isTrue);
+      expect(r.explanation.deficitKcal, 0);
+      expect(r.macros.kcal, roundTo(r.maintenanceKcal, 10));
+    });
+
+    test('maxWeeklyGainRatePct: higher body fat is more conservative', () {
+      expect(maxWeeklyGainRatePct(bodyFatPercent: 12), 0.5);
+      expect(maxWeeklyGainRatePct(bodyFatPercent: 20), 0.375);
+      expect(maxWeeklyGainRatePct(bodyFatPercent: 30), 0.25);
+    });
+
+    test('a higher body-fat profile gets a more conservative gain rate cap', () {
+      // Same height/age, heavier (higher BMI/body-fat estimate) profile vs a
+      // leaner one, both requesting a rate above either cap.
+      final leaner = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(
+            goalWeightKg: 100,
+            goalDirection: GoalDirection.gain,
+            weeklyRatePct: 1.0,
+          ),
+          weighIns: {today: 65},
+          intake: const {},
+        ),
+      );
+      final higherBodyFat = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(
+            goalWeightKg: 140,
+            goalDirection: GoalDirection.gain,
+            weeklyRatePct: 1.0,
+          ),
+          weighIns: {today: 110},
+          intake: const {},
+        ),
+      );
+      expect(
+        higherBodyFat.explanation.bodyFatPercent,
+        greaterThan(leaner.explanation.bodyFatPercent),
+      );
+      expect(leaner.explanation.rateCapped, isTrue);
+      expect(higherBodyFat.explanation.rateCapped, isTrue);
+      final leanerCap = maxWeeklyGainRatePct(
+        bodyFatPercent: leaner.explanation.bodyFatPercent,
+      );
+      final fatterCap = maxWeeklyGainRatePct(
+        bodyFatPercent: higherBodyFat.explanation.bodyFatPercent,
+      );
+      expect(fatterCap, lessThan(leanerCap));
+      expect(
+        higherBodyFat.explanation.deficitKcal / higherBodyFat.maintenanceKcal,
+        lessThan(leaner.explanation.deficitKcal / leaner.maintenanceKcal),
+      );
+    });
+
+    test('surplus capped at 500 kcal', () {
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(
+            activity: ActivityLevel.active,
+            weeklyRatePct: 1.0,
+            goalWeightKg: 250,
+            goalDirection: GoalDirection.gain,
+          ),
+          weighIns: {today: 200},
+          intake: const {},
+        ),
+      );
+      // Very high body weight -> high estimated fat mass -> the raw
+      // rate*kcalPerKg surplus (even at the body-fat-capped rate) and 25% of
+      // maintenance both exceed the flat 500 kcal cap, so that's what binds.
+      expect(r.explanation.deficitKcal, 500);
+      expect(r.macros.kcal, closeTo(r.maintenanceKcal + 500, 10));
+    });
+  });
+
   group('macros', () {
     test('rounding to 5 g', () {
       // protein 1.8 * min(83.3, 86.25) = 149.94 -> 150
@@ -860,6 +970,42 @@ void main() {
         jsonDecode(json) as Map<String, Object?>,
       );
       expect(back.toJson(), r.explanation.toJson());
+    });
+
+    test('goalDirection round-trips through JSON', () {
+      final h = history(maintenanceKcal: 2300, intakeKcal: 2700);
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(
+            goalWeightKg: 100,
+            goalDirection: GoalDirection.gain,
+          ),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      expect(r.explanation.goalDirection, GoalDirection.gain);
+      final json = r.explanation.toJson();
+      expect(json['goalDirection'], GoalDirection.gain.index);
+      final back = Explanation.fromJson(json);
+      expect(back.goalDirection, GoalDirection.gain);
+      expect(back.toJson(), json);
+    });
+
+    test('a JSON blob without goalDirection defaults to lose', () {
+      final h = history(maintenanceKcal: 2500, intakeKcal: 2000);
+      final r = recommend(
+        EngineInput(
+          today: today,
+          profile: profile(),
+          weighIns: h.weighIns,
+          intake: h.intake,
+        ),
+      );
+      final legacyJson = r.explanation.toJson()..remove('goalDirection');
+      final back = Explanation.fromJson(legacyJson);
+      expect(back.goalDirection, GoalDirection.lose);
     });
 
     test('an old row without the new fields still decodes', () {

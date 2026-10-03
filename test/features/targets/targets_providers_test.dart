@@ -29,6 +29,7 @@ Future<void> addProfile(TargetsRepository repo, {int weekday = 7}) =>
       weeklyRatePct: 0.5,
       proteinPerKg: 2.0,
       checkInWeekday: weekday,
+      goalDirection: GoalDirection.lose,
     );
 
 Future<void> addWeighIn(AppDatabase db, String day, double kg) => db
