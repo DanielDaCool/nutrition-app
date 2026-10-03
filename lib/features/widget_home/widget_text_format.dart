@@ -25,3 +25,10 @@ String formatStepsText(int? steps) {
   if (steps == null) return 'No step data';
   return '${_thousands.format(steps)} steps';
 }
+
+/// True once today's step count has reached (or passed) the step goal, for
+/// the lock-screen notification's "GOAL HIT" state. False while steps or the
+/// goal aren't known, or the goal isn't a positive number.
+bool isStepGoalReached({required int? steps, required int stepGoal}) {
+  return steps != null && stepGoal > 0 && steps >= stepGoal;
+}

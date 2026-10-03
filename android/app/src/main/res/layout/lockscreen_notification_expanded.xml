@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lock-screen notification, expanded form. Mirrors the approved mockup
+  (scratchpad/lockscreen-mockup.html): flat rounded-rect card, solid fills
+  only (no blur/shadow beyond the 1px hairline border), big steps/goal with
+  a slim rounded progress bar, smaller secondary kcal-left line with a coral
+  accent dot, and a teal "GOAL HIT" pill shown once the goal is reached.
+  Tabular numerals are approximated with monospace-leaning digits via
+  textAllCaps/letterSpacing left at defaults (RemoteViews can't load custom
+  fonts), so numbers stay readable at a glance rather than pixel-matching
+  Manrope.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/lockscreen_card_background"
+    android:padding="16dp">
+
+    <!-- Header: small app icon + label + goal-hit pill -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="10dp">
+
+        <View
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:background="@drawable/lockscreen_app_icon_background"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="NUTRITION"
+            android:textColor="@color/lockscreen_text_muted"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.02"/>
+
+        <TextView
+            android:id="@+id/lockscreen_goal_pill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/lockscreen_goal_pill_background"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:text="GOAL HIT"
+            android:textColor="@color/lockscreen_bg"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:visibility="gone"/>
+    </LinearLayout>
+
+    <!-- Big steps row: "8,612" + "/ 10,000" -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="bottom">
+
+        <TextView
+            android:id="@+id/lockscreen_steps_big"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/lockscreen_text_high"
+            android:textSize="38sp"
+            android:textStyle="bold"
+            android:fontFeatureSettings="tnum"
+            tools:text="8,612"/>
+
+        <TextView
+            android:id="@+id/lockscreen_steps_goal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="4dp"
+            android:textColor="@color/lockscreen_text_muted"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFeatureSettings="tnum"
+            tools:text="/ 10,000 steps"/>
+    </LinearLayout>
+
+    <!-- Slim rounded progress bar. Two stacked ProgressBars (periwinkle and
+         teal) rather than swapping one drawable at runtime, since
+         RemoteViews can only invoke int/CharSequence/boolean setters by
+         reflection — swapping visibility is the RemoteViews-safe way to
+         "recolor" on goal-hit. -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:layout_marginTop="10dp">
+
+        <ProgressBar
+            android:id="@+id/lockscreen_progress_bar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:max="1000"
+            android:progressDrawable="@drawable/lockscreen_progress"/>
+
+        <ProgressBar
+            android:id="@+id/lockscreen_progress_bar_teal"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:max="1000"
+            android:progressDrawable="@drawable/lockscreen_progress_teal"
+            android:visibility="gone"/>
+    </FrameLayout>
+
+    <!-- Secondary kcal-left row with coral accent dot -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
+
+        <View
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:background="@drawable/lockscreen_coral_dot"/>
+
+        <TextView
+            android:id="@+id/lockscreen_kcal_left"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textColor="@color/lockscreen_text_muted"
+            android:textSize="13sp"
+            android:fontFeatureSettings="tnum"
+            tools:text="1,450 kcal left"/>
+    </LinearLayout>
+</LinearLayout>
