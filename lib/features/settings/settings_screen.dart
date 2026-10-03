@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
+import '../../core/app_features.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
@@ -601,24 +602,26 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               ),
             ),
             const SizedBox(height: 12),
-            SegmentedButton<GoalDirection>(
-              key: const Key('goalDirection'),
-              segments: const [
-                ButtonSegment(
-                  value: GoalDirection.lose,
-                  label: Text('Lose weight'),
-                ),
-                ButtonSegment(
-                  value: GoalDirection.gain,
-                  label: Text('Gain weight'),
-                ),
-              ],
-              selected: {_goalDirection},
-              onSelectionChanged: locked
-                  ? null
-                  : (s) => setState(() => _goalDirection = s.first),
-            ),
-            const SizedBox(height: 12),
+            if (ref.watch(featureEnabledProvider(AppFeature.gainGoals))) ...[
+              SegmentedButton<GoalDirection>(
+                key: const Key('goalDirection'),
+                segments: const [
+                  ButtonSegment(
+                    value: GoalDirection.lose,
+                    label: Text('Lose weight'),
+                  ),
+                  ButtonSegment(
+                    value: GoalDirection.gain,
+                    label: Text('Gain weight'),
+                  ),
+                ],
+                selected: {_goalDirection},
+                onSelectionChanged: locked
+                    ? null
+                    : (s) => setState(() => _goalDirection = s.first),
+              ),
+              const SizedBox(height: 12),
+            ],
             TextFormField(
               key: const Key('goalWeightKg'),
               controller: _goal,
