@@ -311,6 +311,18 @@ void main() {
       await unmount(tester);
     },
   );
+
+  testWidgets('web leaves out the steps and workouts charts', (tester) async {
+    await addProfileAndWeighIn();
+    await pumpDashboard(tester, extra: [isWebProvider.overrideWithValue(true)]);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Steps per day'), findsNothing);
+    expect(find.text('Workouts per week'), findsNothing);
+    expect(find.byKey(const Key('connectHealthConnect')), findsNothing);
+    expect(find.textContaining('No fully logged days'), findsOneWidget);
+    expect(find.textContaining('No maintenance estimate yet'), findsOneWidget);
+    await unmount(tester);
+  });
 }
 
 /// Always reports a fixed [HealthConnectStatus], for testing status-driven UI.

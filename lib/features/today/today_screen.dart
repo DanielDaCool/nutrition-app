@@ -146,7 +146,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           CalorieCard(dayKey: dayKey),
           if (!isToday && weight != null) weight,
           MealsSection(dayKey: dayKey),
-          ActivityCard(dayKey: dayKey),
+          // Steps and workouts come from Health Connect, which web lacks.
+          if (!ref.watch(isWebProvider)) ActivityCard(dayKey: dayKey),
         ],
       ),
     );
