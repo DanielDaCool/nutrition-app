@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/app.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
+import 'package:nutrition_app/features/dashboard/dashboard_screen.dart';
+import 'package:nutrition_app/features/recipes/recipes_screen.dart';
+import 'package:nutrition_app/features/settings/settings_screen.dart';
 import 'package:nutrition_app/features/settings/setup_screen.dart';
+import 'package:nutrition_app/features/today/today_screen.dart';
 import 'package:nutrition_app/features/weight/weight_providers.dart';
 
 import '../features/activity/fake_health_source.dart';
@@ -16,11 +22,12 @@ import '../helpers/test_db.dart';
 /// Friday.
 final now = DateTime(2026, 9, 25, 9);
 
-Widget app(AppDatabase db) => ProviderScope(
+Widget app(AppDatabase db, {List<Override> extra = const []}) => ProviderScope(
   overrides: [
     databaseProvider.overrideWithValue(db),
     clockProvider.overrideWithValue(() => now),
     healthSourceProvider.overrideWithValue(FakeHealthSource()),
+    ...extra,
   ],
   child: const NutritionApp(),
 );
@@ -273,4 +280,160 @@ void main() {
     expect(container.read(selectedDayProvider), '2026-09-25');
     await unmount(tester);
   });
+
+  Finder destination(String label) => find.descendant(
+    of: find.byType(NavigationBar),
+    matching: find.widgetWithText(NavigationDestination, label),
+  );
+
+  int selectedIndex(WidgetTester tester) =>
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex;
+
+  testWidgets('the Recipes tab is there by default', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
+    expect(destination('Recipes'), findsOneWidget);
+    expect(find.byType(RecipesScreen, skipOffstage: false), findsOneWidget);
+
+    await tester.tap(destination('Recipes'));
+    await settle(tester);
+    expect(selectedIndex(tester), 3);
+    expect(find.byType(RecipesScreen), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the Recipes tab is left out when switched off', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      app(
+        db,
+        extra: [
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.recipes,
+          ),
+        ],
+      ),
+    );
+    await settle(tester);
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    expect(destination('Recipes'), findsNothing);
+    expect(find.byType(RecipesScreen, skipOffstage: false), findsNothing);
+
+    // The remaining tabs still open the right screens.
+    await tester.tap(destination('Settings'));
+    await settle(tester);
+    expect(selectedIndex(tester), 3);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    await tester.tap(destination('Dashboard'));
+    await settle(tester);
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(find.byType(SettingsScreen), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('hiding Recipes while on Settings keeps Settings and its state', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db, extra: [recipesGate]));
+    await settle(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(NavigationBar)),
+    );
+
+    await tester.tap(destination('Settings'));
+    await settle(tester);
+    expect(selectedIndex(tester), 4);
+    // Put the profile form into a state that a rebuilt Settings would lose.
+    await tester.tap(find.byKey(const Key('editProfile')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('goalWeightKg')), '71');
+    final formState = tester.state(find.byKey(const Key('profileForm')));
+
+    container.read(_recipesShown.notifier).set(false);
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(destination('Recipes'), findsNothing);
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    expect(find.byType(RecipesScreen, skipOffstage: false), findsNothing);
+    // Still on Settings (now the 4th tab), with the same form state.
+    expect(selectedIndex(tester), 3);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(tester.state(find.byKey(const Key('profileForm'))), same(formState));
+    expect(find.byKey(const Key('saveProfile')), findsOneWidget);
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('goalWeightKg')))
+          .controller!
+          .text,
+      '71',
+    );
+
+    // And back: Recipes returns, Settings is still selected and unchanged.
+    container.read(_recipesShown.notifier).set(true);
+    await settle(tester);
+    expect(destination('Recipes'), findsOneWidget);
+    expect(selectedIndex(tester), 4);
+    expect(tester.state(find.byKey(const Key('profileForm'))), same(formState));
+    expect(find.byKey(const Key('saveProfile')), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('a tab that is hidden while selected falls back to Today', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db, extra: [recipesGate]));
+    await settle(tester);
+    await tester.tap(destination('Recipes'));
+    await settle(tester);
+    expect(selectedIndex(tester), 3);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(NavigationBar)),
+    );
+    container.read(_recipesShown.notifier).set(false);
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(destination('Recipes'), findsNothing);
+    expect(selectedIndex(tester), 0);
+    expect(find.byType(TodayScreen), findsOneWidget);
+
+    // Showing it again doesn't jump back to Recipes.
+    container.read(_recipesShown.notifier).set(true);
+    await settle(tester);
+    expect(destination('Recipes'), findsOneWidget);
+    expect(selectedIndex(tester), 0);
+    await unmount(tester);
+  });
 }
+
+/// Whether the Recipes gate is open, so a test can flip it while the app runs.
+final _recipesShown = NotifierProvider<_RecipesShown, bool>(_RecipesShown.new);
+
+class _RecipesShown extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void set(bool shown) => state = shown;
+}
+
+/// Gates Recipes on [_recipesShown]; every other feature stays on.
+final recipesGate = featureEnabledProvider.overrideWith(
+  (ref, f) => f != AppFeature.recipes || ref.watch(_recipesShown),
+);

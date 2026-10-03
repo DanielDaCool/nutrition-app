@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/core/day_key.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
@@ -319,6 +320,32 @@ void main() {
     expect(find.text('Steps per day'), findsNothing);
     expect(find.text('Workouts per week'), findsNothing);
     expect(find.byKey(const Key('connectHealthConnect')), findsNothing);
+    expect(find.textContaining('No fully logged days'), findsOneWidget);
+    expect(find.textContaining('No maintenance estimate yet'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the steps and workouts charts are left out when switched off', (
+    tester,
+  ) async {
+    await addProfileAndWeighIn();
+    await pumpDashboard(tester);
+    expect(find.text('Steps per day'), findsOneWidget);
+    expect(find.text('Workouts per week'), findsOneWidget);
+    await unmount(tester);
+
+    await pumpDashboard(
+      tester,
+      extra: [
+        featureEnabledProvider.overrideWith(
+          (ref, f) => f != AppFeature.activity,
+        ),
+      ],
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('Steps per day'), findsNothing);
+    expect(find.text('Workouts per week'), findsNothing);
+    // The other sections stay.
     expect(find.textContaining('No fully logged days'), findsOneWidget);
     expect(find.textContaining('No maintenance estimate yet'), findsOneWidget);
     await unmount(tester);

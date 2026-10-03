@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
+import '../../../core/app_features.dart';
 import '../../../core/day_key.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
@@ -235,6 +236,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Scanning is behind a feature gate (see featureEnabledProvider).
+    final scanEnabled = ref.watch(
+      featureEnabledProvider(AppFeature.barcodeScan),
+    );
     return DefaultTabController(
       length: 4,
       child: Scaffold(
@@ -268,7 +273,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
             if (_busy) const LinearProgressIndicator(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              // The two main ways to add: type it out or scan it.
+              // The two main ways to add: type it out or scan it. Without
+              // scanning, "Type it" takes the full width.
               child: Row(
                 children: [
                   Expanded(
@@ -282,18 +288,20 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
                       label: const Text('Type it'),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.tonalIcon(
-                      key: const Key('scan-button'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(52),
+                  if (scanEnabled) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        key: const Key('scan-button'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                        ),
+                        onPressed: _busy ? null : _scan,
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: const Text('Scan'),
                       ),
-                      onPressed: _busy ? null : _scan,
-                      icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text('Scan'),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

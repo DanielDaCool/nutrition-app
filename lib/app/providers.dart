@@ -1,9 +1,10 @@
 // App-wide Riverpod providers shared by all features: database, clock,
-// platform and the day selected on the Today screen.
+// platform, feature gates and the day selected on the Today screen.
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_features.dart';
 import '../core/day_key.dart';
 import '../data/db/database.dart';
 
@@ -19,6 +20,12 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 /// widget, lock-screen notification, walk reminders, file export) hide
 /// themselves when set; override in tests to check the web layout.
 final isWebProvider = Provider<bool>((ref) => kIsWeb);
+
+/// Whether an [AppFeature]'s UI should show. Here that is simply "exists on
+/// this platform"; it can be overridden (a fork does) to add user choice.
+final featureEnabledProvider = Provider.family<bool, AppFeature>(
+  (ref, feature) => feature.availableOn(isWeb: ref.watch(isWebProvider)),
+);
 
 /// The day shown on the Today screen (defaults to today; user can browse back).
 final selectedDayProvider = NotifierProvider<SelectedDay, String>(
