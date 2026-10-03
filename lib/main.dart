@@ -1,6 +1,8 @@
 // App entry point: opens the on-device database and starts the app inside a
 // ProviderScope.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
+import 'core/persistent_storage.dart';
 import 'data/db/database.dart';
 import 'features/activity/walk_reminder_background.dart';
 import 'features/activity/walk_reminder_notifications.dart';
@@ -27,6 +30,9 @@ void main() async {
     await requestWalkReminderPermission();
     await Workmanager().initialize(walkReminderCallbackDispatcher);
   }
+  // The whole database lives in browser storage on web; ask the browser not
+  // to evict it. Not awaited, so it can never delay or break startup.
+  if (kIsWeb) unawaited(requestPersistentStorage());
   runApp(
     ProviderScope(
       overrides: [databaseProvider.overrideWithValue(db)],
