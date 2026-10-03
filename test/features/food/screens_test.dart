@@ -213,6 +213,20 @@ void main() {
       await finish(tester);
     });
 
+    testWidgets('serving size and serving name fields line up', (
+      tester,
+    ) async {
+      await pump(tester, const CustomFoodScreen());
+      final sizeTop = tester
+          .getTopLeft(find.byKey(const Key('serving-grams-field')))
+          .dy;
+      final nameTop = tester
+          .getTopLeft(find.byKey(const Key('serving-name-field')))
+          .dy;
+      expect(sizeTop, nameTop);
+      await finish(tester);
+    });
+
     testWidgets('macros the source lacks are flagged and required', (
       tester,
     ) async {

@@ -310,6 +310,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
             ),
             const SizedBox(height: 12),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: TextFormField(
@@ -319,8 +320,9 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
                       decimal: true,
                     ),
                     decoration: dec(
-                      perServing ? 'Serving size' : 'Serving size (optional)',
+                      'Serving size',
                       suffix: 'g',
+                      helper: perServing ? null : 'Optional',
                     ),
                     validator: (v) {
                       final base = _nonNegative(v, required: perServing);
