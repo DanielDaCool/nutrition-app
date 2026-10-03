@@ -9,8 +9,10 @@ import 'package:home_widget/home_widget.dart';
 import '../../app/providers.dart';
 import '../../core/day_key.dart';
 import '../activity/activity_providers.dart';
+import '../activity/step_goal_providers.dart';
 import '../food/food_providers.dart';
 import '../targets/targets_providers.dart';
+import 'lockscreen_notification_sync.dart';
 import 'widget_text_format.dart';
 
 /// Last time the widget was refreshed (null if never). syncNow() must never
@@ -40,12 +42,17 @@ class HomeWidgetSyncController extends AsyncNotifier<DateTime?> {
       final targets = await _readOnce(currentTargetsProvider);
       final intake = await _readOnce(dayIntakeProvider(dayKey));
       final activity = await _readOnce(dayActivityProvider(dayKey));
+      final stepGoal = (await ref.read(stepGoalProvider.future)).stepGoal;
 
       final kcalText = formatKcalLeftText(
         targetKcal: targets?.macros.kcal,
         loggedKcal: intake.total.kcal,
       );
       final stepsText = formatStepsText(activity.steps);
+      final goalReached = isStepGoalReached(
+        steps: activity.steps,
+        stepGoal: stepGoal,
+      );
 
       try {
         await HomeWidget.saveWidgetData<String>('kcalLeftText', kcalText);
@@ -55,6 +62,13 @@ class HomeWidgetSyncController extends AsyncNotifier<DateTime?> {
         // No widget pinned, or the platform channel isn't available (e.g.
         // in tests) — that's the normal case, not a sync failure.
       }
+
+      await syncLockScreenNotification(
+        steps: activity.steps,
+        stepGoal: stepGoal,
+        kcalLeftText: kcalText,
+        goalReached: goalReached,
+      );
 
       if (!ref.mounted) return;
       state = AsyncData(ref.read(clockProvider)());

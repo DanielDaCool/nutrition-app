@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared dark-theme palette (see lib/app/theme.dart) used by the
+         lock-screen notification's RemoteViews layouts and drawables. -->
+    <color name="lockscreen_bg">#101118</color>
+    <color name="lockscreen_surface">#14161F</color>
+    <color name="lockscreen_track">#1B1E2A</color>
+    <color name="lockscreen_accent_periwinkle">#8C9EFF</color>
+    <color name="lockscreen_accent_teal">#6FD3C0</color>
+    <color name="lockscreen_accent_coral">#FF9E7A</color>
+    <color name="lockscreen_text_high">#E7E8F0</color>
+    <color name="lockscreen_text_muted">#A0A4B8</color>
+    <color name="lockscreen_hairline">#14E7E8F0</color>
+</resources>
