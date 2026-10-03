@@ -1,20 +1,22 @@
 // The real [HealthSource]: a thin adapter over the `health` plugin.
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:health/health.dart' as hp;
 
 import 'health_source.dart';
 
 /// [HealthSource] backed by the `health` package (Health Connect on Android).
 ///
-/// On anything other than Android it reports [HcAvailability.unsupported] and
-/// never touches the platform channel.
+/// On anything other than Android (web included) it reports
+/// [HcAvailability.unsupported] and never touches the platform channel.
 class HealthPackageSource implements HealthSource {
   /// [health] and [isAndroid] are overridable for tests; by default a new
   /// plugin client is created lazily and the platform is detected.
   HealthPackageSource({hp.Health? health, bool? isAndroid})
     : _healthOverride = health,
-      _isAndroid = isAndroid ?? Platform.isAndroid;
+      // Platform.* throws on web, so check kIsWeb first.
+      _isAndroid = isAndroid ?? (!kIsWeb && Platform.isAndroid);
 
   // Requested together so the OS permission screen offers all of them in one
   // go; whether each is actually granted is then checked independently

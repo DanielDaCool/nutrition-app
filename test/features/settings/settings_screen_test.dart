@@ -6,6 +6,8 @@ import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/widgets/health_connect_tile.dart';
+import 'package:nutrition_app/features/activity/widgets/step_goal_tile.dart';
+import 'package:nutrition_app/features/activity/widgets/walk_reminder_tile.dart';
 import 'package:nutrition_app/features/settings/data_export.dart';
 import 'package:nutrition_app/features/settings/settings_screen.dart';
 
@@ -449,5 +451,51 @@ void main() {
       'weightKg': 90.0,
       'createdAt': now.toIso8601String(),
     });
+  });
+
+  testWidgets('web hides the Android-only settings', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          isWebProvider.overrideWithValue(true),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    expect(find.byKey(const Key('targetsCard')), findsOneWidget);
+    expect(find.byType(HealthConnectSettingsTile), findsNothing);
+    expect(find.byType(StepGoalSettingsTile), findsNothing);
+    expect(find.byType(WalkReminderSettingsTile), findsNothing);
+    expect(find.byType(ExportDataTile), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Android keeps the Health Connect, reminder and export rows', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    expect(find.byType(HealthConnectSettingsTile), findsOneWidget);
+    expect(find.byType(StepGoalSettingsTile), findsOneWidget);
+    expect(find.byType(WalkReminderSettingsTile), findsOneWidget);
+    expect(find.byType(ExportDataTile), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 }
