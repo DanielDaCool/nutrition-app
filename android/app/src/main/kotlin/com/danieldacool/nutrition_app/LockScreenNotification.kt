@@ -11,9 +11,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
 /**
- * An ongoing, silent, low-priority notification that Android renders on the
- * lock screen: today's steps out of the goal (big) and calories left
- * (smaller), with a custom RemoteViews layout (see
+ * An ongoing notification, muted via its channel (no sound/vibration), that
+ * Android renders on the lock screen: today's steps out of the goal (big)
+ * and calories left (smaller), with a custom RemoteViews layout (see
  * res/layout/lockscreen_notification_{expanded,collapsed}.xml) since
  * flutter_local_notifications' Dart API has no custom-layout support.
  *
@@ -22,7 +22,14 @@ import androidx.core.app.NotificationManagerCompat
  * lib/features/widget_home/lockscreen_notification_sync.dart.
  */
 object LockScreenNotification {
-  private const val CHANNEL_ID = "steps_lockscreen"
+  // v2: IMPORTANCE_LOW channels are "silent" notifications, and Android's
+  // lock-screen setting "hide silent notifications" (on by default on some
+  // OEM skins, e.g. HyperOS) hides them from the lock screen even though
+  // they still show in the shade — which is exactly what this looked like.
+  // Importance can't be changed on an existing channel, hence the new id;
+  // sound/vibration are disabled on the channel itself to stay silent in
+  // practice while counting as a non-silent (DEFAULT) notification.
+  private const val CHANNEL_ID = "steps_lockscreen_v2"
   private const val CHANNEL_NAME = "Steps & calories"
   private const val NOTIFICATION_ID = 2001
 
@@ -89,9 +96,8 @@ object LockScreenNotification {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCustomContentView(collapsed)
             .setCustomBigContentView(expanded)
             .setContentIntent(contentIntent)
@@ -107,10 +113,14 @@ object LockScreenNotification {
   private fun ensureChannel(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    manager.deleteNotificationChannel("steps_lockscreen")
     val channel =
-        NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW).apply {
-          setShowBadge(false)
-        }
+        NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT)
+            .apply {
+              setShowBadge(false)
+              setSound(null, null)
+              enableVibration(false)
+            }
     manager.createNotificationChannel(channel)
   }
 }
