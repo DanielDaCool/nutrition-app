@@ -16,6 +16,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final db = AppDatabase.defaults();
   await initWalkReminderNotifications();
+  // POST_NOTIFICATIONS is an app-wide permission, not per-channel — this used
+  // to only be requested when the user enabled the walk reminder, so anyone
+  // who never touched that setting never got asked, and the lock-screen
+  // notification silently never showed. Ask once at startup instead.
+  await requestWalkReminderPermission();
   await Workmanager().initialize(walkReminderCallbackDispatcher);
   runApp(
     ProviderScope(
