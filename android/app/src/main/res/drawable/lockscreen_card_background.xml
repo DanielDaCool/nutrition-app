@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flat rounded-rect card, solid fill only, 1px hairline border — matches
+     the mockup's "no blur/glass" build note. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/lockscreen_surface"/>
+    <corners android:radius="20dp"/>
+    <stroke android:width="1px" android:color="@color/lockscreen_hairline"/>
+</shape>

@@ -67,4 +67,26 @@ void main() {
       expect(formatStepsText(123456), '123,456 steps');
     });
   });
+
+  group('isStepGoalReached', () {
+    test('null steps is not reached', () {
+      expect(isStepGoalReached(steps: null, stepGoal: 10000), isFalse);
+    });
+
+    test('below goal is not reached', () {
+      expect(isStepGoalReached(steps: 8432, stepGoal: 10000), isFalse);
+    });
+
+    test('exactly at goal is reached', () {
+      expect(isStepGoalReached(steps: 10000, stepGoal: 10000), isTrue);
+    });
+
+    test('above goal is reached', () {
+      expect(isStepGoalReached(steps: 12000, stepGoal: 10000), isTrue);
+    });
+
+    test('a zero or negative goal is never reached', () {
+      expect(isStepGoalReached(steps: 500, stepGoal: 0), isFalse);
+    });
+  });
 }
