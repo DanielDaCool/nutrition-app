@@ -9,6 +9,7 @@ import android.os.Build
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 
 /**
  * An ongoing notification, muted via its channel (no sound/vibration), that
@@ -61,6 +62,8 @@ object LockScreenNotification {
           setTextViewText(R.id.lockscreen_kcal_left, kcalLeftText)
           setProgressBar(R.id.lockscreen_progress_bar, progressMax, progress, false)
           setProgressBar(R.id.lockscreen_progress_bar_teal, progressMax, progress, false)
+          val progressPercent = if (stepGoal > 0) ((steps.toLong() * 100) / stepGoal).toInt().coerceIn(0, 100) else 0
+          setTextViewText(R.id.lockscreen_progress_percent, "$progressPercent%")
           setViewVisibility(
               R.id.lockscreen_progress_bar,
               if (goalMet) android.view.View.GONE else android.view.View.VISIBLE,
@@ -94,6 +97,7 @@ object LockScreenNotification {
     val notification =
         NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
+            .setColor(ContextCompat.getColor(context, R.color.lockscreen_accent_periwinkle))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
