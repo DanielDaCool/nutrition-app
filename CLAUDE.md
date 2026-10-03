@@ -47,3 +47,10 @@ Contract names (keep them; replace stub bodies):
 - D: `weighInsProvider`, `weightTrendProvider`, `TodayScreen`, `WeightScreen`, `DashboardScreen`
 
 Need a change in a file you don't own (schema, pubspec, manifest, contracts)? Don't edit it: report what and why to the lead.
+
+* Feature hub. Every new user-facing feature must be switchable in Settings → Feature hub:
+   1. Add a value to the `AppFeature` enum in `lib/core/app_features.dart` with a `storageKey`, a short `label` and a one-sentence `description`. Do not pass `baseline` (that is only for the features that existed when the hub was introduced). Set `androidOnly: true` if the feature can't work in the web build.
+   2. Wrap every place the feature shows up (screens, tabs, buttons, cards) in `if (ref.watch(featureEnabledProvider(AppFeature.yourFeature)))` (from `lib/features/settings/feature_flags.dart`). With the switch off, the app must look and behave as if the feature didn't exist.
+   3. Add a widget test that the feature's UI is absent when its flag is off (override `initialFeatureFlagsProvider`).
+Never rename a `storageKey` and only append enum values: the user's on/off choice is stored under that key. Don't touch the Feature hub screen itself; new enum values appear there automatically.
+* PR labels. Label every PR with exactly one of `feature`, `bug fix`, `design`, `docs`, `ci`. A PR labeled `feature` must include steps 1–3 above. Bug fixes, design, docs and CI changes don't get a hub entry.
