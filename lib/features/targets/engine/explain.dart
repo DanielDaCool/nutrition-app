@@ -3,6 +3,7 @@ library;
 
 import 'package:intl/intl.dart';
 
+import '../../../domain/models.dart';
 import 'engine.dart';
 
 final _int = NumberFormat.decimalPattern('en_US');
@@ -88,26 +89,36 @@ List<String> explainLines(Explanation e) {
     );
   }
 
+  final isGain = e.goalDirection == GoalDirection.gain;
+  final atOrPast = isGain ? 'at or above' : 'at or below';
+
   if (e.maintenanceMode && e.floorApplied) {
     lines.add(
-      'Your trend weight (${e.trendKg.toStringAsFixed(1)} kg) is at or '
-      'below your goal, so your target is maintenance, held at the minimum '
+      'Your trend weight (${e.trendKg.toStringAsFixed(1)} kg) is $atOrPast '
+      'your goal, so your target is maintenance, held at the minimum '
       'of ${kcal(e.floorKcal)}. Check that logged days are complete.',
     );
   } else if (e.maintenanceMode) {
     lines.add(
-      'Your trend weight (${e.trendKg.toStringAsFixed(1)} kg) is at or '
-      'below your goal, so your target is maintenance.',
+      'Your trend weight (${e.trendKg.toStringAsFixed(1)} kg) is $atOrPast '
+      'your goal, so your target is maintenance.',
     );
   } else if (e.floorApplied) {
     lines.add(
-      'A ${kcal(e.deficitKcal)} deficit would go below the minimum of '
-      '${kcal(e.floorKcal)}, so your target is held at that minimum.',
+      isGain
+          ? 'A ${kcal(e.deficitKcal)} surplus would still land below the '
+                'minimum of ${kcal(e.floorKcal)}, so your target is held at '
+                'that minimum.'
+          : 'A ${kcal(e.deficitKcal)} deficit would go below the minimum of '
+                '${kcal(e.floorKcal)}, so your target is held at that minimum.',
     );
   } else {
     lines.add(
-      'Your target is maintenance minus a ${kcal(e.deficitKcal)} '
-      'daily deficit for your chosen weekly loss rate.',
+      isGain
+          ? 'Your target is maintenance plus a ${kcal(e.deficitKcal)} '
+                'daily surplus for your chosen weekly gain rate.'
+          : 'Your target is maintenance minus a ${kcal(e.deficitKcal)} '
+                'daily deficit for your chosen weekly loss rate.',
     );
   }
   return lines;
