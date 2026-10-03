@@ -1,25 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Lock-screen notification, collapsed form: a single-line row Android shows
-  when it collapses the notification among others — "8,612 / 10,000 ·
-  1,450 kcal left", truncating with an ellipsis if space is tight.
+  Lock-screen notification, collapsed form, v2: matches the expanded
+  card's left accent strip for visual consistency; single line otherwise.
+  Dropped the small app-icon ImageView — the OS-drawn header already
+  shows the app icon, and the accent strip now carries the branding.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:background="@drawable/lockscreen_collapsed_background"
-    android:paddingLeft="14dp"
-    android:paddingRight="14dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp">
+    android:background="@drawable/lockscreen_collapsed_background">
 
     <ImageView
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:src="@drawable/lockscreen_app_icon_background"/>
+        android:layout_width="4dp"
+        android:layout_height="match_parent"
+        android:src="@drawable/lockscreen_accent_strip"/>
 
     <TextView
         android:id="@+id/lockscreen_collapsed_line"
@@ -27,6 +23,9 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="10dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:layout_marginEnd="14dp"
         android:textColor="@color/lockscreen_text_high"
         android:textSize="14sp"
         android:textStyle="bold"
