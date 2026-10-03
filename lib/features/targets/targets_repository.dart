@@ -44,6 +44,7 @@ class TargetsRepository {
     required double weeklyRatePct,
     required double proteinPerKg,
     required int checkInWeekday,
+    required GoalDirection goalDirection,
   }) => db
       .into(db.profiles)
       .insertOnConflictUpdate(
@@ -57,6 +58,7 @@ class TargetsRepository {
           weeklyRatePct: Value(weeklyRatePct),
           proteinPerKg: Value(proteinPerKg),
           checkInWeekday: Value(checkInWeekday),
+          goalDirection: Value(goalDirection.index),
           updatedAt: clock(),
         ),
       );
@@ -70,6 +72,7 @@ class TargetsRepository {
     goalWeightKg: p.goalWeightKg,
     weeklyRatePct: p.weeklyRatePct,
     proteinPerKg: p.proteinPerKg,
+    goalDirection: GoalDirection.values[p.goalDirection],
   );
 
   // ---- Targets -----------------------------------------------------------

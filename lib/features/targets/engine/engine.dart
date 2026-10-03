@@ -62,6 +62,13 @@ const double kDefaultMeasurementVarianceKcal2 = 130 * 130;
 /// Highest daily deficit below maintenance, regardless of weekly rate.
 const double kMaxDeficitKcal = 750;
 
+/// Highest daily surplus above maintenance, regardless of weekly rate.
+/// Modest surpluses (~0.25–0.5%/week) are standard lean-bulk guidance, with
+/// little added muscle-protein-synthesis benefit beyond ~300–500 kcal/day
+/// (Garthe et al. 2013; Iraki et al. 2019 "Lean bulk" review; Slater et al.
+/// 2019).
+const double kMaxSurplusKcal = 500;
+
 /// Carb floor (g) kept by lowering fat toward [kMinFatPerKg].
 const double kMinCarbsG = 50;
 
@@ -81,6 +88,7 @@ class EngineProfile {
     required this.goalWeightKg,
     required this.weeklyRatePct,
     required this.proteinPerKg,
+    required this.goalDirection,
   });
 
   final Sex sex;
@@ -88,6 +96,10 @@ class EngineProfile {
   final double heightCm;
   final ActivityLevel activityLevel;
   final double goalWeightKg;
+
+  /// Whether the goal is to lose or gain weight. Drives [maintenanceMode]'s
+  /// comparison and which rate cap/offset sign [recommend] applies.
+  final GoalDirection goalDirection;
 
   /// Desired loss per week as % of body weight (0.25–1.0), before the
   /// body-fat-based cap in [maxWeeklyRatePct].
@@ -194,6 +206,7 @@ class Explanation {
     required this.floorKcal,
     required this.floorApplied,
     required this.maintenanceMode,
+    required this.goalDirection,
   });
 
   /// Smoothed trend weight today (kg); used instead of the raw scale weight.
@@ -282,6 +295,10 @@ class Explanation {
   /// (still held at [floorKcal] or above).
   final bool maintenanceMode;
 
+  /// Lose or gain. Defaults to [GoalDirection.lose] when decoded from a
+  /// pre-gain-support row, since all such rows were loss.
+  final GoalDirection goalDirection;
+
   /// Serialised into `TargetHistory.explanationJson`.
   Map<String, Object?> toJson() => {
     'trendKg': trendKg,
@@ -315,6 +332,7 @@ class Explanation {
     'floorKcal': floorKcal,
     'floorApplied': floorApplied,
     'maintenanceMode': maintenanceMode,
+    'goalDirection': goalDirection.index,
   };
 
   /// Inverse of [toJson]. Missing bool fields default to false, and fields
@@ -359,6 +377,8 @@ class Explanation {
       floorKcal: d('floorKcal'),
       floorApplied: j['floorApplied'] as bool? ?? false,
       maintenanceMode: j['maintenanceMode'] as bool? ?? false,
+      goalDirection:
+          GoalDirection.values[(j['goalDirection'] as num?)?.toInt() ?? 0],
     );
   }
 }
@@ -441,6 +461,18 @@ double maxWeeklyRatePct({required double bmi, required double bodyFatPercent}) {
   if (bmi >= 30 || bodyFatPercent >= 30) return 1.0;
   if (bmi >= 25 || bodyFatPercent >= 20) return 0.75;
   return 0.5;
+}
+
+/// Highest selectable weekly gain rate (% body weight) for someone with
+/// [bodyFatPercent]: modest surpluses (~0.25–0.5%/week) are standard
+/// lean-bulk guidance (Garthe et al. 2013; Iraki et al. 2019 "Lean bulk"
+/// review; Slater et al. 2019); leaner people get more surplus headroom for
+/// muscle building, while higher adiposity warrants the more conservative
+/// end to limit fat gain.
+double maxWeeklyGainRatePct({required double bodyFatPercent}) {
+  if (bodyFatPercent <= 15) return 0.5;
+  if (bodyFatPercent <= 25) return 0.375;
+  return 0.25;
 }
 
 /// [value] rounded to the nearest multiple of [step].
@@ -578,8 +610,11 @@ Recommendation recommend(EngineInput input) {
   final fatMassKg = bodyFatPercent / 100 * trendKg;
   final kcalPerKgUsed = kcalPerKgLost(fatMassKg);
   final maxRatePct = maxWeeklyRatePct(bmi: bmi, bodyFatPercent: bodyFatPercent);
+  final maxGainRatePct = maxWeeklyGainRatePct(bodyFatPercent: bodyFatPercent);
 
-  final maintenanceMode = trendKg <= p.goalWeightKg;
+  final maintenanceMode = p.goalDirection == GoalDirection.gain
+      ? trendKg >= p.goalWeightKg
+      : trendKg <= p.goalWeightKg;
 
   // 3. Diet phase (Fix 1): a new phase starts today when the rate changed,
   // maintenance mode was entered/left, or the formula moved a lot since the
@@ -785,13 +820,19 @@ Recommendation recommend(EngineInput input) {
 
   // 7. Target (Fix 5: rate capped by body fat, deficit capped at 750 kcal).
   final floor = math.max(bmr, p.sex == Sex.male ? 1500.0 : 1200.0);
-  final effectiveRatePct = math.min(p.weeklyRatePct, maxRatePct);
+  final isGain = p.goalDirection == GoalDirection.gain;
+  final applicableMaxRatePct = isGain ? maxGainRatePct : maxRatePct;
+  final effectiveRatePct = math.min(p.weeklyRatePct, applicableMaxRatePct);
   final rateCapped = effectiveRatePct < p.weeklyRatePct;
   var deficit = 0.0;
   var floorApplied = false;
   double target;
   if (maintenanceMode) {
     target = maintenance;
+  } else if (isGain) {
+    deficit = effectiveRatePct / 100 * trendKg * kcalPerKgUsed / 7;
+    deficit = math.min(deficit, math.min(0.25 * maintenance, kMaxSurplusKcal));
+    target = maintenance + deficit;
   } else {
     deficit = effectiveRatePct / 100 * trendKg * kcalPerKgUsed / 7;
     deficit = math.min(deficit, math.min(0.25 * maintenance, kMaxDeficitKcal));
@@ -852,6 +893,7 @@ Recommendation recommend(EngineInput input) {
       floorKcal: floor,
       floorApplied: floorApplied,
       maintenanceMode: maintenanceMode,
+      goalDirection: p.goalDirection,
     ),
   );
 }
