@@ -8,13 +8,14 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 const _channel = MethodChannel('nutrition/lockscreen_notification');
 
 /// Updates the lock-screen notification. No-op (and never throws) off
-/// Android, and swallows platform-channel failures the same way the
-/// `HomeWidget` calls in `HomeWidgetSyncController` do — no channel
+/// Android (web included), and swallows platform-channel failures the same
+/// way the `HomeWidget` calls in `HomeWidgetSyncController` do — no channel
 /// implementation (e.g. in tests, or on iOS) just means nothing to show.
 Future<void> syncLockScreenNotification({
   required int? steps,
@@ -22,7 +23,8 @@ Future<void> syncLockScreenNotification({
   required String kcalLeftText,
   required bool goalReached,
 }) async {
-  if (!Platform.isAndroid) return;
+  // Platform.* throws on web, so check kIsWeb first.
+  if (kIsWeb || !Platform.isAndroid) return;
   try {
     await _channel.invokeMethod<void>('update', {
       'steps': steps ?? 0,

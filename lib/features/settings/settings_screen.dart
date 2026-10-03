@@ -33,6 +33,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     final missingProfile = profile.hasValue && profile.value == null;
+    final isWeb = ref.watch(isWebProvider);
     const profileSection = [
       _SectionHeader('Profile', key: Key('profileHeader')),
       ProfileForm(key: Key('profileForm'), lockable: true),
@@ -62,11 +63,15 @@ class SettingsScreen extends ConsumerWidget {
             const Divider(),
             ...profileSection,
           ],
-          const Divider(),
-          const HealthConnectSettingsTile(),
-          const StepGoalSettingsTile(),
-          const WalkReminderSettingsTile(),
-          const ExportDataTile(),
+          // Health Connect, walk reminders and file export are Android-only;
+          // the step goal only applies to Health Connect steps.
+          if (!isWeb) ...const [
+            Divider(),
+            HealthConnectSettingsTile(),
+            StepGoalSettingsTile(),
+            WalkReminderSettingsTile(),
+            ExportDataTile(),
+          ],
         ],
       ),
     );

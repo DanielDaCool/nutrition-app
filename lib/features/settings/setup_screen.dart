@@ -141,12 +141,15 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 textInputAction: TextInputAction.done,
                 validator: _validateWeight,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Steps and workouts (optional)',
-                style: theme.textTheme.titleSmall,
-              ),
-              const HealthConnectSettingsTile(),
+              // Health Connect is Android-only.
+              if (!ref.watch(isWebProvider)) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Steps and workouts (optional)',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const HealthConnectSettingsTile(),
+              ],
             ],
           ),
           Center(

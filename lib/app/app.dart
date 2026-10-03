@@ -108,6 +108,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   void _sync() {
     if (!mounted) return;
+    // No Health Connect, home widget or lock-screen notification on web.
+    if (ref.read(isWebProvider)) return;
     ref.read(healthSyncProvider.notifier).syncNow();
     ref.read(homeWidgetSyncProvider.notifier).syncNow();
   }
