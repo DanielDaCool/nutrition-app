@@ -1,0 +1,14 @@
+# Config for `dart run flutter_launcher_icons`. Source art: assets/icon/
+# (full-icon.png = flattened legacy icon, foreground/background/monochrome =
+# Android adaptive-icon layers). Re-run after changing any of those files.
+flutter_launcher_icons:
+  image_path: "assets/icon/full-icon.png"
+  android: true
+  adaptive_icon_background: "assets/icon/background.png"
+  adaptive_icon_foreground: "assets/icon/foreground.png"
+  adaptive_icon_monochrome: "assets/icon/monochrome.png"
+  web:
+    generate: true
+    image_path: "assets/icon/full-icon.png"
+    background_color: "#101118"
+    theme_color: "#101118"
