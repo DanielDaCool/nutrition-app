@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/widgets/health_connect_tile.dart';
 import 'package:nutrition_app/features/activity/widgets/step_goal_tile.dart';
 import 'package:nutrition_app/features/activity/widgets/walk_reminder_tile.dart';
 import 'package:nutrition_app/features/settings/data_export.dart';
+import 'package:nutrition_app/features/settings/feature_flags.dart';
 import 'package:nutrition_app/features/settings/settings_screen.dart';
 
 import '../../helpers/test_db.dart';
@@ -538,6 +540,35 @@ void main() {
     expect(find.byType(StepGoalSettingsTile), findsOneWidget);
     expect(find.byType(WalkReminderSettingsTile), findsOneWidget);
     expect(find.byType(ExportDataTile), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the lose/gain choice is hidden while gain goals are off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          initialFeatureFlagsProvider.overrideWithValue(const {
+            AppFeature.gainGoals: false,
+          }),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    expect(find.byKey(const Key('goalWeightKg')), findsOneWidget);
+    expect(find.byKey(const Key('goalDirection')), findsNothing);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 }

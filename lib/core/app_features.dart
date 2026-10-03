@@ -60,6 +60,16 @@ enum AppFeature {
     label: 'Barcode scanning',
     description: 'The Scan button when adding food.',
     baseline: true,
+  ),
+
+  /// The "Lose weight / Gain weight" choice in the profile form. While it's
+  /// off the profile keeps whatever direction is stored (lose by default).
+  gainGoals(
+    storageKey: 'gainGoals',
+    label: 'Weight gain goals',
+    description:
+        'The "Lose weight / Gain weight" choice in your profile, for '
+        'targets that add weight instead of losing it.',
   );
 
   const AppFeature({
