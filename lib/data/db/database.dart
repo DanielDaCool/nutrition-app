@@ -48,18 +48,30 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
       if (from < 2) await _addManualExercises(m);
+      if (from < 3) await _addGoalDirection(m);
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  /// v2 -> v3. Adds Profiles.goalDirection (defaults to 0 = lose, so existing
+  /// profiles keep losing toward their goal weight unchanged).
+  Future<void> _addGoalDirection(Migrator m) async {
+    final columns = await customSelect(
+      "SELECT name FROM pragma_table_info('profiles')",
+    ).map((r) => r.read<String>('name')).get();
+    if (!columns.contains('goal_direction')) {
+      await m.addColumn(profiles, profiles.goalDirection);
+    }
+  }
 
   /// v1 -> v2. Installs updated to the v1 build that first shipped
   /// ManualExercises never got the table (no migration ran), while fresh

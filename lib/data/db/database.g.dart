@@ -71,6 +71,18 @@ class $ProfilesTable extends Profiles with TableInfo<$ProfilesTable, Profile> {
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _goalDirectionMeta = const VerificationMeta(
+    'goalDirection',
+  );
+  @override
+  late final GeneratedColumn<int> goalDirection = GeneratedColumn<int>(
+    'goal_direction',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _weeklyRatePctMeta = const VerificationMeta(
     'weeklyRatePct',
   );
@@ -126,6 +138,7 @@ class $ProfilesTable extends Profiles with TableInfo<$ProfilesTable, Profile> {
     heightCm,
     activityLevel,
     goalWeightKg,
+    goalDirection,
     weeklyRatePct,
     proteinPerKg,
     checkInWeekday,
@@ -191,6 +204,15 @@ class $ProfilesTable extends Profiles with TableInfo<$ProfilesTable, Profile> {
       );
     } else if (isInserting) {
       context.missing(_goalWeightKgMeta);
+    }
+    if (data.containsKey('goal_direction')) {
+      context.handle(
+        _goalDirectionMeta,
+        goalDirection.isAcceptableOrUnknown(
+          data['goal_direction']!,
+          _goalDirectionMeta,
+        ),
+      );
     }
     if (data.containsKey('weekly_rate_pct')) {
       context.handle(
@@ -260,6 +282,10 @@ class $ProfilesTable extends Profiles with TableInfo<$ProfilesTable, Profile> {
         DriftSqlType.double,
         data['${effectivePrefix}goal_weight_kg'],
       )!,
+      goalDirection: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}goal_direction'],
+      )!,
       weeklyRatePct: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}weekly_rate_pct'],
@@ -293,7 +319,12 @@ class Profile extends DataClass implements Insertable<Profile> {
   final int activityLevel;
   final double goalWeightKg;
 
-  /// Desired loss per week as % of body weight (e.g. 0.5).
+  /// GoalDirection.index. Defaults to 0 (lose) so installs saved before this
+  /// column existed keep losing toward goalWeightKg, unchanged.
+  final int goalDirection;
+
+  /// Desired weekly rate of change as % of body weight (e.g. 0.5) — a loss
+  /// rate or a gain rate depending on [goalDirection].
   final double weeklyRatePct;
 
   /// Protein grams per kg of reference body weight.
@@ -309,6 +340,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     required this.heightCm,
     required this.activityLevel,
     required this.goalWeightKg,
+    required this.goalDirection,
     required this.weeklyRatePct,
     required this.proteinPerKg,
     required this.checkInWeekday,
@@ -323,6 +355,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     map['height_cm'] = Variable<double>(heightCm);
     map['activity_level'] = Variable<int>(activityLevel);
     map['goal_weight_kg'] = Variable<double>(goalWeightKg);
+    map['goal_direction'] = Variable<int>(goalDirection);
     map['weekly_rate_pct'] = Variable<double>(weeklyRatePct);
     map['protein_per_kg'] = Variable<double>(proteinPerKg);
     map['check_in_weekday'] = Variable<int>(checkInWeekday);
@@ -338,6 +371,7 @@ class Profile extends DataClass implements Insertable<Profile> {
       heightCm: Value(heightCm),
       activityLevel: Value(activityLevel),
       goalWeightKg: Value(goalWeightKg),
+      goalDirection: Value(goalDirection),
       weeklyRatePct: Value(weeklyRatePct),
       proteinPerKg: Value(proteinPerKg),
       checkInWeekday: Value(checkInWeekday),
@@ -357,6 +391,7 @@ class Profile extends DataClass implements Insertable<Profile> {
       heightCm: serializer.fromJson<double>(json['heightCm']),
       activityLevel: serializer.fromJson<int>(json['activityLevel']),
       goalWeightKg: serializer.fromJson<double>(json['goalWeightKg']),
+      goalDirection: serializer.fromJson<int>(json['goalDirection']),
       weeklyRatePct: serializer.fromJson<double>(json['weeklyRatePct']),
       proteinPerKg: serializer.fromJson<double>(json['proteinPerKg']),
       checkInWeekday: serializer.fromJson<int>(json['checkInWeekday']),
@@ -373,6 +408,7 @@ class Profile extends DataClass implements Insertable<Profile> {
       'heightCm': serializer.toJson<double>(heightCm),
       'activityLevel': serializer.toJson<int>(activityLevel),
       'goalWeightKg': serializer.toJson<double>(goalWeightKg),
+      'goalDirection': serializer.toJson<int>(goalDirection),
       'weeklyRatePct': serializer.toJson<double>(weeklyRatePct),
       'proteinPerKg': serializer.toJson<double>(proteinPerKg),
       'checkInWeekday': serializer.toJson<int>(checkInWeekday),
@@ -387,6 +423,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     double? heightCm,
     int? activityLevel,
     double? goalWeightKg,
+    int? goalDirection,
     double? weeklyRatePct,
     double? proteinPerKg,
     int? checkInWeekday,
@@ -398,6 +435,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     heightCm: heightCm ?? this.heightCm,
     activityLevel: activityLevel ?? this.activityLevel,
     goalWeightKg: goalWeightKg ?? this.goalWeightKg,
+    goalDirection: goalDirection ?? this.goalDirection,
     weeklyRatePct: weeklyRatePct ?? this.weeklyRatePct,
     proteinPerKg: proteinPerKg ?? this.proteinPerKg,
     checkInWeekday: checkInWeekday ?? this.checkInWeekday,
@@ -415,6 +453,9 @@ class Profile extends DataClass implements Insertable<Profile> {
       goalWeightKg: data.goalWeightKg.present
           ? data.goalWeightKg.value
           : this.goalWeightKg,
+      goalDirection: data.goalDirection.present
+          ? data.goalDirection.value
+          : this.goalDirection,
       weeklyRatePct: data.weeklyRatePct.present
           ? data.weeklyRatePct.value
           : this.weeklyRatePct,
@@ -437,6 +478,7 @@ class Profile extends DataClass implements Insertable<Profile> {
           ..write('heightCm: $heightCm, ')
           ..write('activityLevel: $activityLevel, ')
           ..write('goalWeightKg: $goalWeightKg, ')
+          ..write('goalDirection: $goalDirection, ')
           ..write('weeklyRatePct: $weeklyRatePct, ')
           ..write('proteinPerKg: $proteinPerKg, ')
           ..write('checkInWeekday: $checkInWeekday, ')
@@ -453,6 +495,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     heightCm,
     activityLevel,
     goalWeightKg,
+    goalDirection,
     weeklyRatePct,
     proteinPerKg,
     checkInWeekday,
@@ -468,6 +511,7 @@ class Profile extends DataClass implements Insertable<Profile> {
           other.heightCm == this.heightCm &&
           other.activityLevel == this.activityLevel &&
           other.goalWeightKg == this.goalWeightKg &&
+          other.goalDirection == this.goalDirection &&
           other.weeklyRatePct == this.weeklyRatePct &&
           other.proteinPerKg == this.proteinPerKg &&
           other.checkInWeekday == this.checkInWeekday &&
@@ -481,6 +525,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
   final Value<double> heightCm;
   final Value<int> activityLevel;
   final Value<double> goalWeightKg;
+  final Value<int> goalDirection;
   final Value<double> weeklyRatePct;
   final Value<double> proteinPerKg;
   final Value<int> checkInWeekday;
@@ -492,6 +537,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     this.heightCm = const Value.absent(),
     this.activityLevel = const Value.absent(),
     this.goalWeightKg = const Value.absent(),
+    this.goalDirection = const Value.absent(),
     this.weeklyRatePct = const Value.absent(),
     this.proteinPerKg = const Value.absent(),
     this.checkInWeekday = const Value.absent(),
@@ -504,6 +550,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     required double heightCm,
     required int activityLevel,
     required double goalWeightKg,
+    this.goalDirection = const Value.absent(),
     this.weeklyRatePct = const Value.absent(),
     this.proteinPerKg = const Value.absent(),
     this.checkInWeekday = const Value.absent(),
@@ -521,6 +568,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     Expression<double>? heightCm,
     Expression<int>? activityLevel,
     Expression<double>? goalWeightKg,
+    Expression<int>? goalDirection,
     Expression<double>? weeklyRatePct,
     Expression<double>? proteinPerKg,
     Expression<int>? checkInWeekday,
@@ -533,6 +581,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
       if (heightCm != null) 'height_cm': heightCm,
       if (activityLevel != null) 'activity_level': activityLevel,
       if (goalWeightKg != null) 'goal_weight_kg': goalWeightKg,
+      if (goalDirection != null) 'goal_direction': goalDirection,
       if (weeklyRatePct != null) 'weekly_rate_pct': weeklyRatePct,
       if (proteinPerKg != null) 'protein_per_kg': proteinPerKg,
       if (checkInWeekday != null) 'check_in_weekday': checkInWeekday,
@@ -547,6 +596,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     Value<double>? heightCm,
     Value<int>? activityLevel,
     Value<double>? goalWeightKg,
+    Value<int>? goalDirection,
     Value<double>? weeklyRatePct,
     Value<double>? proteinPerKg,
     Value<int>? checkInWeekday,
@@ -559,6 +609,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
       heightCm: heightCm ?? this.heightCm,
       activityLevel: activityLevel ?? this.activityLevel,
       goalWeightKg: goalWeightKg ?? this.goalWeightKg,
+      goalDirection: goalDirection ?? this.goalDirection,
       weeklyRatePct: weeklyRatePct ?? this.weeklyRatePct,
       proteinPerKg: proteinPerKg ?? this.proteinPerKg,
       checkInWeekday: checkInWeekday ?? this.checkInWeekday,
@@ -587,6 +638,9 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     if (goalWeightKg.present) {
       map['goal_weight_kg'] = Variable<double>(goalWeightKg.value);
     }
+    if (goalDirection.present) {
+      map['goal_direction'] = Variable<int>(goalDirection.value);
+    }
     if (weeklyRatePct.present) {
       map['weekly_rate_pct'] = Variable<double>(weeklyRatePct.value);
     }
@@ -611,6 +665,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
           ..write('heightCm: $heightCm, ')
           ..write('activityLevel: $activityLevel, ')
           ..write('goalWeightKg: $goalWeightKg, ')
+          ..write('goalDirection: $goalDirection, ')
           ..write('weeklyRatePct: $weeklyRatePct, ')
           ..write('proteinPerKg: $proteinPerKg, ')
           ..write('checkInWeekday: $checkInWeekday, ')
@@ -5408,6 +5463,7 @@ typedef $$ProfilesTableCreateCompanionBuilder = ProfilesCompanion Function({
   required double heightCm,
   required int activityLevel,
   required double goalWeightKg,
+  Value<int> goalDirection,
   Value<double> weeklyRatePct,
   Value<double> proteinPerKg,
   Value<int> checkInWeekday,
@@ -5420,6 +5476,7 @@ typedef $$ProfilesTableUpdateCompanionBuilder = ProfilesCompanion Function({
   Value<double> heightCm,
   Value<int> activityLevel,
   Value<double> goalWeightKg,
+  Value<int> goalDirection,
   Value<double> weeklyRatePct,
   Value<double> proteinPerKg,
   Value<int> checkInWeekday,
@@ -5462,6 +5519,11 @@ class $$ProfilesTableFilterComposer
 
   ColumnFilters<double> get goalWeightKg => $composableBuilder(
     column: $table.goalWeightKg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get goalDirection => $composableBuilder(
+    column: $table.goalDirection,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5525,6 +5587,11 @@ class $$ProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get goalDirection => $composableBuilder(
+    column: $table.goalDirection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get weeklyRatePct => $composableBuilder(
     column: $table.weeklyRatePct,
     builder: (column) => ColumnOrderings(column),
@@ -5574,6 +5641,11 @@ class $$ProfilesTableAnnotationComposer
 
   GeneratedColumn<double> get goalWeightKg => $composableBuilder(
     column: $table.goalWeightKg,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get goalDirection => $composableBuilder(
+    column: $table.goalDirection,
     builder: (column) => column,
   );
 
@@ -5630,6 +5702,7 @@ class $$ProfilesTableTableManager
                 Value<double> heightCm = const Value.absent(),
                 Value<int> activityLevel = const Value.absent(),
                 Value<double> goalWeightKg = const Value.absent(),
+                Value<int> goalDirection = const Value.absent(),
                 Value<double> weeklyRatePct = const Value.absent(),
                 Value<double> proteinPerKg = const Value.absent(),
                 Value<int> checkInWeekday = const Value.absent(),
@@ -5641,6 +5714,7 @@ class $$ProfilesTableTableManager
                 heightCm: heightCm,
                 activityLevel: activityLevel,
                 goalWeightKg: goalWeightKg,
+                goalDirection: goalDirection,
                 weeklyRatePct: weeklyRatePct,
                 proteinPerKg: proteinPerKg,
                 checkInWeekday: checkInWeekday,
@@ -5654,6 +5728,7 @@ class $$ProfilesTableTableManager
                 required double heightCm,
                 required int activityLevel,
                 required double goalWeightKg,
+                Value<int> goalDirection = const Value.absent(),
                 Value<double> weeklyRatePct = const Value.absent(),
                 Value<double> proteinPerKg = const Value.absent(),
                 Value<int> checkInWeekday = const Value.absent(),
@@ -5665,6 +5740,7 @@ class $$ProfilesTableTableManager
                 heightCm: heightCm,
                 activityLevel: activityLevel,
                 goalWeightKg: goalWeightKg,
+                goalDirection: goalDirection,
                 weeklyRatePct: weeklyRatePct,
                 proteinPerKg: proteinPerKg,
                 checkInWeekday: checkInWeekday,
