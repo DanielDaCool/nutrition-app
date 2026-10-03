@@ -17,7 +17,6 @@ import '../features/targets/targets_providers.dart';
 import '../features/today/today_screen.dart';
 import '../features/weight/weight_providers.dart';
 import '../features/weight/weight_screen.dart';
-import '../features/widget_home/home_widget_sync.dart';
 import 'providers.dart';
 import 'theme.dart';
 
@@ -108,10 +107,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   void _sync() {
     if (!mounted) return;
-    // No Health Connect, home widget or lock-screen notification on web.
+    // No Health Connect on web.
     if (ref.read(isWebProvider)) return;
     ref.read(healthSyncProvider.notifier).syncNow();
-    ref.read(homeWidgetSyncProvider.notifier).syncNow();
   }
 
   void _offerSetup() {
