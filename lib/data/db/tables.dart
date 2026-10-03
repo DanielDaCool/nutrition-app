@@ -16,7 +16,12 @@ class Profiles extends Table {
   IntColumn get activityLevel => integer()(); // ActivityLevel.index
   RealColumn get goalWeightKg => real()();
 
-  /// Desired loss per week as % of body weight (e.g. 0.5).
+  /// GoalDirection.index. Defaults to 0 (lose) so installs saved before this
+  /// column existed keep losing toward goalWeightKg, unchanged.
+  IntColumn get goalDirection => integer().withDefault(const Constant(0))();
+
+  /// Desired weekly rate of change as % of body weight (e.g. 0.5) — a loss
+  /// rate or a gain rate depending on [goalDirection].
   RealColumn get weeklyRatePct => real().withDefault(const Constant(0.5))();
   /// Protein grams per kg of reference body weight.
   RealColumn get proteinPerKg => real().withDefault(const Constant(2.0))();
