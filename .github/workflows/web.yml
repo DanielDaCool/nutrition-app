@@ -3,6 +3,10 @@ name: Web
 # Builds the Flutter web app and, on main, publishes it to GitHub Pages at
 # https://danieldacool.github.io/nutrition-app/. Separate from ci.yml, which
 # keeps doing codegen check, analyze, test and the Android APK.
+#
+# A fork can publish its own copy at https://<owner>.github.io/<repo>/ by
+# enabling Pages (source: GitHub Actions) and setting the repository variable
+# DEPLOY_PAGES to "true".
 
 on:
   push:
@@ -32,11 +36,11 @@ jobs:
       - name: Install packages
         run: flutter pub get
 
-      # Pages serves the site from /nutrition-app/, not the domain root.
+      # Pages serves the site from /<repository name>/, not the domain root.
       # No USDA_API_KEY here: anything passed by --dart-define is readable in
       # the public JS bundle, so the web build uses the DEMO_KEY default.
       - name: Build web
-        run: flutter build web --release --base-href /nutrition-app/
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
 
       - name: Upload Pages artifact (main only)
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -45,13 +49,14 @@ jobs:
           path: build/web
 
   # Pull requests (including from forks) stop after the build above. Only
-  # main in this repository deploys.
+  # main deploys, in this repository or in a fork that opted in.
   deploy:
     needs: build
     if: >-
       github.event_name != 'pull_request' &&
       github.ref == 'refs/heads/main' &&
-      github.repository == 'DanielDaCool/nutrition-app'
+      (github.repository == 'DanielDaCool/nutrition-app' ||
+      vars.DEPLOY_PAGES == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
