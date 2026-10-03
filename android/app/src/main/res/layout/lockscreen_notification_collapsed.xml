@@ -16,10 +16,10 @@
     android:paddingTop="10dp"
     android:paddingBottom="10dp">
 
-    <View
+    <ImageView
         android:layout_width="18dp"
         android:layout_height="18dp"
-        android:background="@drawable/lockscreen_app_icon_background"/>
+        android:src="@drawable/lockscreen_app_icon_background"/>
 
     <TextView
         android:id="@+id/lockscreen_collapsed_line"
