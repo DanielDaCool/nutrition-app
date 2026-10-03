@@ -1,18 +1,21 @@
 // Camera barcode scanning with a manual-entry fallback.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+
+import '../../../app/providers.dart';
 
 /// Camera barcode scanner (product barcodes only). Pops with the barcode
 /// string, or null if cancelled. The code can also be typed.
-class BarcodeScanScreen extends StatefulWidget {
+class BarcodeScanScreen extends ConsumerStatefulWidget {
   const BarcodeScanScreen({super.key});
 
   @override
-  State<BarcodeScanScreen> createState() => _BarcodeScanScreenState();
+  ConsumerState<BarcodeScanScreen> createState() => _BarcodeScanScreenState();
 }
 
-class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
+class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   final _controller = MobileScannerController(
     formats: const [
       BarcodeFormat.ean13,
@@ -63,11 +66,13 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       appBar: AppBar(
         title: const Text('Scan barcode'),
         actions: [
-          IconButton(
-            tooltip: 'Torch',
-            icon: const Icon(Icons.flashlight_on_outlined),
-            onPressed: () => _controller.toggleTorch(),
-          ),
+          // Browsers can't switch the torch; toggleTorch() throws on web.
+          if (!ref.watch(isWebProvider))
+            IconButton(
+              tooltip: 'Torch',
+              icon: const Icon(Icons.flashlight_on_outlined),
+              onPressed: () => _controller.toggleTorch(),
+            ),
         ],
       ),
       body: Stack(

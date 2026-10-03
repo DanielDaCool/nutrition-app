@@ -43,6 +43,26 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <!--
+    iOS Safari plays a <video> without `playsinline` in its full-screen
+    player, which leaves the barcode scanner's camera preview black.
+    mobile_scanner 7.4.2 doesn't set it (juliansteenbakker/mobile_scanner
+    issue 1785), so set it, and `muted`, just before any video plays. The
+    scanner's preview is the only video in the app.
+  -->
+  <script>
+    (function () {
+      var play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () {
+        if (this instanceof HTMLVideoElement) {
+          this.setAttribute('playsinline', '');
+          this.playsInline = true;
+          this.muted = true;
+        }
+        return play.apply(this, arguments);
+      };
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
