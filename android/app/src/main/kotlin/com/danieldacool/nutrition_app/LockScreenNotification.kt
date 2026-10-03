@@ -21,6 +21,16 @@ import androidx.core.content.ContextCompat
  * Driven from Dart via the `nutrition/lockscreen_notification` MethodChannel
  * registered in [MainActivity] — see
  * lib/features/widget_home/lockscreen_notification_sync.dart.
+ *
+ * RESEARCH BRANCH NOTE (claude/lockscreen-live-updates-research only, never
+ * merged): [show] and [cancel] now branch at runtime to
+ * [LiveUpdatesLockScreenNotification] — the Android 16+ "Live Updates"
+ * ProgressStyle path — when [LiveUpdatesLockScreenNotification.isAvailable]
+ * is true, and fall back to this class's own RemoteViews card everywhere
+ * else (every device today). This file's own RemoteViews implementation is
+ * unchanged and kept as that fallback; it is NOT being removed on this
+ * branch even though a separate, unrelated piece of work is removing the
+ * lock-screen feature entirely from the shipping `main`/project branch.
  */
 object LockScreenNotification {
   // v2: IMPORTANCE_LOW channels are "silent" notifications, and Android's
@@ -35,6 +45,26 @@ object LockScreenNotification {
   private const val NOTIFICATION_ID = 2001
 
   fun show(
+      context: Context,
+      steps: Int,
+      stepGoal: Int,
+      kcalLeftText: String,
+      goalReached: Boolean,
+  ) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA &&
+        LiveUpdatesLockScreenNotification.isAvailable(context)) {
+      // Cancel this class's own notification id too: if the Live Update
+      // permission was just granted (or the card previously fell back on
+      // this path on the same device before an OS upgrade), don't leave
+      // two notifications showing side by side.
+      NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+      LiveUpdatesLockScreenNotification.show(context, steps, stepGoal, kcalLeftText, goalReached)
+      return
+    }
+    showRemoteViewsCard(context, steps, stepGoal, kcalLeftText, goalReached)
+  }
+
+  private fun showRemoteViewsCard(
       context: Context,
       steps: Int,
       stepGoal: Int,
@@ -112,6 +142,9 @@ object LockScreenNotification {
 
   fun cancel(context: Context) {
     NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+      LiveUpdatesLockScreenNotification.cancel(context)
+    }
   }
 
   private fun ensureChannel(context: Context) {
