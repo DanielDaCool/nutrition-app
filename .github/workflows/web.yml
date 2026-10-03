@@ -39,14 +39,8 @@ jobs:
       # Pages serves the site from /<repository name>/, not the domain root.
       # No USDA_API_KEY here: anything passed by --dart-define is readable in
       # the public JS bundle, so the web build uses the DEMO_KEY default.
-      # NEW_FEATURES_OPT_IN: a repository that sets this variable to "true"
-      # gets new Feature hub features switched off until the user turns them
-      # on (see lib/core/app_features.dart). Unset means on, as usual.
       - name: Build web
-        run: >-
-          flutter build web --release
-          --base-href "/${{ github.event.repository.name }}/"
-          --dart-define=NEW_FEATURES_OPT_IN=${{ vars.NEW_FEATURES_OPT_IN == 'true' }}
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
 
       - name: Upload Pages artifact (main only)
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
