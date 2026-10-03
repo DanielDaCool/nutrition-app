@@ -247,6 +247,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
   final _height = TextEditingController();
   final _goal = TextEditingController();
   Sex _sex = Sex.male;
+  GoalDirection _goalDirection = GoalDirection.lose;
   DateTime? _birthDate;
   ActivityLevel _activity = ActivityLevel.light;
   double _ratePct = 0.5;
@@ -273,6 +274,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     if (p == null) return;
     _loadedUpdatedAt = p.updatedAt;
     _sex = Sex.values[p.sex];
+    _goalDirection = GoalDirection.values[p.goalDirection];
     _birthDate = p.birthDate;
     _height.text = _num(p.heightCm);
     _activity = ActivityLevel.values[p.activityLevel];
@@ -371,6 +373,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
             weeklyRatePct: _ratePct,
             proteinPerKg: _proteinPerKg,
             checkInWeekday: _weekday,
+            goalDirection: _goalDirection,
           );
       if (mounted) setState(() => _editing = false);
       final onSaved = widget.onSaved;
@@ -451,7 +454,12 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     final now = ref.read(clockProvider)();
     final trendKg = ref.watch(weightTrendProvider).value?.lastOrNull?.trendKg;
     final goalKg = _parse(_goal.text);
-    final atGoal = trendKg != null && goalKg != null && trendKg <= goalKg;
+    final atGoal =
+        trendKg != null &&
+        goalKg != null &&
+        (_goalDirection == GoalDirection.lose
+            ? trendKg <= goalKg
+            : trendKg >= goalKg);
     final theme = Theme.of(context);
 
     // Faster loss is only capped once there's a weight, height and birth
@@ -470,7 +478,9 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
         ageYears: age,
         sex: _sex,
       ).clamp(5.0, 50.0);
-      rateMax = maxWeeklyRatePct(bmi: bmi, bodyFatPercent: bodyFat);
+      rateMax = _goalDirection == GoalDirection.lose
+          ? maxWeeklyRatePct(bmi: bmi, bodyFatPercent: bodyFat)
+          : maxWeeklyGainRatePct(bodyFatPercent: bodyFat);
     }
     final effectiveRateMax = rateMax ?? 1.0;
     // Shown (and used by the engine) capped, but the stored choice isn't
@@ -591,6 +601,24 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               ),
             ),
             const SizedBox(height: 12),
+            SegmentedButton<GoalDirection>(
+              key: const Key('goalDirection'),
+              segments: const [
+                ButtonSegment(
+                  value: GoalDirection.lose,
+                  label: Text('Lose weight'),
+                ),
+                ButtonSegment(
+                  value: GoalDirection.gain,
+                  label: Text('Gain weight'),
+                ),
+              ],
+              selected: {_goalDirection},
+              onSelectionChanged: locked
+                  ? null
+                  : (s) => setState(() => _goalDirection = s.first),
+            ),
+            const SizedBox(height: 12),
             TextFormField(
               key: const Key('goalWeightKg'),
               controller: _goal,
@@ -612,7 +640,8 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
             Text(
               atGoal
                   ? "You're at your goal, targets will hold your weight"
-                  : 'Weekly loss rate: ${shownRatePct.toStringAsFixed(2)} % per '
+                  : '${_goalDirection == GoalDirection.lose ? 'Weekly loss rate' : 'Weekly gain rate'}: '
+                        '${shownRatePct.toStringAsFixed(2)} % per '
                         'week${rateKg == null ? '' : ' (≈ ${rateKg.toStringAsFixed(2)} kg/week)'}',
               key: const Key('rateText'),
             ),
@@ -629,10 +658,15 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  '${rateOverCap ? 'Your chosen ${_ratePct.toStringAsFixed(2)} % is capped' : 'Capped'}'
-                  ' at ${rateMax.toStringAsFixed(2)} % for now, based '
-                  'on your current weight and height — faster loss costs '
-                  'more muscle the leaner you are.',
+                  _goalDirection == GoalDirection.lose
+                      ? '${rateOverCap ? 'Your chosen ${_ratePct.toStringAsFixed(2)} % is capped' : 'Capped'}'
+                            ' at ${rateMax.toStringAsFixed(2)} % for now, based '
+                            'on your current weight and height — faster loss costs '
+                            'more muscle the leaner you are.'
+                      : '${rateOverCap ? 'Your chosen ${_ratePct.toStringAsFixed(2)} % is capped' : 'Capped'}'
+                            ' at ${rateMax.toStringAsFixed(2)} % for now, based on your '
+                            'current body composition — a slower gain limits how much '
+                            'is fat versus muscle.',
                   key: const Key('rateCapNote'),
                   style: theme.textTheme.bodySmall,
                 ),
