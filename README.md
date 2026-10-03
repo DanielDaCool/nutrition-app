@@ -2,9 +2,11 @@
 
 A personal Android app for losing weight: log what you eat, weigh in every morning, and get
 calorie and macro targets that adjust every week based on how your weight is actually moving.
-Steps and gym workouts come in automatically from Health Connect (Hevy writes workouts there).
+Steps and gym workouts come in automatically from Health Connect (Hevy writes workouts there), or
+you can log a workout by hand.
 
-Everything is stored on the phone. There's no account, no server and no login.
+Everything is stored on the phone. There's no account, no server and no login. Dark theme only
+("Midnight Indigo" — periwinkle with a coral accent), regardless of your phone's setting.
 
 ## What it does
 
@@ -17,16 +19,33 @@ Everything is stored on the phone. There's no account, no server and no login.
   offline (a built-in list of about 120 common and Israeli foods plus your own foods, no account
   or API key), and it learns: pick a different food or fix the grams once and next time your words
   and your spoon size are used.
+- **Copy a day's meals.** Copy yesterday's whole day, one meal from yesterday, or a whole day or a
+  single meal from any past date, into today (or whatever day you're viewing) — with an Undo
+  snackbar after. An empty meal also gets a one-tap "Same as yesterday" chip.
+- **Edit a past day.** The calendar icon on Today jumps to any earlier day to fix or fill in its
+  meals; the arrows next to it step one day at a time (never past today).
 - **Daily weigh-ins.** One weigh-in per day. The app smooths them into a trend line, so water and
   salt swings don't hide real progress.
 - **Adaptive targets.** Each week (Sunday by default) the check-in compares what you ate on fully
   logged days with how your trend weight moved, estimates your real maintenance calories, and
   recommends new calories plus protein, fat and carbs for your chosen weekly loss rate.
-- **Steps and workouts.** Read from Health Connect every time the app opens. They're shown for
-  context and are never added back to your calorie budget.
+- **Steps and workouts.** Steps and Hevy workouts are read from Health Connect every time the app
+  opens. They're shown for context and are never added back to your calorie budget. You can also
+  log a walk, run or other exercise by hand (speed/incline or a flat MET estimate, or just type the
+  calories) for sessions Health Connect missed. Settings has a step-goal slider (3,000–20,000,
+  default 10,000) and an optional walk reminder notification.
+- **Recipes.** A browsable catalog of bundled recipes by meal (breakfast/lunch/dinner/snack), with
+  search, filters by calorie/macro limits, and a "Recommended for you" row based on what's left of
+  today's targets. Tap a recipe for its ingredients, steps and full macros.
 - **Dashboard.** Weight trend, weekly intake against target, steps per day, workouts per week and
   the maintenance estimate over time.
+- **Home-screen widget and lock-screen notification.** An Android home-screen widget shows
+  calories left and today's steps. Since Android 15 removed lock-screen widgets, there's also an
+  ongoing notification with the same steps-vs-goal and calories-left info, built natively so it can
+  show a custom layout.
 - **Export.** Settings → Export data writes everything to a JSON file you can save or share.
+
+A web build usable from an iPhone is planned but not available yet.
 
 ## How the calorie recommendation works
 
@@ -48,9 +67,11 @@ it look like you eat less than you really do. The full spec is in [docs/engine.m
 
 ## Installing on your phone
 
-1. Open the latest successful run on the [Actions tab](https://github.com/DanielDaCool/nutrition-app/actions) (for `main` or a pull request).
-2. Download the `nutrition-app-apk` artifact, unzip it, and copy `app-release.apk` to the phone.
-3. Open it on the phone and allow installing from that source.
+1. Download [`nutrition.apk`](https://github.com/DanielDaCool/nutrition-app/releases/download/latest-apk/nutrition.apk) — the `latest-apk` release, rebuilt from `main` on every push. The repo is
+   public, so this works without being signed in to GitHub.
+2. Open it on the phone and allow installing from that source.
+
+For a pull request's build instead, open its run on the [Actions tab](https://github.com/DanielDaCool/nutrition-app/actions) and download the `nutrition-app-apk` artifact (needs a GitHub login), then copy `app-release.apk` to the phone.
 
 **Keep your data between updates:** new versions only install over the old one if every build is
 signed with the same key. Set these repository secrets once (Settings → Secrets and variables →
@@ -119,10 +140,12 @@ lib/
     food/                 Open Food Facts + USDA clients, food log, add-food screens
     targets/              calorie engine, current targets, weekly check-in
     settings/             profile and goals, data export
-    activity/             Health Connect sync (steps, workouts)
+    activity/             Health Connect sync (steps, workouts), manual exercise, step goal, walk reminder
     weight/               weigh-ins, trend chart
     today/                Today screen
     dashboard/            charts over time
+    recipes/              bundled recipe catalog, search/filters, recommendations
+    widget_home/          Android home-screen widget + lock-screen notification sync
 test/                     unit, provider and widget tests (in-memory database)
 docs/                     plan and calorie engine spec
 ```
@@ -132,7 +155,8 @@ Tech: Flutter, Riverpod 3 for state, Drift for the local database, `health` for 
 
 CI (`.github/workflows/ci.yml`) runs on every push to `main` and every pull request. It checks that
 the generated database code is up to date, then runs analyze and the tests, and builds the release
-APK as a downloadable artifact.
+APK as a downloadable artifact. On a push to `main` it also publishes that APK to the `latest-apk`
+GitHub release (see Installing, above).
 
 ## Data sources
 
