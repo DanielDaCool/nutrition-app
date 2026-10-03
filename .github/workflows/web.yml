@@ -1,0 +1,70 @@
+name: Web
+
+# Builds the Flutter web app and, on main, publishes it to GitHub Pages at
+# https://danieldacool.github.io/nutrition-app/. Separate from ci.yml, which
+# keeps doing codegen check, analyze, test and the Android APK.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: web-build-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.5
+          channel: stable
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      # Pages serves the site from /nutrition-app/, not the domain root.
+      # No USDA_API_KEY here: anything passed by --dart-define is readable in
+      # the public JS bundle, so the web build uses the DEMO_KEY default.
+      - name: Build web
+        run: flutter build web --release --base-href /nutrition-app/
+
+      - name: Upload Pages artifact (main only)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/web
+
+  # Pull requests (including from forks) stop after the build above. Only
+  # main in this repository deploys.
+  deploy:
+    needs: build
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'DanielDaCool/nutrition-app'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v6
+
+      - id: deployment
+        uses: actions/deploy-pages@v5
