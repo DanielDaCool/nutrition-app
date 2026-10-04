@@ -133,7 +133,8 @@
   .platform-card ol li::marker{color:var(--text)}
 
   .feature{
-    background:var(--bg-elev);border:1px solid var(--outline);border-radius:16px;
+    background:var(--bg-elev);border:1px solid var(--outline);
+    border-top:3px solid var(--feature-accent, var(--outline));border-radius:16px;
     padding:18px 18px;margin-bottom:12px;min-width:0;
   }
   .feature-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
@@ -248,7 +249,7 @@
     </ol>
   </section>
 
-  <section id="food">
+  <section id="food" style="--feature-accent:var(--coral)">
     <div class="eyebrow">Today tab</div>
     <h2>Food logging</h2>
     <p class="lede">Today always shows four meals &mdash; Breakfast, Lunch, Dinner and Snacks &mdash; plus your calorie card up top. Tap a meal, or its + icon, to add to it.</p>
@@ -304,7 +305,7 @@
     <p class="lede">One weigh-in per day. The app smooths your entries into a trend line, so a salty dinner or a bad night's sleep doesn't look like real progress or a setback &mdash; only the trend feeds your targets.</p>
   </section>
 
-  <section id="targets">
+  <section id="targets" style="--feature-accent:var(--teal)">
     <div class="eyebrow">Weekly check-in</div>
     <h2>Adaptive targets</h2>
     <p class="lede">Once a week, on the day you chose at setup (Sunday by default), the check-in compares what you actually ate on fully-logged days against how your trend weight moved, and offers new numbers.</p>
@@ -316,7 +317,7 @@
     </div>
   </section>
 
-  <section id="activity">
+  <section id="activity" style="--feature-accent:var(--accent)">
     <div class="eyebrow">Today &amp; Dashboard</div>
     <h2>Steps &amp; workouts</h2>
     <span class="badge" style="margin-bottom:12px;display:inline-block">Android only</span>
@@ -335,7 +336,7 @@
     </div>
   </section>
 
-  <section id="recipes">
+  <section id="recipes" style="--feature-accent:var(--coral)">
     <div class="eyebrow">Recipes tab</div>
     <h2>Recipes</h2>
     <p class="lede">A grid of recipes grouped by meal &mdash; Breakfast, Lunch, Dinner, Snacks &mdash; with search and filters, plus a <strong>Recommended for you</strong> row at the top.</p>
@@ -346,7 +347,7 @@
     </div>
   </section>
 
-  <section id="dashboard">
+  <section id="dashboard" style="--feature-accent:var(--teal)">
     <div class="eyebrow">Dashboard tab</div>
     <h2>Dashboard</h2>
     <p class="lede">Five charts, in order, over the time range you pick at the top:</p>
@@ -362,7 +363,7 @@
     </div>
   </section>
 
-  <section id="settings">
+  <section id="settings" style="--feature-accent:var(--accent)">
     <div class="eyebrow">Settings</div>
     <h2>Settings &amp; export</h2>
     <div class="feature">
