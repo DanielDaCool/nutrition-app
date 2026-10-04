@@ -1,12 +1,32 @@
-# Nutrition App
+<div align="center">
+  <img src="assets/icon/full-icon.png" alt="Nutrition App icon — bowl and sprout" width="112" height="112">
 
-A personal Android app for losing weight: log what you eat, weigh in every morning, and get
+  # Nutrition App
+
+  [![CI](https://github.com/DanielDaCool/nutrition-app/actions/workflows/ci.yml/badge.svg)](https://github.com/DanielDaCool/nutrition-app/actions/workflows/ci.yml)
+  [![Web](https://github.com/DanielDaCool/nutrition-app/actions/workflows/web.yml/badge.svg)](https://github.com/DanielDaCool/nutrition-app/actions/workflows/web.yml)
+</div>
+
+A personal app for losing (or gaining) weight: log what you eat, weigh in every morning, and get
 calorie and macro targets that adjust every week based on how your weight is actually moving.
 Steps and gym workouts come in automatically from Health Connect (Hevy writes workouts there), or
 you can log a workout by hand.
 
-Everything is stored on the phone. There's no account, no server and no login. Dark theme only
-("Midnight Indigo" — periwinkle with a coral accent), regardless of your phone's setting.
+Everything is stored on the phone (or the browser, for the web build). There's no account, no
+server and no login. Dark theme only ("Midnight Indigo" — periwinkle with a coral accent),
+regardless of your device's setting.
+
+**Get it:** [Android APK](#installing-on-your-phone) · [Web app (iPhone-friendly)](https://danieldacool.github.io/nutrition-app/)
+
+### Contents
+
+- [What it does](#what-it-does)
+- [How the calorie recommendation works](#how-the-calorie-recommendation-works)
+- [Installing on your phone](#installing-on-your-phone)
+- [Using it on iPhone / the web](#using-it-on-iphone--the-web)
+- [Connecting Hevy and steps (Health Connect)](#connecting-hevy-and-steps-health-connect)
+- [Development](#development)
+- [Data sources](#data-sources)
 
 ## What it does
 
@@ -26,26 +46,22 @@ Everything is stored on the phone. There's no account, no server and no login. D
   meals; the arrows next to it step one day at a time (never past today).
 - **Daily weigh-ins.** One weigh-in per day. The app smooths them into a trend line, so water and
   salt swings don't hide real progress.
-- **Adaptive targets.** Each week (Sunday by default) the check-in compares what you ate on fully
-  logged days with how your trend weight moved, estimates your real maintenance calories, and
-  recommends new calories plus protein, fat and carbs for your chosen weekly loss rate.
+- **Adaptive targets, either direction.** Each week (Sunday by default) the check-in compares what
+  you ate on fully logged days with how your trend weight moved, estimates your real maintenance
+  calories, and recommends new calories plus protein, fat and carbs for your chosen weekly rate.
+  Your profile picks **Lose weight** (a deficit) or **Gain weight** (a surplus) — the engine
+  supports both directions symmetrically.
 - **Steps and workouts.** Steps and Hevy workouts are read from Health Connect every time the app
   opens. They're shown for context and are never added back to your calorie budget. You can also
   log a walk, run or other exercise by hand (speed/incline or a flat MET estimate, or just type the
   calories) for sessions Health Connect missed. Settings has a step-goal slider (3,000–20,000,
-  default 10,000) and an optional walk reminder notification.
+  default 10,000) and an optional walk reminder notification. *(Android only — see below.)*
 - **Recipes.** A browsable catalog of bundled recipes by meal (breakfast/lunch/dinner/snack), with
   search, filters by calorie/macro limits, and a "Recommended for you" row based on what's left of
   today's targets. Tap a recipe for its ingredients, steps and full macros.
 - **Dashboard.** Weight trend, weekly intake against target, steps per day, workouts per week and
   the maintenance estimate over time.
-- **Home-screen widget and lock-screen notification.** An Android home-screen widget shows
-  calories left and today's steps. Since Android 15 removed lock-screen widgets, there's also an
-  ongoing notification with the same steps-vs-goal and calories-left info, built natively so it can
-  show a custom layout.
 - **Export.** Settings → Export data writes everything to a JSON file you can save or share.
-
-A web build usable from an iPhone is planned but not available yet.
 
 ## How the calorie recommendation works
 
@@ -54,9 +70,10 @@ A web build usable from an iPhone is planned but not available yet.
    last 21 days, the app measures maintenance:
    `average intake − (trend weight change × 7700 kcal/kg) ÷ days`.
    It blends from the formula to the measured value as more logged days come in.
-3. **Target:** maintenance minus the deficit for your weekly loss rate (0.25–1.0 % of body weight
-   per week). The deficit is capped at 25 % of maintenance or 1000 kcal, and the target never drops
-   below your BMR (or 1500 kcal for men, 1200 kcal for women).
+3. **Target:** maintenance minus the deficit (losing) or plus the surplus (gaining) for your
+   weekly rate (0.25–1.0 % of body weight per week). The deficit side is capped at 25 % of
+   maintenance or 1000 kcal, and the target never drops below your BMR (or 1500 kcal for men,
+   1200 kcal for women).
 4. **Macros:** protein 1.6–2.2 g per kg, fat is the larger of 0.8 g per kg and 25 % of calories,
    and carbs fill the rest (at least 50 g).
 5. **Stability:** maintenance moves at most 150 kcal per week, and the target only changes when you
@@ -66,6 +83,8 @@ Only days you mark **"Day fully logged"** count. A day where you forgot dinner w
 it look like you eat less than you really do. The full spec is in [docs/engine.md](docs/engine.md).
 
 ## Installing on your phone
+
+> **Android:** download the APK below. **iPhone or anything else:** use the [web app](#using-it-on-iphone--the-web) instead.
 
 1. Download [`nutrition.apk`](https://github.com/DanielDaCool/nutrition-app/releases/download/latest-apk/nutrition.apk) — the `latest-apk` release, rebuilt from `main` on every push. The repo is
    public, so this works without being signed in to GitHub.
@@ -88,6 +107,17 @@ Actions):
 Without the signing secrets, CI signs with a throwaway debug key and you'd have to uninstall
 (losing your data) to install a newer build. Keep the `.jks` file and passwords backed up outside
 the repo.
+
+## Using it on iPhone / the web
+
+The same app also builds for the web and deploys automatically to
+**[danieldacool.github.io/nutrition-app](https://danieldacool.github.io/nutrition-app/)** on every
+push to `main`. On an iPhone, open that link in Safari and add it to your home screen — no App
+Store needed.
+
+It's the real app (food logging, describe-what-you-ate, weigh-ins, adaptive targets, recipes,
+dashboard, export), with one gap: **steps and workouts are Android-only.** Health Connect doesn't
+exist on the web, so the Activity card and the steps/workouts charts are hidden there.
 
 ## Connecting Hevy and steps (Health Connect)
 
@@ -145,7 +175,6 @@ lib/
     today/                Today screen
     dashboard/            charts over time
     recipes/              bundled recipe catalog, search/filters, recommendations
-    widget_home/          Android home-screen widget + lock-screen notification sync
 test/                     unit, provider and widget tests (in-memory database)
 docs/                     plan and calorie engine spec
 ```
@@ -153,10 +182,14 @@ docs/                     plan and calorie engine spec
 Tech: Flutter, Riverpod 3 for state, Drift for the local database, `health` for Health Connect,
 `mobile_scanner` for barcodes and `fl_chart` for charts.
 
-CI (`.github/workflows/ci.yml`) runs on every push to `main` and every pull request. It checks that
-the generated database code is up to date, then runs analyze and the tests, and builds the release
-APK as a downloadable artifact. On a push to `main` it also publishes that APK to the `latest-apk`
-GitHub release (see Installing, above).
+Two workflows run in CI:
+
+- **`ci.yml`** — on every push to `main` and every pull request: checks that the generated database
+  code is up to date, then runs analyze and the tests, and builds the release APK as a downloadable
+  artifact. On a push to `main` it also publishes that APK to the `latest-apk` GitHub release (see
+  Installing, above).
+- **`web.yml`** — builds the Flutter web app and, on a push to `main`, deploys it to GitHub Pages
+  at the web app link above.
 
 ## Data sources
 
