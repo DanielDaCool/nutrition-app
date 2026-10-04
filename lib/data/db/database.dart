@@ -26,6 +26,11 @@ part 'database.g.dart';
     ManualExercises,
     TargetHistory,
     KeyValues,
+    LiftExercises,
+    LiftEntries,
+    LiftSets,
+    LiftPresets,
+    LiftPresetItems,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -47,8 +52,26 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 
+  /// Like drift's `transaction`, followed by one statement outside of it.
+  ///
+  /// On web, drift 2.35.0 doesn't save what a transaction wrote to IndexedDB
+  /// until the next statement that runs outside a transaction (fixed in
+  /// 2.35.1, "writes made in transactions ... not being persisted"), so a
+  /// reload right after e.g. adding a set lost it. The pragma changes nothing
+  /// (foreign keys are already on) and only triggers that save. Remove this
+  /// override once drift and web/drift_worker.js are on 2.35.1 or later.
   @override
-  int get schemaVersion => 3;
+  Future<T> transaction<T>(
+    Future<T> Function() action, {
+    bool requireNew = false,
+  }) async {
+    final result = await super.transaction(action, requireNew: requireNew);
+    await customStatement('PRAGMA foreign_keys = ON');
+    return result;
+  }
+
+  @override
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -56,11 +79,24 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (m, from, to) async {
       if (from < 2) await _addManualExercises(m);
       if (from < 3) await _addGoalDirection(m);
+      if (from < 4) await _addLifting(m);
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );
+
+  /// v3 -> v4. Adds the weight-lifting tables and their indexes.
+  Future<void> _addLifting(Migrator m) async {
+    await m.createTable(liftExercises);
+    await m.createTable(liftEntries);
+    await m.createTable(liftSets);
+    await m.createTable(liftPresets);
+    await m.createTable(liftPresetItems);
+    await m.createIndex(liftEntriesDayIdx);
+    await m.createIndex(liftEntriesExerciseIdx);
+    await m.createIndex(liftSetsEntryIdx);
+  }
 
   /// v2 -> v3. Adds Profiles.goalDirection (defaults to 0 = lose, so existing
   /// profiles keep losing toward their goal weight unchanged).

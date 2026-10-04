@@ -4,7 +4,9 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/app_features.dart';
 import '../../core/day_key.dart';
+import '../lifting/lift_progress_logic.dart';
 import '../weight/table_watch.dart';
 import 'dashboard_logic.dart';
 
@@ -31,6 +33,41 @@ class DashboardRangeNotifier extends Notifier<DashboardRange> {
   DashboardRange build() => DashboardRange.weeks4;
 
   void set(DashboardRange range) => state = range;
+}
+
+/// Id of the exercise picked on the "Lifting progress" chart. Null (or an id
+/// that is no longer among the logged exercises) means the first logged one.
+final dashboardLiftExerciseIdProvider =
+    NotifierProvider<DashboardLiftExerciseIdNotifier, int?>(
+      DashboardLiftExerciseIdNotifier.new,
+    );
+
+/// Holds the picked exercise id of the lifting chart.
+class DashboardLiftExerciseIdNotifier extends Notifier<int?> {
+  @override
+  int? build() => null;
+
+  /// Shows exercise [exerciseId], with the default metric for it again.
+  void set(int exerciseId) {
+    if (exerciseId == state) return;
+    state = exerciseId;
+    ref.read(dashboardLiftMetricProvider.notifier).set(null);
+  }
+}
+
+/// Metric picked on the "Lifting progress" chart; null means the default
+/// rule ([defaultLiftMetric]) decides.
+final dashboardLiftMetricProvider =
+    NotifierProvider<DashboardLiftMetricNotifier, LiftMetric?>(
+      DashboardLiftMetricNotifier.new,
+    );
+
+/// Holds the picked [LiftMetric] of the lifting chart.
+class DashboardLiftMetricNotifier extends Notifier<LiftMetric?> {
+  @override
+  LiftMetric? build() => null;
+
+  void set(LiftMetric? metric) => state = metric;
 }
 
 /// All accepted targets, oldest effectiveFrom first (read-only; A writes).
@@ -80,9 +117,28 @@ final earliestDataDayProvider = StreamProvider<String?>((ref) {
   });
 });
 
+/// Earliest day with a tracked lifting set. Kept apart from
+/// [earliestDataDayProvider], which other screens use for food logging.
+final earliestLiftDayProvider = StreamProvider<String?>((ref) {
+  final db = ref.watch(databaseProvider);
+  final tables = <TableInfo>[db.liftEntries, db.liftSets];
+  return watchTables(db, tables, () async {
+    final row = await db
+        .customSelect(
+          'SELECT MIN(e.day_key) AS d FROM lift_entries e '
+          'JOIN lift_sets s ON s.entry_id = e.id',
+          readsFrom: tables.toSet(),
+        )
+        .getSingle();
+    return row.readNullable<String>('d');
+  });
+});
+
 /// The dashboard's (from, to) day keys, inclusive; `to` is today.
 ///
-/// "All" starts at the earliest data day but always spans at least 28 days.
+/// "All" starts at the earliest data day (including the first tracked
+/// lifting day while the lifting feature is on) but always spans at least
+/// 28 days.
 /// "Today" is read when the range changes, not on a timer.
 final dashboardWindowProvider = StreamProvider<(String from, String to)>((
   ref,
@@ -95,7 +151,13 @@ final dashboardWindowProvider = StreamProvider<(String from, String to)>((
     yield (addDays(today, -(days - 1)), today);
     return;
   }
-  final earliest = await ref.watch(earliestDataDayProvider.future);
+  var earliest = await ref.watch(earliestDataDayProvider.future);
+  if (ref.watch(featureEnabledProvider(AppFeature.lifting))) {
+    final lift = await ref.watch(earliestLiftDayProvider.future);
+    if (lift != null && (earliest == null || lift.compareTo(earliest) < 0)) {
+      earliest = lift;
+    }
+  }
   final from = earliest != null && earliest.compareTo(minFrom) < 0
       ? earliest
       : minFrom;

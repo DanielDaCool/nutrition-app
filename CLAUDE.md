@@ -39,12 +39,14 @@ CI (`.github/workflows/ci.yml`) runs codegen check, analyze, test, and builds an
 | B. Food logging | food agent | `lib/features/food/**`, `test/features/food/**` | Foods, FoodLogEntries, SavedMeals, SavedMealItems, DayStatuses, KeyValues (keys prefixed `describe.`) |
 | C. Health Connect | health agent | `lib/features/activity/**`, `test/features/activity/**` | DailySteps, Workouts, KeyValues (keys prefixed `hc.`) |
 | D. Weight, Today, Dashboard | charts agent | `lib/features/weight/**`, `lib/features/today/**`, `lib/features/dashboard/**`, `test/features/{weight,today,dashboard}/**` | WeighIns |
+| E. Weight lifting | lifting agent | `lib/features/lifting/**`, `test/features/lifting/**` | LiftExercises, LiftEntries, LiftSets, LiftPresets, LiftPresetItems |
 
 Contract names (keep them; replace stub bodies):
 - A: `currentTargetsProvider`, `checkInDueProvider`, `CheckInScreen`, `SettingsScreen`
 - B: `dayIntakeProvider(dayKey)`, `intakeRangeProvider((from, to))`, `MealsSection(dayKey:)`
 - C: `dayActivityProvider(dayKey)`, `activityRangeProvider((from, to))`, `healthSyncProvider` (`syncNow()`), `ActivityCard(dayKey:)`, `HealthConnectSettingsTile()`
 - D: `weighInsProvider`, `weightTrendProvider`, `TodayScreen`, `WeightScreen`, `DashboardScreen`
+- E: `liftDayProvider(dayKey)`, `liftHistoryProvider((exerciseId, from, to))`, `liftLoggedExercisesProvider`, `LiftingScreen`
 
 Need a change in a file you don't own (schema, pubspec, manifest, contracts)? Don't edit it: report what and why to the lead.
 

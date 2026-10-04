@@ -14,6 +14,7 @@ void main() {
     expect(AppFeature.yesterdayPrompt.storageKey, 'yesterdayPrompt');
     expect(AppFeature.barcodeScan.storageKey, 'barcodeScan');
     expect(AppFeature.gainGoals.storageKey, 'gainGoals');
+    expect(AppFeature.lifting.storageKey, 'lifting');
   });
 
   test('every feature has a label and a description', () {

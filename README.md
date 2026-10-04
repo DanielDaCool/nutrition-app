@@ -37,8 +37,11 @@ Everything is stored on the phone. There's no account, no server and no login. D
 - **Recipes.** A browsable catalog of bundled recipes by meal (breakfast/lunch/dinner/snack), with
   search, filters by calorie/macro limits, and a "Recommended for you" row based on what's left of
   today's targets. Tap a recipe for its ingredients, steps and full macros.
-- **Dashboard.** Weight trend, weekly intake against target, steps per day, workouts per week and
-  the maintenance estimate over time.
+- **Weight lifting.** Plan which exercises to do on a day (today or ahead), from your own exercise
+  list or a saved preset such as "Push day", then track the reps and weight of every set. Each
+  exercise shows all the sets you did last time.
+- **Dashboard.** Weight trend, weekly intake against target, steps per day, workouts per week,
+  lifting progress per exercise and the maintenance estimate over time.
 - **Home-screen widget and lock-screen notification.** An Android home-screen widget shows
   calories left and today's steps. Since Android 15 removed lock-screen widgets, there's also an
   ongoing notification with the same steps-vs-goal and calories-left info, built natively so it can
@@ -145,6 +148,7 @@ lib/
     today/                Today screen
     dashboard/            charts over time
     recipes/              bundled recipe catalog, search/filters, recommendations
+    lifting/              exercises, presets, planned days and tracked sets
     widget_home/          Android home-screen widget + lock-screen notification sync
 test/                     unit, provider and widget tests (in-memory database)
 docs/                     plan and calorie engine spec

@@ -5394,6 +5394,1739 @@ class KeyValuesCompanion extends UpdateCompanion<KeyValue> {
   }
 }
 
+class $LiftExercisesTable extends LiftExercises
+    with TableInfo<$LiftExercisesTable, LiftExerciseRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LiftExercisesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _muscleGroupMeta = const VerificationMeta(
+    'muscleGroup',
+  );
+  @override
+  late final GeneratedColumn<int> muscleGroup = GeneratedColumn<int>(
+    'muscle_group',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isBodyweightMeta = const VerificationMeta(
+    'isBodyweight',
+  );
+  @override
+  late final GeneratedColumn<bool> isBodyweight = GeneratedColumn<bool>(
+    'is_bodyweight',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_bodyweight" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
+    'isArchived',
+  );
+  @override
+  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
+    'is_archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    muscleGroup,
+    isBodyweight,
+    isArchived,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lift_exercises';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LiftExerciseRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('muscle_group')) {
+      context.handle(
+        _muscleGroupMeta,
+        muscleGroup.isAcceptableOrUnknown(
+          data['muscle_group']!,
+          _muscleGroupMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_muscleGroupMeta);
+    }
+    if (data.containsKey('is_bodyweight')) {
+      context.handle(
+        _isBodyweightMeta,
+        isBodyweight.isAcceptableOrUnknown(
+          data['is_bodyweight']!,
+          _isBodyweightMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_archived')) {
+      context.handle(
+        _isArchivedMeta,
+        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LiftExerciseRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LiftExerciseRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      muscleGroup: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}muscle_group'],
+      )!,
+      isBodyweight: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_bodyweight'],
+      )!,
+      isArchived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_archived'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LiftExercisesTable createAlias(String alias) {
+    return $LiftExercisesTable(attachedDatabase, alias);
+  }
+}
+
+class LiftExerciseRow extends DataClass implements Insertable<LiftExerciseRow> {
+  final int id;
+  final String name;
+  final int muscleGroup;
+
+  /// Bodyweight exercise (dips, pull-ups): a set's weightKg is only the
+  /// extra weight added.
+  final bool isBodyweight;
+
+  /// Deleted by the user but kept because days still refer to it.
+  final bool isArchived;
+  final DateTime createdAt;
+  const LiftExerciseRow({
+    required this.id,
+    required this.name,
+    required this.muscleGroup,
+    required this.isBodyweight,
+    required this.isArchived,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['muscle_group'] = Variable<int>(muscleGroup);
+    map['is_bodyweight'] = Variable<bool>(isBodyweight);
+    map['is_archived'] = Variable<bool>(isArchived);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LiftExercisesCompanion toCompanion(bool nullToAbsent) {
+    return LiftExercisesCompanion(
+      id: Value(id),
+      name: Value(name),
+      muscleGroup: Value(muscleGroup),
+      isBodyweight: Value(isBodyweight),
+      isArchived: Value(isArchived),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LiftExerciseRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LiftExerciseRow(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      muscleGroup: serializer.fromJson<int>(json['muscleGroup']),
+      isBodyweight: serializer.fromJson<bool>(json['isBodyweight']),
+      isArchived: serializer.fromJson<bool>(json['isArchived']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'muscleGroup': serializer.toJson<int>(muscleGroup),
+      'isBodyweight': serializer.toJson<bool>(isBodyweight),
+      'isArchived': serializer.toJson<bool>(isArchived),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LiftExerciseRow copyWith({
+    int? id,
+    String? name,
+    int? muscleGroup,
+    bool? isBodyweight,
+    bool? isArchived,
+    DateTime? createdAt,
+  }) => LiftExerciseRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    muscleGroup: muscleGroup ?? this.muscleGroup,
+    isBodyweight: isBodyweight ?? this.isBodyweight,
+    isArchived: isArchived ?? this.isArchived,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  LiftExerciseRow copyWithCompanion(LiftExercisesCompanion data) {
+    return LiftExerciseRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      muscleGroup: data.muscleGroup.present
+          ? data.muscleGroup.value
+          : this.muscleGroup,
+      isBodyweight: data.isBodyweight.present
+          ? data.isBodyweight.value
+          : this.isBodyweight,
+      isArchived: data.isArchived.present
+          ? data.isArchived.value
+          : this.isArchived,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftExerciseRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('muscleGroup: $muscleGroup, ')
+          ..write('isBodyweight: $isBodyweight, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, muscleGroup, isBodyweight, isArchived, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LiftExerciseRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.muscleGroup == this.muscleGroup &&
+          other.isBodyweight == this.isBodyweight &&
+          other.isArchived == this.isArchived &&
+          other.createdAt == this.createdAt);
+}
+
+class LiftExercisesCompanion extends UpdateCompanion<LiftExerciseRow> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int> muscleGroup;
+  final Value<bool> isBodyweight;
+  final Value<bool> isArchived;
+  final Value<DateTime> createdAt;
+  const LiftExercisesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.muscleGroup = const Value.absent(),
+    this.isBodyweight = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  LiftExercisesCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required int muscleGroup,
+    this.isBodyweight = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    required DateTime createdAt,
+  }) : name = Value(name),
+       muscleGroup = Value(muscleGroup),
+       createdAt = Value(createdAt);
+  static Insertable<LiftExerciseRow> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? muscleGroup,
+    Expression<bool>? isBodyweight,
+    Expression<bool>? isArchived,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (muscleGroup != null) 'muscle_group': muscleGroup,
+      if (isBodyweight != null) 'is_bodyweight': isBodyweight,
+      if (isArchived != null) 'is_archived': isArchived,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  LiftExercisesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int>? muscleGroup,
+    Value<bool>? isBodyweight,
+    Value<bool>? isArchived,
+    Value<DateTime>? createdAt,
+  }) {
+    return LiftExercisesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      muscleGroup: muscleGroup ?? this.muscleGroup,
+      isBodyweight: isBodyweight ?? this.isBodyweight,
+      isArchived: isArchived ?? this.isArchived,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (muscleGroup.present) {
+      map['muscle_group'] = Variable<int>(muscleGroup.value);
+    }
+    if (isBodyweight.present) {
+      map['is_bodyweight'] = Variable<bool>(isBodyweight.value);
+    }
+    if (isArchived.present) {
+      map['is_archived'] = Variable<bool>(isArchived.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftExercisesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('muscleGroup: $muscleGroup, ')
+          ..write('isBodyweight: $isBodyweight, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LiftEntriesTable extends LiftEntries
+    with TableInfo<$LiftEntriesTable, LiftEntryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LiftEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _dayKeyMeta = const VerificationMeta('dayKey');
+  @override
+  late final GeneratedColumn<String> dayKey = GeneratedColumn<String>(
+    'day_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _exerciseIdMeta = const VerificationMeta(
+    'exerciseId',
+  );
+  @override
+  late final GeneratedColumn<int> exerciseId = GeneratedColumn<int>(
+    'exercise_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES lift_exercises (id)',
+    ),
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    dayKey,
+    exerciseId,
+    position,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lift_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LiftEntryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('day_key')) {
+      context.handle(
+        _dayKeyMeta,
+        dayKey.isAcceptableOrUnknown(data['day_key']!, _dayKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayKeyMeta);
+    }
+    if (data.containsKey('exercise_id')) {
+      context.handle(
+        _exerciseIdMeta,
+        exerciseId.isAcceptableOrUnknown(data['exercise_id']!, _exerciseIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_exerciseIdMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LiftEntryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LiftEntryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      dayKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}day_key'],
+      )!,
+      exerciseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}exercise_id'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LiftEntriesTable createAlias(String alias) {
+    return $LiftEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class LiftEntryRow extends DataClass implements Insertable<LiftEntryRow> {
+  final int id;
+  final String dayKey;
+  final int exerciseId;
+  final int position;
+  final DateTime createdAt;
+  const LiftEntryRow({
+    required this.id,
+    required this.dayKey,
+    required this.exerciseId,
+    required this.position,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['day_key'] = Variable<String>(dayKey);
+    map['exercise_id'] = Variable<int>(exerciseId);
+    map['position'] = Variable<int>(position);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LiftEntriesCompanion toCompanion(bool nullToAbsent) {
+    return LiftEntriesCompanion(
+      id: Value(id),
+      dayKey: Value(dayKey),
+      exerciseId: Value(exerciseId),
+      position: Value(position),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LiftEntryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LiftEntryRow(
+      id: serializer.fromJson<int>(json['id']),
+      dayKey: serializer.fromJson<String>(json['dayKey']),
+      exerciseId: serializer.fromJson<int>(json['exerciseId']),
+      position: serializer.fromJson<int>(json['position']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'dayKey': serializer.toJson<String>(dayKey),
+      'exerciseId': serializer.toJson<int>(exerciseId),
+      'position': serializer.toJson<int>(position),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LiftEntryRow copyWith({
+    int? id,
+    String? dayKey,
+    int? exerciseId,
+    int? position,
+    DateTime? createdAt,
+  }) => LiftEntryRow(
+    id: id ?? this.id,
+    dayKey: dayKey ?? this.dayKey,
+    exerciseId: exerciseId ?? this.exerciseId,
+    position: position ?? this.position,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  LiftEntryRow copyWithCompanion(LiftEntriesCompanion data) {
+    return LiftEntryRow(
+      id: data.id.present ? data.id.value : this.id,
+      dayKey: data.dayKey.present ? data.dayKey.value : this.dayKey,
+      exerciseId: data.exerciseId.present
+          ? data.exerciseId.value
+          : this.exerciseId,
+      position: data.position.present ? data.position.value : this.position,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftEntryRow(')
+          ..write('id: $id, ')
+          ..write('dayKey: $dayKey, ')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('position: $position, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, dayKey, exerciseId, position, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LiftEntryRow &&
+          other.id == this.id &&
+          other.dayKey == this.dayKey &&
+          other.exerciseId == this.exerciseId &&
+          other.position == this.position &&
+          other.createdAt == this.createdAt);
+}
+
+class LiftEntriesCompanion extends UpdateCompanion<LiftEntryRow> {
+  final Value<int> id;
+  final Value<String> dayKey;
+  final Value<int> exerciseId;
+  final Value<int> position;
+  final Value<DateTime> createdAt;
+  const LiftEntriesCompanion({
+    this.id = const Value.absent(),
+    this.dayKey = const Value.absent(),
+    this.exerciseId = const Value.absent(),
+    this.position = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  LiftEntriesCompanion.insert({
+    this.id = const Value.absent(),
+    required String dayKey,
+    required int exerciseId,
+    required int position,
+    required DateTime createdAt,
+  }) : dayKey = Value(dayKey),
+       exerciseId = Value(exerciseId),
+       position = Value(position),
+       createdAt = Value(createdAt);
+  static Insertable<LiftEntryRow> custom({
+    Expression<int>? id,
+    Expression<String>? dayKey,
+    Expression<int>? exerciseId,
+    Expression<int>? position,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dayKey != null) 'day_key': dayKey,
+      if (exerciseId != null) 'exercise_id': exerciseId,
+      if (position != null) 'position': position,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  LiftEntriesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? dayKey,
+    Value<int>? exerciseId,
+    Value<int>? position,
+    Value<DateTime>? createdAt,
+  }) {
+    return LiftEntriesCompanion(
+      id: id ?? this.id,
+      dayKey: dayKey ?? this.dayKey,
+      exerciseId: exerciseId ?? this.exerciseId,
+      position: position ?? this.position,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (dayKey.present) {
+      map['day_key'] = Variable<String>(dayKey.value);
+    }
+    if (exerciseId.present) {
+      map['exercise_id'] = Variable<int>(exerciseId.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('dayKey: $dayKey, ')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('position: $position, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LiftSetsTable extends LiftSets
+    with TableInfo<$LiftSetsTable, LiftSetRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LiftSetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _entryIdMeta = const VerificationMeta(
+    'entryId',
+  );
+  @override
+  late final GeneratedColumn<int> entryId = GeneratedColumn<int>(
+    'entry_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES lift_entries (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _repsMeta = const VerificationMeta('reps');
+  @override
+  late final GeneratedColumn<int> reps = GeneratedColumn<int>(
+    'reps',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _weightKgMeta = const VerificationMeta(
+    'weightKg',
+  );
+  @override
+  late final GeneratedColumn<double> weightKg = GeneratedColumn<double>(
+    'weight_kg',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entryId,
+    position,
+    reps,
+    weightKg,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lift_sets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LiftSetRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('entry_id')) {
+      context.handle(
+        _entryIdMeta,
+        entryId.isAcceptableOrUnknown(data['entry_id']!, _entryIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entryIdMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    if (data.containsKey('reps')) {
+      context.handle(
+        _repsMeta,
+        reps.isAcceptableOrUnknown(data['reps']!, _repsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_repsMeta);
+    }
+    if (data.containsKey('weight_kg')) {
+      context.handle(
+        _weightKgMeta,
+        weightKg.isAcceptableOrUnknown(data['weight_kg']!, _weightKgMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_weightKgMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LiftSetRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LiftSetRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      entryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}entry_id'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      reps: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reps'],
+      )!,
+      weightKg: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}weight_kg'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LiftSetsTable createAlias(String alias) {
+    return $LiftSetsTable(attachedDatabase, alias);
+  }
+}
+
+class LiftSetRow extends DataClass implements Insertable<LiftSetRow> {
+  final int id;
+  final int entryId;
+  final int position;
+  final int reps;
+
+  /// Weight lifted; for a bodyweight exercise the extra weight added.
+  final double weightKg;
+  final DateTime createdAt;
+  const LiftSetRow({
+    required this.id,
+    required this.entryId,
+    required this.position,
+    required this.reps,
+    required this.weightKg,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['entry_id'] = Variable<int>(entryId);
+    map['position'] = Variable<int>(position);
+    map['reps'] = Variable<int>(reps);
+    map['weight_kg'] = Variable<double>(weightKg);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LiftSetsCompanion toCompanion(bool nullToAbsent) {
+    return LiftSetsCompanion(
+      id: Value(id),
+      entryId: Value(entryId),
+      position: Value(position),
+      reps: Value(reps),
+      weightKg: Value(weightKg),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LiftSetRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LiftSetRow(
+      id: serializer.fromJson<int>(json['id']),
+      entryId: serializer.fromJson<int>(json['entryId']),
+      position: serializer.fromJson<int>(json['position']),
+      reps: serializer.fromJson<int>(json['reps']),
+      weightKg: serializer.fromJson<double>(json['weightKg']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'entryId': serializer.toJson<int>(entryId),
+      'position': serializer.toJson<int>(position),
+      'reps': serializer.toJson<int>(reps),
+      'weightKg': serializer.toJson<double>(weightKg),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LiftSetRow copyWith({
+    int? id,
+    int? entryId,
+    int? position,
+    int? reps,
+    double? weightKg,
+    DateTime? createdAt,
+  }) => LiftSetRow(
+    id: id ?? this.id,
+    entryId: entryId ?? this.entryId,
+    position: position ?? this.position,
+    reps: reps ?? this.reps,
+    weightKg: weightKg ?? this.weightKg,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  LiftSetRow copyWithCompanion(LiftSetsCompanion data) {
+    return LiftSetRow(
+      id: data.id.present ? data.id.value : this.id,
+      entryId: data.entryId.present ? data.entryId.value : this.entryId,
+      position: data.position.present ? data.position.value : this.position,
+      reps: data.reps.present ? data.reps.value : this.reps,
+      weightKg: data.weightKg.present ? data.weightKg.value : this.weightKg,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftSetRow(')
+          ..write('id: $id, ')
+          ..write('entryId: $entryId, ')
+          ..write('position: $position, ')
+          ..write('reps: $reps, ')
+          ..write('weightKg: $weightKg, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, entryId, position, reps, weightKg, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LiftSetRow &&
+          other.id == this.id &&
+          other.entryId == this.entryId &&
+          other.position == this.position &&
+          other.reps == this.reps &&
+          other.weightKg == this.weightKg &&
+          other.createdAt == this.createdAt);
+}
+
+class LiftSetsCompanion extends UpdateCompanion<LiftSetRow> {
+  final Value<int> id;
+  final Value<int> entryId;
+  final Value<int> position;
+  final Value<int> reps;
+  final Value<double> weightKg;
+  final Value<DateTime> createdAt;
+  const LiftSetsCompanion({
+    this.id = const Value.absent(),
+    this.entryId = const Value.absent(),
+    this.position = const Value.absent(),
+    this.reps = const Value.absent(),
+    this.weightKg = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  LiftSetsCompanion.insert({
+    this.id = const Value.absent(),
+    required int entryId,
+    required int position,
+    required int reps,
+    required double weightKg,
+    required DateTime createdAt,
+  }) : entryId = Value(entryId),
+       position = Value(position),
+       reps = Value(reps),
+       weightKg = Value(weightKg),
+       createdAt = Value(createdAt);
+  static Insertable<LiftSetRow> custom({
+    Expression<int>? id,
+    Expression<int>? entryId,
+    Expression<int>? position,
+    Expression<int>? reps,
+    Expression<double>? weightKg,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entryId != null) 'entry_id': entryId,
+      if (position != null) 'position': position,
+      if (reps != null) 'reps': reps,
+      if (weightKg != null) 'weight_kg': weightKg,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  LiftSetsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? entryId,
+    Value<int>? position,
+    Value<int>? reps,
+    Value<double>? weightKg,
+    Value<DateTime>? createdAt,
+  }) {
+    return LiftSetsCompanion(
+      id: id ?? this.id,
+      entryId: entryId ?? this.entryId,
+      position: position ?? this.position,
+      reps: reps ?? this.reps,
+      weightKg: weightKg ?? this.weightKg,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (entryId.present) {
+      map['entry_id'] = Variable<int>(entryId.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (reps.present) {
+      map['reps'] = Variable<int>(reps.value);
+    }
+    if (weightKg.present) {
+      map['weight_kg'] = Variable<double>(weightKg.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftSetsCompanion(')
+          ..write('id: $id, ')
+          ..write('entryId: $entryId, ')
+          ..write('position: $position, ')
+          ..write('reps: $reps, ')
+          ..write('weightKg: $weightKg, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LiftPresetsTable extends LiftPresets
+    with TableInfo<$LiftPresetsTable, LiftPresetRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LiftPresetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lift_presets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LiftPresetRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LiftPresetRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LiftPresetRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LiftPresetsTable createAlias(String alias) {
+    return $LiftPresetsTable(attachedDatabase, alias);
+  }
+}
+
+class LiftPresetRow extends DataClass implements Insertable<LiftPresetRow> {
+  final int id;
+  final String name;
+  final DateTime createdAt;
+  const LiftPresetRow({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LiftPresetsCompanion toCompanion(bool nullToAbsent) {
+    return LiftPresetsCompanion(
+      id: Value(id),
+      name: Value(name),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LiftPresetRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LiftPresetRow(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LiftPresetRow copyWith({int? id, String? name, DateTime? createdAt}) =>
+      LiftPresetRow(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  LiftPresetRow copyWithCompanion(LiftPresetsCompanion data) {
+    return LiftPresetRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftPresetRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LiftPresetRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.createdAt == this.createdAt);
+}
+
+class LiftPresetsCompanion extends UpdateCompanion<LiftPresetRow> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<DateTime> createdAt;
+  const LiftPresetsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  LiftPresetsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required DateTime createdAt,
+  }) : name = Value(name),
+       createdAt = Value(createdAt);
+  static Insertable<LiftPresetRow> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  LiftPresetsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<DateTime>? createdAt,
+  }) {
+    return LiftPresetsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftPresetsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LiftPresetItemsTable extends LiftPresetItems
+    with TableInfo<$LiftPresetItemsTable, LiftPresetItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LiftPresetItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _presetIdMeta = const VerificationMeta(
+    'presetId',
+  );
+  @override
+  late final GeneratedColumn<int> presetId = GeneratedColumn<int>(
+    'preset_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES lift_presets (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _exerciseIdMeta = const VerificationMeta(
+    'exerciseId',
+  );
+  @override
+  late final GeneratedColumn<int> exerciseId = GeneratedColumn<int>(
+    'exercise_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES lift_exercises (id)',
+    ),
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, presetId, exerciseId, position];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lift_preset_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LiftPresetItemRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('preset_id')) {
+      context.handle(
+        _presetIdMeta,
+        presetId.isAcceptableOrUnknown(data['preset_id']!, _presetIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_presetIdMeta);
+    }
+    if (data.containsKey('exercise_id')) {
+      context.handle(
+        _exerciseIdMeta,
+        exerciseId.isAcceptableOrUnknown(data['exercise_id']!, _exerciseIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_exerciseIdMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LiftPresetItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LiftPresetItemRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      presetId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}preset_id'],
+      )!,
+      exerciseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}exercise_id'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+    );
+  }
+
+  @override
+  $LiftPresetItemsTable createAlias(String alias) {
+    return $LiftPresetItemsTable(attachedDatabase, alias);
+  }
+}
+
+class LiftPresetItemRow extends DataClass
+    implements Insertable<LiftPresetItemRow> {
+  final int id;
+  final int presetId;
+  final int exerciseId;
+  final int position;
+  const LiftPresetItemRow({
+    required this.id,
+    required this.presetId,
+    required this.exerciseId,
+    required this.position,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['preset_id'] = Variable<int>(presetId);
+    map['exercise_id'] = Variable<int>(exerciseId);
+    map['position'] = Variable<int>(position);
+    return map;
+  }
+
+  LiftPresetItemsCompanion toCompanion(bool nullToAbsent) {
+    return LiftPresetItemsCompanion(
+      id: Value(id),
+      presetId: Value(presetId),
+      exerciseId: Value(exerciseId),
+      position: Value(position),
+    );
+  }
+
+  factory LiftPresetItemRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LiftPresetItemRow(
+      id: serializer.fromJson<int>(json['id']),
+      presetId: serializer.fromJson<int>(json['presetId']),
+      exerciseId: serializer.fromJson<int>(json['exerciseId']),
+      position: serializer.fromJson<int>(json['position']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'presetId': serializer.toJson<int>(presetId),
+      'exerciseId': serializer.toJson<int>(exerciseId),
+      'position': serializer.toJson<int>(position),
+    };
+  }
+
+  LiftPresetItemRow copyWith({
+    int? id,
+    int? presetId,
+    int? exerciseId,
+    int? position,
+  }) => LiftPresetItemRow(
+    id: id ?? this.id,
+    presetId: presetId ?? this.presetId,
+    exerciseId: exerciseId ?? this.exerciseId,
+    position: position ?? this.position,
+  );
+  LiftPresetItemRow copyWithCompanion(LiftPresetItemsCompanion data) {
+    return LiftPresetItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      presetId: data.presetId.present ? data.presetId.value : this.presetId,
+      exerciseId: data.exerciseId.present
+          ? data.exerciseId.value
+          : this.exerciseId,
+      position: data.position.present ? data.position.value : this.position,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftPresetItemRow(')
+          ..write('id: $id, ')
+          ..write('presetId: $presetId, ')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('position: $position')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, presetId, exerciseId, position);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LiftPresetItemRow &&
+          other.id == this.id &&
+          other.presetId == this.presetId &&
+          other.exerciseId == this.exerciseId &&
+          other.position == this.position);
+}
+
+class LiftPresetItemsCompanion extends UpdateCompanion<LiftPresetItemRow> {
+  final Value<int> id;
+  final Value<int> presetId;
+  final Value<int> exerciseId;
+  final Value<int> position;
+  const LiftPresetItemsCompanion({
+    this.id = const Value.absent(),
+    this.presetId = const Value.absent(),
+    this.exerciseId = const Value.absent(),
+    this.position = const Value.absent(),
+  });
+  LiftPresetItemsCompanion.insert({
+    this.id = const Value.absent(),
+    required int presetId,
+    required int exerciseId,
+    required int position,
+  }) : presetId = Value(presetId),
+       exerciseId = Value(exerciseId),
+       position = Value(position);
+  static Insertable<LiftPresetItemRow> custom({
+    Expression<int>? id,
+    Expression<int>? presetId,
+    Expression<int>? exerciseId,
+    Expression<int>? position,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (presetId != null) 'preset_id': presetId,
+      if (exerciseId != null) 'exercise_id': exerciseId,
+      if (position != null) 'position': position,
+    });
+  }
+
+  LiftPresetItemsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? presetId,
+    Value<int>? exerciseId,
+    Value<int>? position,
+  }) {
+    return LiftPresetItemsCompanion(
+      id: id ?? this.id,
+      presetId: presetId ?? this.presetId,
+      exerciseId: exerciseId ?? this.exerciseId,
+      position: position ?? this.position,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (presetId.present) {
+      map['preset_id'] = Variable<int>(presetId.value);
+    }
+    if (exerciseId.present) {
+      map['exercise_id'] = Variable<int>(exerciseId.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LiftPresetItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('presetId: $presetId, ')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('position: $position')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5411,6 +7144,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $TargetHistoryTable targetHistory = $TargetHistoryTable(this);
   late final $KeyValuesTable keyValues = $KeyValuesTable(this);
+  late final $LiftExercisesTable liftExercises = $LiftExercisesTable(this);
+  late final $LiftEntriesTable liftEntries = $LiftEntriesTable(this);
+  late final $LiftSetsTable liftSets = $LiftSetsTable(this);
+  late final $LiftPresetsTable liftPresets = $LiftPresetsTable(this);
+  late final $LiftPresetItemsTable liftPresetItems = $LiftPresetItemsTable(
+    this,
+  );
   late final Index foodLogDayIdx = Index(
     'food_log_day_idx',
     'CREATE INDEX food_log_day_idx ON food_log_entries (day_key)',
@@ -5422,6 +7162,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index manualExercisesDayIdx = Index(
     'manual_exercises_day_idx',
     'CREATE INDEX manual_exercises_day_idx ON manual_exercises (day_key)',
+  );
+  late final Index liftEntriesDayIdx = Index(
+    'lift_entries_day_idx',
+    'CREATE INDEX lift_entries_day_idx ON lift_entries (day_key)',
+  );
+  late final Index liftEntriesExerciseIdx = Index(
+    'lift_entries_exercise_idx',
+    'CREATE INDEX lift_entries_exercise_idx ON lift_entries (exercise_id)',
+  );
+  late final Index liftSetsEntryIdx = Index(
+    'lift_sets_entry_idx',
+    'CREATE INDEX lift_sets_entry_idx ON lift_sets (entry_id)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -5440,9 +7192,17 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     manualExercises,
     targetHistory,
     keyValues,
+    liftExercises,
+    liftEntries,
+    liftSets,
+    liftPresets,
+    liftPresetItems,
     foodLogDayIdx,
     workoutsDayIdx,
     manualExercisesDayIdx,
+    liftEntriesDayIdx,
+    liftEntriesExerciseIdx,
+    liftSetsEntryIdx,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -5452,6 +7212,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('saved_meal_items', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'lift_entries',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('lift_sets', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'lift_presets',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('lift_preset_items', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -8909,6 +10683,1797 @@ typedef $$KeyValuesTableProcessedTableManager =
       KeyValue,
       PrefetchHooks Function()
     >;
+typedef $$LiftExercisesTableCreateCompanionBuilder =
+    LiftExercisesCompanion Function({
+      Value<int> id,
+      required String name,
+      required int muscleGroup,
+      Value<bool> isBodyweight,
+      Value<bool> isArchived,
+      required DateTime createdAt,
+    });
+typedef $$LiftExercisesTableUpdateCompanionBuilder =
+    LiftExercisesCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int> muscleGroup,
+      Value<bool> isBodyweight,
+      Value<bool> isArchived,
+      Value<DateTime> createdAt,
+    });
+
+final class $$LiftExercisesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $LiftExercisesTable, LiftExerciseRow> {
+  $$LiftExercisesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$LiftEntriesTable, List<LiftEntryRow>>
+  _liftEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.liftEntries,
+    aliasName: 'lift_exercises__id__lift_entries__exercise_id',
+  );
+
+  $$LiftEntriesTableProcessedTableManager get liftEntriesRefs {
+    final manager = $$LiftEntriesTableTableManager(
+      $_db,
+      $_db.liftEntries,
+    ).filter((f) => f.exerciseId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_liftEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$LiftPresetItemsTable, List<LiftPresetItemRow>>
+  _liftPresetItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.liftPresetItems,
+    aliasName: 'lift_exercises__id__lift_preset_items__exercise_id',
+  );
+
+  $$LiftPresetItemsTableProcessedTableManager get liftPresetItemsRefs {
+    final manager = $$LiftPresetItemsTableTableManager(
+      $_db,
+      $_db.liftPresetItems,
+    ).filter((f) => f.exerciseId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _liftPresetItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$LiftExercisesTableFilterComposer
+    extends Composer<_$AppDatabase, $LiftExercisesTable> {
+  $$LiftExercisesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get muscleGroup => $composableBuilder(
+    column: $table.muscleGroup,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isBodyweight => $composableBuilder(
+    column: $table.isBodyweight,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> liftEntriesRefs(
+    Expression<bool> Function($$LiftEntriesTableFilterComposer f) f,
+  ) {
+    final $$LiftEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.liftEntries,
+      getReferencedColumn: (t) => t.exerciseId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.liftEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> liftPresetItemsRefs(
+    Expression<bool> Function($$LiftPresetItemsTableFilterComposer f) f,
+  ) {
+    final $$LiftPresetItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.liftPresetItems,
+      getReferencedColumn: (t) => t.exerciseId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftPresetItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.liftPresetItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LiftExercisesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LiftExercisesTable> {
+  $$LiftExercisesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get muscleGroup => $composableBuilder(
+    column: $table.muscleGroup,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isBodyweight => $composableBuilder(
+    column: $table.isBodyweight,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LiftExercisesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LiftExercisesTable> {
+  $$LiftExercisesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get muscleGroup => $composableBuilder(
+    column: $table.muscleGroup,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isBodyweight => $composableBuilder(
+    column: $table.isBodyweight,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> liftEntriesRefs<T extends Object>(
+    Expression<T> Function($$LiftEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$LiftEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.liftEntries,
+      getReferencedColumn: (t) => t.exerciseId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.liftEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> liftPresetItemsRefs<T extends Object>(
+    Expression<T> Function($$LiftPresetItemsTableAnnotationComposer a) f,
+  ) {
+    final $$LiftPresetItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.liftPresetItems,
+      getReferencedColumn: (t) => t.exerciseId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftPresetItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.liftPresetItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LiftExercisesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LiftExercisesTable,
+          LiftExerciseRow,
+          $$LiftExercisesTableFilterComposer,
+          $$LiftExercisesTableOrderingComposer,
+          $$LiftExercisesTableAnnotationComposer,
+          $$LiftExercisesTableCreateCompanionBuilder,
+          $$LiftExercisesTableUpdateCompanionBuilder,
+          (LiftExerciseRow, $$LiftExercisesTableReferences),
+          LiftExerciseRow,
+          PrefetchHooks Function({
+            bool liftEntriesRefs,
+            bool liftPresetItemsRefs,
+          })
+        > {
+  $$LiftExercisesTableTableManager(_$AppDatabase db, $LiftExercisesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LiftExercisesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LiftExercisesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LiftExercisesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> muscleGroup = const Value.absent(),
+                Value<bool> isBodyweight = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => LiftExercisesCompanion(
+                id: id,
+                name: name,
+                muscleGroup: muscleGroup,
+                isBodyweight: isBodyweight,
+                isArchived: isArchived,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required int muscleGroup,
+                Value<bool> isBodyweight = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                required DateTime createdAt,
+              }) => LiftExercisesCompanion.insert(
+                id: id,
+                name: name,
+                muscleGroup: muscleGroup,
+                isBodyweight: isBodyweight,
+                isArchived: isArchived,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LiftExercisesTable, LiftExerciseRow>(table),
+                  $$LiftExercisesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({liftEntriesRefs = false, liftPresetItemsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (liftEntriesRefs) db.liftEntries,
+                    if (liftPresetItemsRefs) db.liftPresetItems,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (liftEntriesRefs)
+                        await $_getPrefetchedData<
+                          LiftExerciseRow,
+                          $LiftExercisesTable,
+                          LiftEntryRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LiftExercisesTableReferences
+                              ._liftEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LiftExercisesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).liftEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.exerciseId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (liftPresetItemsRefs)
+                        await $_getPrefetchedData<
+                          LiftExerciseRow,
+                          $LiftExercisesTable,
+                          LiftPresetItemRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$LiftExercisesTableReferences
+                              ._liftPresetItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$LiftExercisesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).liftPresetItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.exerciseId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$LiftExercisesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LiftExercisesTable,
+      LiftExerciseRow,
+      $$LiftExercisesTableFilterComposer,
+      $$LiftExercisesTableOrderingComposer,
+      $$LiftExercisesTableAnnotationComposer,
+      $$LiftExercisesTableCreateCompanionBuilder,
+      $$LiftExercisesTableUpdateCompanionBuilder,
+      (LiftExerciseRow, $$LiftExercisesTableReferences),
+      LiftExerciseRow,
+      PrefetchHooks Function({bool liftEntriesRefs, bool liftPresetItemsRefs})
+    >;
+typedef $$LiftEntriesTableCreateCompanionBuilder =
+    LiftEntriesCompanion Function({
+      Value<int> id,
+      required String dayKey,
+      required int exerciseId,
+      required int position,
+      required DateTime createdAt,
+    });
+typedef $$LiftEntriesTableUpdateCompanionBuilder =
+    LiftEntriesCompanion Function({
+      Value<int> id,
+      Value<String> dayKey,
+      Value<int> exerciseId,
+      Value<int> position,
+      Value<DateTime> createdAt,
+    });
+
+final class $$LiftEntriesTableReferences
+    extends BaseReferences<_$AppDatabase, $LiftEntriesTable, LiftEntryRow> {
+  $$LiftEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $LiftExercisesTable _exerciseIdTable(_$AppDatabase db) => db
+      .liftExercises
+      .createAlias('lift_entries__exercise_id__lift_exercises__id');
+
+  $$LiftExercisesTableProcessedTableManager get exerciseId {
+    final $_column = $_itemColumn<int>('exercise_id')!;
+
+    final manager = $$LiftExercisesTableTableManager(
+      $_db,
+      $_db.liftExercises,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_exerciseIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$LiftSetsTable, List<LiftSetRow>>
+  _liftSetsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.liftSets,
+    aliasName: 'lift_entries__id__lift_sets__entry_id',
+  );
+
+  $$LiftSetsTableProcessedTableManager get liftSetsRefs {
+    final manager = $$LiftSetsTableTableManager(
+      $_db,
+      $_db.liftSets,
+    ).filter((f) => f.entryId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_liftSetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$LiftEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $LiftEntriesTable> {
+  $$LiftEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dayKey => $composableBuilder(
+    column: $table.dayKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LiftExercisesTableFilterComposer get exerciseId {
+    final $$LiftExercisesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.exerciseId,
+      referencedTable: $db.liftExercises,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftExercisesTableFilterComposer(
+            $db: $db,
+            $table: $db.liftExercises,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> liftSetsRefs(
+    Expression<bool> Function($$LiftSetsTableFilterComposer f) f,
+  ) {
+    final $$LiftSetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.liftSets,
+      getReferencedColumn: (t) => t.entryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftSetsTableFilterComposer(
+            $db: $db,
+            $table: $db.liftSets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LiftEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LiftEntriesTable> {
+  $$LiftEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dayKey => $composableBuilder(
+    column: $table.dayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LiftExercisesTableOrderingComposer get exerciseId {
+    final $$LiftExercisesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.exerciseId,
+      referencedTable: $db.liftExercises,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftExercisesTableOrderingComposer(
+            $db: $db,
+            $table: $db.liftExercises,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LiftEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LiftEntriesTable> {
+  $$LiftEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dayKey =>
+      $composableBuilder(column: $table.dayKey, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$LiftExercisesTableAnnotationComposer get exerciseId {
+    final $$LiftExercisesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.exerciseId,
+      referencedTable: $db.liftExercises,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftExercisesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.liftExercises,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> liftSetsRefs<T extends Object>(
+    Expression<T> Function($$LiftSetsTableAnnotationComposer a) f,
+  ) {
+    final $$LiftSetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.liftSets,
+      getReferencedColumn: (t) => t.entryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftSetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.liftSets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LiftEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LiftEntriesTable,
+          LiftEntryRow,
+          $$LiftEntriesTableFilterComposer,
+          $$LiftEntriesTableOrderingComposer,
+          $$LiftEntriesTableAnnotationComposer,
+          $$LiftEntriesTableCreateCompanionBuilder,
+          $$LiftEntriesTableUpdateCompanionBuilder,
+          (LiftEntryRow, $$LiftEntriesTableReferences),
+          LiftEntryRow,
+          PrefetchHooks Function({bool exerciseId, bool liftSetsRefs})
+        > {
+  $$LiftEntriesTableTableManager(_$AppDatabase db, $LiftEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LiftEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LiftEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LiftEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> dayKey = const Value.absent(),
+                Value<int> exerciseId = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => LiftEntriesCompanion(
+                id: id,
+                dayKey: dayKey,
+                exerciseId: exerciseId,
+                position: position,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String dayKey,
+                required int exerciseId,
+                required int position,
+                required DateTime createdAt,
+              }) => LiftEntriesCompanion.insert(
+                id: id,
+                dayKey: dayKey,
+                exerciseId: exerciseId,
+                position: position,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LiftEntriesTable, LiftEntryRow>(table),
+                  $$LiftEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({exerciseId = false, liftSetsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (liftSetsRefs) db.liftSets],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (exerciseId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.exerciseId,
+                        referencedTable: $$LiftEntriesTableReferences
+                            ._exerciseIdTable(db),
+                        referencedColumn: $$LiftEntriesTableReferences
+                            ._exerciseIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (liftSetsRefs)
+                    await $_getPrefetchedData<
+                      LiftEntryRow,
+                      $LiftEntriesTable,
+                      LiftSetRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$LiftEntriesTableReferences
+                          ._liftSetsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$LiftEntriesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).liftSetsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.entryId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LiftEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LiftEntriesTable,
+      LiftEntryRow,
+      $$LiftEntriesTableFilterComposer,
+      $$LiftEntriesTableOrderingComposer,
+      $$LiftEntriesTableAnnotationComposer,
+      $$LiftEntriesTableCreateCompanionBuilder,
+      $$LiftEntriesTableUpdateCompanionBuilder,
+      (LiftEntryRow, $$LiftEntriesTableReferences),
+      LiftEntryRow,
+      PrefetchHooks Function({bool exerciseId, bool liftSetsRefs})
+    >;
+typedef $$LiftSetsTableCreateCompanionBuilder = LiftSetsCompanion Function({
+  Value<int> id,
+  required int entryId,
+  required int position,
+  required int reps,
+  required double weightKg,
+  required DateTime createdAt,
+});
+typedef $$LiftSetsTableUpdateCompanionBuilder = LiftSetsCompanion Function({
+  Value<int> id,
+  Value<int> entryId,
+  Value<int> position,
+  Value<int> reps,
+  Value<double> weightKg,
+  Value<DateTime> createdAt,
+});
+
+final class $$LiftSetsTableReferences
+    extends BaseReferences<_$AppDatabase, $LiftSetsTable, LiftSetRow> {
+  $$LiftSetsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $LiftEntriesTable _entryIdTable(_$AppDatabase db) =>
+      db.liftEntries.createAlias('lift_sets__entry_id__lift_entries__id');
+
+  $$LiftEntriesTableProcessedTableManager get entryId {
+    final $_column = $_itemColumn<int>('entry_id')!;
+
+    final manager = $$LiftEntriesTableTableManager(
+      $_db,
+      $_db.liftEntries,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_entryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LiftSetsTableFilterComposer
+    extends Composer<_$AppDatabase, $LiftSetsTable> {
+  $$LiftSetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reps => $composableBuilder(
+    column: $table.reps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get weightKg => $composableBuilder(
+    column: $table.weightKg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LiftEntriesTableFilterComposer get entryId {
+    final $$LiftEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.entryId,
+      referencedTable: $db.liftEntries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.liftEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LiftSetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LiftSetsTable> {
+  $$LiftSetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reps => $composableBuilder(
+    column: $table.reps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get weightKg => $composableBuilder(
+    column: $table.weightKg,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LiftEntriesTableOrderingComposer get entryId {
+    final $$LiftEntriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.entryId,
+      referencedTable: $db.liftEntries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftEntriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.liftEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LiftSetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LiftSetsTable> {
+  $$LiftSetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<int> get reps =>
+      $composableBuilder(column: $table.reps, builder: (column) => column);
+
+  GeneratedColumn<double> get weightKg =>
+      $composableBuilder(column: $table.weightKg, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$LiftEntriesTableAnnotationComposer get entryId {
+    final $$LiftEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.entryId,
+      referencedTable: $db.liftEntries,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.liftEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LiftSetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LiftSetsTable,
+          LiftSetRow,
+          $$LiftSetsTableFilterComposer,
+          $$LiftSetsTableOrderingComposer,
+          $$LiftSetsTableAnnotationComposer,
+          $$LiftSetsTableCreateCompanionBuilder,
+          $$LiftSetsTableUpdateCompanionBuilder,
+          (LiftSetRow, $$LiftSetsTableReferences),
+          LiftSetRow,
+          PrefetchHooks Function({bool entryId})
+        > {
+  $$LiftSetsTableTableManager(_$AppDatabase db, $LiftSetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LiftSetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LiftSetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LiftSetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> entryId = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<int> reps = const Value.absent(),
+                Value<double> weightKg = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => LiftSetsCompanion(
+                id: id,
+                entryId: entryId,
+                position: position,
+                reps: reps,
+                weightKg: weightKg,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int entryId,
+                required int position,
+                required int reps,
+                required double weightKg,
+                required DateTime createdAt,
+              }) => LiftSetsCompanion.insert(
+                id: id,
+                entryId: entryId,
+                position: position,
+                reps: reps,
+                weightKg: weightKg,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LiftSetsTable, LiftSetRow>(table),
+                  $$LiftSetsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({entryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (entryId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.entryId,
+                        referencedTable: $$LiftSetsTableReferences
+                            ._entryIdTable(db),
+                        referencedColumn: $$LiftSetsTableReferences
+                            ._entryIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LiftSetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LiftSetsTable,
+      LiftSetRow,
+      $$LiftSetsTableFilterComposer,
+      $$LiftSetsTableOrderingComposer,
+      $$LiftSetsTableAnnotationComposer,
+      $$LiftSetsTableCreateCompanionBuilder,
+      $$LiftSetsTableUpdateCompanionBuilder,
+      (LiftSetRow, $$LiftSetsTableReferences),
+      LiftSetRow,
+      PrefetchHooks Function({bool entryId})
+    >;
+typedef $$LiftPresetsTableCreateCompanionBuilder =
+    LiftPresetsCompanion Function({
+      Value<int> id,
+      required String name,
+      required DateTime createdAt,
+    });
+typedef $$LiftPresetsTableUpdateCompanionBuilder =
+    LiftPresetsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<DateTime> createdAt,
+    });
+
+final class $$LiftPresetsTableReferences
+    extends BaseReferences<_$AppDatabase, $LiftPresetsTable, LiftPresetRow> {
+  $$LiftPresetsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$LiftPresetItemsTable, List<LiftPresetItemRow>>
+  _liftPresetItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.liftPresetItems,
+    aliasName: 'lift_presets__id__lift_preset_items__preset_id',
+  );
+
+  $$LiftPresetItemsTableProcessedTableManager get liftPresetItemsRefs {
+    final manager = $$LiftPresetItemsTableTableManager(
+      $_db,
+      $_db.liftPresetItems,
+    ).filter((f) => f.presetId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _liftPresetItemsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$LiftPresetsTableFilterComposer
+    extends Composer<_$AppDatabase, $LiftPresetsTable> {
+  $$LiftPresetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> liftPresetItemsRefs(
+    Expression<bool> Function($$LiftPresetItemsTableFilterComposer f) f,
+  ) {
+    final $$LiftPresetItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.liftPresetItems,
+      getReferencedColumn: (t) => t.presetId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftPresetItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.liftPresetItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LiftPresetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LiftPresetsTable> {
+  $$LiftPresetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LiftPresetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LiftPresetsTable> {
+  $$LiftPresetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> liftPresetItemsRefs<T extends Object>(
+    Expression<T> Function($$LiftPresetItemsTableAnnotationComposer a) f,
+  ) {
+    final $$LiftPresetItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.liftPresetItems,
+      getReferencedColumn: (t) => t.presetId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftPresetItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.liftPresetItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$LiftPresetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LiftPresetsTable,
+          LiftPresetRow,
+          $$LiftPresetsTableFilterComposer,
+          $$LiftPresetsTableOrderingComposer,
+          $$LiftPresetsTableAnnotationComposer,
+          $$LiftPresetsTableCreateCompanionBuilder,
+          $$LiftPresetsTableUpdateCompanionBuilder,
+          (LiftPresetRow, $$LiftPresetsTableReferences),
+          LiftPresetRow,
+          PrefetchHooks Function({bool liftPresetItemsRefs})
+        > {
+  $$LiftPresetsTableTableManager(_$AppDatabase db, $LiftPresetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LiftPresetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LiftPresetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LiftPresetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) => LiftPresetsCompanion(id: id, name: name, createdAt: createdAt),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required DateTime createdAt,
+              }) => LiftPresetsCompanion.insert(
+                id: id,
+                name: name,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LiftPresetsTable, LiftPresetRow>(table),
+                  $$LiftPresetsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({liftPresetItemsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (liftPresetItemsRefs) db.liftPresetItems,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (liftPresetItemsRefs)
+                    await $_getPrefetchedData<
+                      LiftPresetRow,
+                      $LiftPresetsTable,
+                      LiftPresetItemRow
+                    >(
+                      currentTable: table,
+                      referencedTable: $$LiftPresetsTableReferences
+                          ._liftPresetItemsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$LiftPresetsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).liftPresetItemsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.presetId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LiftPresetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LiftPresetsTable,
+      LiftPresetRow,
+      $$LiftPresetsTableFilterComposer,
+      $$LiftPresetsTableOrderingComposer,
+      $$LiftPresetsTableAnnotationComposer,
+      $$LiftPresetsTableCreateCompanionBuilder,
+      $$LiftPresetsTableUpdateCompanionBuilder,
+      (LiftPresetRow, $$LiftPresetsTableReferences),
+      LiftPresetRow,
+      PrefetchHooks Function({bool liftPresetItemsRefs})
+    >;
+typedef $$LiftPresetItemsTableCreateCompanionBuilder =
+    LiftPresetItemsCompanion Function({
+      Value<int> id,
+      required int presetId,
+      required int exerciseId,
+      required int position,
+    });
+typedef $$LiftPresetItemsTableUpdateCompanionBuilder =
+    LiftPresetItemsCompanion Function({
+      Value<int> id,
+      Value<int> presetId,
+      Value<int> exerciseId,
+      Value<int> position,
+    });
+
+final class $$LiftPresetItemsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $LiftPresetItemsTable,
+          LiftPresetItemRow
+        > {
+  $$LiftPresetItemsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $LiftPresetsTable _presetIdTable(_$AppDatabase db) => db.liftPresets
+      .createAlias('lift_preset_items__preset_id__lift_presets__id');
+
+  $$LiftPresetsTableProcessedTableManager get presetId {
+    final $_column = $_itemColumn<int>('preset_id')!;
+
+    final manager = $$LiftPresetsTableTableManager(
+      $_db,
+      $_db.liftPresets,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_presetIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $LiftExercisesTable _exerciseIdTable(_$AppDatabase db) => db
+      .liftExercises
+      .createAlias('lift_preset_items__exercise_id__lift_exercises__id');
+
+  $$LiftExercisesTableProcessedTableManager get exerciseId {
+    final $_column = $_itemColumn<int>('exercise_id')!;
+
+    final manager = $$LiftExercisesTableTableManager(
+      $_db,
+      $_db.liftExercises,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_exerciseIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LiftPresetItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $LiftPresetItemsTable> {
+  $$LiftPresetItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LiftPresetsTableFilterComposer get presetId {
+    final $$LiftPresetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.presetId,
+      referencedTable: $db.liftPresets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftPresetsTableFilterComposer(
+            $db: $db,
+            $table: $db.liftPresets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LiftExercisesTableFilterComposer get exerciseId {
+    final $$LiftExercisesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.exerciseId,
+      referencedTable: $db.liftExercises,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftExercisesTableFilterComposer(
+            $db: $db,
+            $table: $db.liftExercises,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LiftPresetItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LiftPresetItemsTable> {
+  $$LiftPresetItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LiftPresetsTableOrderingComposer get presetId {
+    final $$LiftPresetsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.presetId,
+      referencedTable: $db.liftPresets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftPresetsTableOrderingComposer(
+            $db: $db,
+            $table: $db.liftPresets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LiftExercisesTableOrderingComposer get exerciseId {
+    final $$LiftExercisesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.exerciseId,
+      referencedTable: $db.liftExercises,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftExercisesTableOrderingComposer(
+            $db: $db,
+            $table: $db.liftExercises,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LiftPresetItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LiftPresetItemsTable> {
+  $$LiftPresetItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  $$LiftPresetsTableAnnotationComposer get presetId {
+    final $$LiftPresetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.presetId,
+      referencedTable: $db.liftPresets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftPresetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.liftPresets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$LiftExercisesTableAnnotationComposer get exerciseId {
+    final $$LiftExercisesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.exerciseId,
+      referencedTable: $db.liftExercises,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LiftExercisesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.liftExercises,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LiftPresetItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LiftPresetItemsTable,
+          LiftPresetItemRow,
+          $$LiftPresetItemsTableFilterComposer,
+          $$LiftPresetItemsTableOrderingComposer,
+          $$LiftPresetItemsTableAnnotationComposer,
+          $$LiftPresetItemsTableCreateCompanionBuilder,
+          $$LiftPresetItemsTableUpdateCompanionBuilder,
+          (LiftPresetItemRow, $$LiftPresetItemsTableReferences),
+          LiftPresetItemRow,
+          PrefetchHooks Function({bool presetId, bool exerciseId})
+        > {
+  $$LiftPresetItemsTableTableManager(
+    _$AppDatabase db,
+    $LiftPresetItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LiftPresetItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LiftPresetItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LiftPresetItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> presetId = const Value.absent(),
+                Value<int> exerciseId = const Value.absent(),
+                Value<int> position = const Value.absent(),
+              }) => LiftPresetItemsCompanion(
+                id: id,
+                presetId: presetId,
+                exerciseId: exerciseId,
+                position: position,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int presetId,
+                required int exerciseId,
+                required int position,
+              }) => LiftPresetItemsCompanion.insert(
+                id: id,
+                presetId: presetId,
+                exerciseId: exerciseId,
+                position: position,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LiftPresetItemsTable, LiftPresetItemRow>(table),
+                  $$LiftPresetItemsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({presetId = false, exerciseId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (presetId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.presetId,
+                        referencedTable: $$LiftPresetItemsTableReferences
+                            ._presetIdTable(db),
+                        referencedColumn: $$LiftPresetItemsTableReferences
+                            ._presetIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (exerciseId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.exerciseId,
+                        referencedTable: $$LiftPresetItemsTableReferences
+                            ._exerciseIdTable(db),
+                        referencedColumn: $$LiftPresetItemsTableReferences
+                            ._exerciseIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LiftPresetItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LiftPresetItemsTable,
+      LiftPresetItemRow,
+      $$LiftPresetItemsTableFilterComposer,
+      $$LiftPresetItemsTableOrderingComposer,
+      $$LiftPresetItemsTableAnnotationComposer,
+      $$LiftPresetItemsTableCreateCompanionBuilder,
+      $$LiftPresetItemsTableUpdateCompanionBuilder,
+      (LiftPresetItemRow, $$LiftPresetItemsTableReferences),
+      LiftPresetItemRow,
+      PrefetchHooks Function({bool presetId, bool exerciseId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8937,4 +12502,14 @@ class $AppDatabaseManager {
       $$TargetHistoryTableTableManager(_db, _db.targetHistory);
   $$KeyValuesTableTableManager get keyValues =>
       $$KeyValuesTableTableManager(_db, _db.keyValues);
+  $$LiftExercisesTableTableManager get liftExercises =>
+      $$LiftExercisesTableTableManager(_db, _db.liftExercises);
+  $$LiftEntriesTableTableManager get liftEntries =>
+      $$LiftEntriesTableTableManager(_db, _db.liftEntries);
+  $$LiftSetsTableTableManager get liftSets =>
+      $$LiftSetsTableTableManager(_db, _db.liftSets);
+  $$LiftPresetsTableTableManager get liftPresets =>
+      $$LiftPresetsTableTableManager(_db, _db.liftPresets);
+  $$LiftPresetItemsTableTableManager get liftPresetItems =>
+      $$LiftPresetItemsTableTableManager(_db, _db.liftPresetItems);
 }

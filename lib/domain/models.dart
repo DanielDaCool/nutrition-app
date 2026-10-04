@@ -185,3 +185,99 @@ class Recipe {
   final List<String> ingredients;
   final List<String> steps;
 }
+
+/// Main muscle group an exercise trains. Stored by `.index`: only append
+/// values.
+enum MuscleGroup {
+  chest('Chest'),
+  shoulders('Shoulders'),
+  triceps('Triceps'),
+  back('Back'),
+  biceps('Biceps'),
+  quads('Quads'),
+  hamstrings('Hamstrings'),
+  glutes('Glutes'),
+  calves('Calves'),
+  core('Core');
+
+  const MuscleGroup(this.label);
+
+  /// Name shown in the UI.
+  final String label;
+}
+
+/// A weight-lifting exercise the user created.
+class LiftExercise {
+  const LiftExercise({
+    required this.id,
+    required this.name,
+    required this.muscleGroup,
+    required this.isBodyweight,
+    this.isArchived = false,
+  });
+
+  final int id;
+  final String name;
+  final MuscleGroup muscleGroup;
+
+  /// True for exercises done with body weight (dips, pull-ups): a set's
+  /// `weightKg` is then only the extra weight added, 0 for none.
+  final bool isBodyweight;
+
+  /// True once the user deleted an exercise that still has logged history:
+  /// it no longer shows in pickers, but its past days keep their name.
+  final bool isArchived;
+}
+
+/// One set of an exercise as tracked by the user.
+class LiftSet {
+  const LiftSet({required this.id, required this.reps, required this.weightKg});
+
+  final int id;
+  final int reps;
+
+  /// Weight lifted; for a bodyweight exercise the extra weight added.
+  final double weightKg;
+}
+
+/// One exercise on one day: planned when [sets] is empty, tracked otherwise.
+class LiftEntry {
+  const LiftEntry({
+    required this.id,
+    required this.dayKey,
+    required this.exercise,
+    required this.sets,
+  });
+
+  final int id;
+  final String dayKey;
+  final LiftExercise exercise;
+
+  /// In the order they were done.
+  final List<LiftSet> sets;
+}
+
+/// All sets of one exercise on one day (history, "last time", charts).
+class LiftSession {
+  const LiftSession({required this.dayKey, required this.sets});
+
+  final String dayKey;
+
+  /// In the order they were done; never empty.
+  final List<LiftSet> sets;
+}
+
+/// A named list of exercises (e.g. "Push day") that can be loaded onto a day.
+class LiftPreset {
+  const LiftPreset({
+    required this.id,
+    required this.name,
+    required this.exercises,
+  });
+
+  final int id;
+  final String name;
+
+  /// In the preset's order.
+  final List<LiftExercise> exercises;
+}

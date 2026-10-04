@@ -10,6 +10,7 @@ import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_screen.dart';
+import 'package:nutrition_app/features/lifting/lifting_screen.dart';
 import 'package:nutrition_app/features/recipes/recipes_screen.dart';
 import 'package:nutrition_app/features/settings/settings_screen.dart';
 import 'package:nutrition_app/features/settings/setup_screen.dart';
@@ -127,7 +128,13 @@ void main() {
     final context = tester.element(find.byType(NavigationBar));
     expect(Theme.of(context).brightness, Brightness.dark);
 
-    for (final label in ['Weight', 'Dashboard', 'Settings', 'Today']) {
+    for (final label in [
+      'Weight',
+      'Lifting',
+      'Dashboard',
+      'Settings',
+      'Today',
+    ]) {
       await tester.tap(find.text(label).last);
       await tester.pump();
     }
@@ -296,14 +303,65 @@ void main() {
     await tester.runAsync(() => seedProfile(db));
     await tester.pumpWidget(app(db));
     await settle(tester);
-    expect(find.byType(NavigationDestination), findsNWidgets(5));
+    expect(find.byType(NavigationDestination), findsNWidgets(6));
     expect(destination('Recipes'), findsOneWidget);
     expect(find.byType(RecipesScreen, skipOffstage: false), findsOneWidget);
 
     await tester.tap(destination('Recipes'));
     await settle(tester);
-    expect(selectedIndex(tester), 3);
+    expect(selectedIndex(tester), 4);
     expect(find.byType(RecipesScreen), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the Lifting tab is there by default', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    expect(destination('Lifting'), findsOneWidget);
+    expect(find.byType(LiftingScreen, skipOffstage: false), findsOneWidget);
+
+    await tester.tap(destination('Lifting'));
+    await settle(tester);
+    expect(selectedIndex(tester), 2);
+    expect(find.byType(LiftingScreen), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the Lifting tab is left out when switched off', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      app(
+        db,
+        extra: [
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.lifting,
+          ),
+        ],
+      ),
+    );
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
+    expect(destination('Lifting'), findsNothing);
+    expect(find.byType(LiftingScreen, skipOffstage: false), findsNothing);
+
+    // The remaining tabs still open the right screens.
+    await tester.tap(destination('Dashboard'));
+    await settle(tester);
+    expect(selectedIndex(tester), 2);
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(find.text('Lifting progress'), findsNothing);
+    await tester.tap(destination('Settings'));
+    await settle(tester);
+    expect(selectedIndex(tester), 4);
+    expect(find.byType(SettingsScreen), findsOneWidget);
     await unmount(tester);
   });
 
@@ -323,14 +381,14 @@ void main() {
       ),
     );
     await settle(tester);
-    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(destination('Recipes'), findsNothing);
     expect(find.byType(RecipesScreen, skipOffstage: false), findsNothing);
 
     // The remaining tabs still open the right screens.
     await tester.tap(destination('Settings'));
     await settle(tester);
-    expect(selectedIndex(tester), 3);
+    expect(selectedIndex(tester), 4);
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.byKey(const Key('profileForm')), findsOneWidget);
     await tester.tap(destination('Dashboard'));
@@ -355,7 +413,7 @@ void main() {
 
     await tester.tap(destination('Settings'));
     await settle(tester);
-    expect(selectedIndex(tester), 4);
+    expect(selectedIndex(tester), 5);
     // Put the profile form into a state that a rebuilt Settings would lose.
     await tester.tap(find.byKey(const Key('editProfile')));
     await tester.pump();
@@ -366,10 +424,10 @@ void main() {
     await settle(tester);
     expect(tester.takeException(), isNull);
     expect(destination('Recipes'), findsNothing);
-    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(find.byType(RecipesScreen, skipOffstage: false), findsNothing);
     // Still on Settings (now the 4th tab), with the same form state.
-    expect(selectedIndex(tester), 3);
+    expect(selectedIndex(tester), 4);
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(tester.state(find.byKey(const Key('profileForm'))), same(formState));
     expect(find.byKey(const Key('saveProfile')), findsOneWidget);
@@ -385,7 +443,7 @@ void main() {
     container.read(_recipesShown.notifier).set(true);
     await settle(tester);
     expect(destination('Recipes'), findsOneWidget);
-    expect(selectedIndex(tester), 4);
+    expect(selectedIndex(tester), 5);
     expect(tester.state(find.byKey(const Key('profileForm'))), same(formState));
     expect(find.byKey(const Key('saveProfile')), findsOneWidget);
     await unmount(tester);
@@ -402,7 +460,7 @@ void main() {
     await settle(tester);
     await tester.tap(destination('Recipes'));
     await settle(tester);
-    expect(selectedIndex(tester), 3);
+    expect(selectedIndex(tester), 4);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(NavigationBar)),

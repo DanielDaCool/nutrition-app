@@ -167,6 +167,67 @@ class ManualExercises extends Table {
   DateTimeColumn get createdAt => dateTime()();
 }
 
+/// Weight-lifting exercises the user created.
+@DataClassName('LiftExerciseRow')
+class LiftExercises extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  IntColumn get muscleGroup => integer()(); // MuscleGroup.index
+
+  /// Bodyweight exercise (dips, pull-ups): a set's weightKg is only the
+  /// extra weight added.
+  BoolColumn get isBodyweight => boolean().withDefault(const Constant(false))();
+
+  /// Deleted by the user but kept because days still refer to it.
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// One exercise planned (and later tracked) on one day, in `position` order.
+@DataClassName('LiftEntryRow')
+@TableIndex(name: 'lift_entries_day_idx', columns: {#dayKey})
+@TableIndex(name: 'lift_entries_exercise_idx', columns: {#exerciseId})
+class LiftEntries extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get dayKey => text()();
+  IntColumn get exerciseId => integer().references(LiftExercises, #id)();
+  IntColumn get position => integer()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// One tracked set of a [LiftEntries] row; deleted with its entry.
+@DataClassName('LiftSetRow')
+@TableIndex(name: 'lift_sets_entry_idx', columns: {#entryId})
+class LiftSets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get entryId =>
+      integer().references(LiftEntries, #id, onDelete: KeyAction.cascade)();
+  IntColumn get position => integer()();
+  IntColumn get reps => integer()();
+
+  /// Weight lifted; for a bodyweight exercise the extra weight added.
+  RealColumn get weightKg => real()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// A named list of exercises (e.g. "Push day") to load onto a day.
+@DataClassName('LiftPresetRow')
+class LiftPresets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+/// One exercise of a preset, in `position` order; deleted with its preset.
+@DataClassName('LiftPresetItemRow')
+class LiftPresetItems extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get presetId =>
+      integer().references(LiftPresets, #id, onDelete: KeyAction.cascade)();
+  IntColumn get exerciseId => integer().references(LiftExercises, #id)();
+  IntColumn get position => integer()();
+}
+
 /// Targets accepted by the user; the newest effectiveFrom <= today applies.
 @DataClassName('TargetRecord')
 class TargetHistory extends Table {

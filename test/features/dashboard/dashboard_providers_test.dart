@@ -1,8 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
+import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
+import 'package:nutrition_app/features/lifting/lift_progress_logic.dart';
+import 'package:nutrition_app/features/lifting/lifting_repository.dart';
 
 import '../../helpers/test_db.dart';
 import '../weight/provider_wait.dart';
@@ -82,6 +86,79 @@ void main() {
       ),
       ('2026-02-15', '2026-09-25'),
     );
+  });
+
+  test('"all" reaches back to the first lifting day', () async {
+    container.read(dashboardRangeProvider.notifier).set(DashboardRange.all);
+    final lifting = LiftingRepository(db, () => DateTime(2026, 9, 25));
+    final bench = await lifting.addExercise(
+      name: 'Bench press',
+      muscleGroup: MuscleGroup.chest,
+      isBodyweight: false,
+    );
+    final entry = await lifting.addEntry('2026-01-10', bench);
+    await lifting.addSet(entry, reps: 5, weightKg: 60);
+    expect(
+      await waitFor(
+        container,
+        dashboardWindowProvider,
+        (w) => w.$1 == '2026-01-10',
+      ),
+      ('2026-01-10', '2026-09-25'),
+    );
+    // Lifting days don't count as food-logging history (the "Was yesterday
+    // complete?" prompt on Today reads this).
+    expect(
+      await waitFor(container, earliestDataDayProvider, (_) => true),
+      isNull,
+    );
+  });
+
+  test('"all" ignores lifting days while the lifting feature is off', () async {
+    final off = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        clockProvider.overrideWithValue(() => DateTime(2026, 9, 25, 20)),
+        featureEnabledProvider.overrideWith(
+          (ref, f) => f != AppFeature.lifting,
+        ),
+      ],
+    );
+    addTearDown(off.dispose);
+    off.read(dashboardRangeProvider.notifier).set(DashboardRange.all);
+    final lifting = LiftingRepository(db, () => DateTime(2026, 9, 25));
+    final bench = await lifting.addExercise(
+      name: 'Bench press',
+      muscleGroup: MuscleGroup.chest,
+      isBodyweight: false,
+    );
+    final entry = await lifting.addEntry('2026-01-10', bench);
+    await lifting.addSet(entry, reps: 5, weightKg: 60);
+    expect(await waitFor(off, dashboardWindowProvider, (_) => true), (
+      '2026-08-29',
+      '2026-09-25',
+    ));
+  });
+
+  test('lifting chart selection: picking an exercise resets the metric', () {
+    expect(container.read(dashboardLiftExerciseIdProvider), isNull);
+    expect(container.read(dashboardLiftMetricProvider), isNull);
+
+    container.read(dashboardLiftExerciseIdProvider.notifier).set(3);
+    container
+        .read(dashboardLiftMetricProvider.notifier)
+        .set(LiftMetric.bestReps);
+    expect(container.read(dashboardLiftExerciseIdProvider), 3);
+    expect(container.read(dashboardLiftMetricProvider), LiftMetric.bestReps);
+
+    // The same exercise again keeps the picked metric.
+    container.read(dashboardLiftExerciseIdProvider.notifier).set(3);
+    expect(container.read(dashboardLiftMetricProvider), LiftMetric.bestReps);
+
+    // Another exercise goes back to the default rule.
+    container.read(dashboardLiftExerciseIdProvider.notifier).set(4);
+    expect(container.read(dashboardLiftExerciseIdProvider), 4);
+    expect(container.read(dashboardLiftMetricProvider), isNull);
   });
 
   test('targetHistoryProvider is ordered and updates live', () async {

@@ -55,6 +55,16 @@ enum AppFeature {
     description:
         'The "Lose weight / Gain weight" choice in your profile, for '
         'targets that add weight instead of losing it.',
+  ),
+
+  /// The Lifting tab in the bottom navigation and the lifting progress
+  /// chart on the Dashboard.
+  lifting(
+    storageKey: 'lifting',
+    label: 'Weight lifting',
+    description:
+        'The Lifting tab, where you plan exercises for a day and track '
+        'your sets, and the lifting progress chart on the Dashboard.',
   );
 
   const AppFeature({

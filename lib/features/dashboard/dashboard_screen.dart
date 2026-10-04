@@ -1,6 +1,6 @@
 // OWNER: weight & charts agent (D). Contract stub: keep the class name/constructor.
 // Dashboard tab: weight trend, weekly intake vs. target, steps, workouts per
-// week and maintenance estimate over the selected range.
+// week, lifting progress and maintenance estimate over the selected range.
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
@@ -11,8 +11,12 @@ import 'package:intl/intl.dart';
 import '../../app/providers.dart';
 import '../../core/app_features.dart';
 import '../../core/day_key.dart';
+import '../../domain/models.dart';
 import '../activity/activity_providers.dart';
 import '../food/food_providers.dart';
+import '../lifting/lift_progress_logic.dart';
+import '../lifting/lifting_format.dart';
+import '../lifting/lifting_providers.dart';
 import '../settings/settings_screen.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weigh_in_actions.dart';
@@ -56,6 +60,7 @@ class DashboardScreen extends ConsumerWidget {
     // card, which web also hides), so web has no data for these charts: the
     // feature gate is off there.
     final showActivity = ref.watch(featureEnabledProvider(AppFeature.activity));
+    final showLifting = ref.watch(featureEnabledProvider(AppFeature.lifting));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),
@@ -91,6 +96,8 @@ class DashboardScreen extends ConsumerWidget {
                   _StepsSection(window: w, hideWhenEmpty: setupIncomplete),
                   _WorkoutsSection(window: w, hideWhenEmpty: setupIncomplete),
                 ],
+                if (showLifting)
+                  _LiftingSection(window: w, hideWhenEmpty: setupIncomplete),
                 _MaintenanceSection(window: w, hideWhenEmpty: setupIncomplete),
               ],
               null when window.hasError => [
@@ -624,6 +631,223 @@ class _WorkoutsSection extends ConsumerWidget {
               tooltip: (week, series, value) =>
                   '${value.round()} workout${value.round() == 1 ? '' : 's'}',
             ),
+    );
+  }
+}
+
+class _LiftingSection extends ConsumerWidget {
+  const _LiftingSection({required this.window, required this.hideWhenEmpty});
+  final _Window window;
+  final bool hideWhenEmpty;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    const title = 'Lifting progress';
+    final logged = ref.watch(liftLoggedExercisesProvider);
+    final pending = _pending(
+      logged,
+      () => ref.invalidate(liftLoggedExercisesProvider),
+    );
+    if (pending != null) return _Section(title: title, child: pending);
+
+    final exercises = logged.value!;
+    final exercise = resolveLiftExercise(
+      exercises,
+      ref.watch(dashboardLiftExerciseIdProvider),
+    );
+    if (exercise == null) {
+      if (hideWhenEmpty) return const SizedBox.shrink();
+      return const _Section(
+        title: title,
+        child: ChartEmptyState(
+          icon: Icons.fitness_center,
+          message:
+              'No lifting tracked yet.\n'
+              'Track sets on the Lifting tab to see your progress.',
+        ),
+      );
+    }
+
+    final selector = DropdownButton<int>(
+      key: const Key('liftExerciseDropdown'),
+      isExpanded: true,
+      value: exercise.id,
+      items: [
+        for (final e in exercises)
+          DropdownMenuItem(
+            value: e.id,
+            child: Text(e.name, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: (id) {
+        if (id == null) return;
+        ref.read(dashboardLiftExerciseIdProvider.notifier).set(id);
+      },
+    );
+
+    final historyKey = (exercise.id, window.$1, window.$2);
+    final history = ref.watch(liftHistoryProvider(historyKey));
+    final historyPending = _pending(
+      history,
+      () => ref.invalidate(liftHistoryProvider(historyKey)),
+    );
+    if (historyPending != null) {
+      return _Section(
+        title: title,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [selector, historyPending],
+        ),
+      );
+    }
+
+    final sessions = history.value!;
+    final metric =
+        ref.watch(dashboardLiftMetricProvider) ?? defaultLiftMetric(sessions);
+    final points = liftProgressPoints(sessions, metric);
+    return _Section(
+      title: title,
+      headline: liftProgressHeadline(
+        points,
+        metric,
+        isBodyweight: exercise.isBodyweight,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          selector,
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final m in LiftMetric.values)
+                ChoiceChip(
+                  key: Key('liftMetric_${m.name}'),
+                  label: Text(m.label),
+                  selected: m == metric,
+                  onSelected: (_) =>
+                      ref.read(dashboardLiftMetricProvider.notifier).set(m),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (points.isEmpty)
+            const ChartEmptyState(
+              icon: Icons.fitness_center,
+              message: 'No sets for this exercise in this range.',
+            )
+          else
+            _LiftChart(
+              points: points,
+              metric: metric,
+              exercise: exercise,
+              from: window.$1,
+              to: window.$2,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One exercise's [metric] per trained day, a dot each; x = days since
+/// [from], spanning the whole window. Touching a dot lists that day's sets.
+class _LiftChart extends StatelessWidget {
+  const _LiftChart({
+    required this.points,
+    required this.metric,
+    required this.exercise,
+    required this.from,
+    required this.to,
+  });
+
+  final List<LiftProgressPoint> points;
+  final LiftMetric metric;
+  final LiftExercise exercise;
+  final String from;
+  final String to;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final labelStyle = _labelStyle(context);
+    final axis = liftProgressAxis([for (final p in points) p.value], metric);
+    final maxX = math.max(1.0, daysBetween(from, to).toDouble());
+    final sessionAt = {
+      for (final p in points) daysBetween(from, p.dayKey): p.session,
+    };
+    return SizedBox(
+      height: 180,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 12, top: 8),
+        child: LineChart(
+          key: const Key('liftProgressChart'),
+          LineChartData(
+            minX: 0,
+            maxX: maxX,
+            minY: axis.min,
+            maxY: axis.max,
+            borderData: FlBorderData(show: false),
+            gridData: _grid(scheme, axis.interval),
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipColor: (_) => scheme.inverseSurface,
+                fitInsideHorizontally: true,
+                fitInsideVertically: true,
+                maxContentWidth: 220,
+                getTooltipItems: (spots) => [
+                  for (final s in spots)
+                    () {
+                      final day = s.x.round();
+                      final session = sessionAt[day];
+                      final sets = session == null
+                          ? null
+                          : wrapLiftSets(
+                              formatLiftSets(
+                                session.sets,
+                                isBodyweight: exercise.isBodyweight,
+                              ),
+                            );
+                      return LineTooltipItem(
+                        '${shortDateLabel(addDays(from, day))}'
+                        '${sets == null ? '' : '\n$sets'}',
+                        TextStyle(color: scheme.onInverseSurface, fontSize: 12),
+                      );
+                    }(),
+                ],
+              ),
+            ),
+            titlesData: _titles(
+              labelStyle: labelStyle,
+              unit: metric.unit,
+              yInterval: axis.interval,
+              yLabel: (v) => switch (metric) {
+                LiftMetric.topWeight => formatLiftKg(v),
+                LiftMetric.bestReps => v.round().toString(),
+              },
+              xInterval: math.max(1.0, (maxX / 4).ceilToDouble()),
+              xLabel: (v) => shortDateLabel(addDays(from, v.round())),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: [
+                  for (final p in points)
+                    FlSpot(daysBetween(from, p.dayKey).toDouble(), p.value),
+                ],
+                color: scheme.primary,
+                barWidth: 3,
+                dotData: FlDotData(
+                  getDotPainter: (spot, xPct, bar, index) => FlDotCirclePainter(
+                    radius: 4,
+                    color: scheme.primary,
+                    strokeWidth: 1.5,
+                    strokeColor: scheme.surface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

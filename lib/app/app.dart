@@ -1,5 +1,5 @@
 // Root widget: MaterialApp theme and the bottom-navigation shell that hosts
-// the four top-level screens.
+// the top-level screens.
 
 import 'dart:async';
 
@@ -11,6 +11,7 @@ import '../core/day_key.dart';
 import '../features/activity/activity_providers.dart';
 import '../features/dashboard/dashboard_providers.dart';
 import '../features/dashboard/dashboard_screen.dart';
+import '../features/lifting/lifting_screen.dart';
 import '../features/recipes/recipes_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/settings/setup_screen.dart';
@@ -42,7 +43,8 @@ class NutritionApp extends StatelessWidget {
 /// whenever the app returns to the foreground, opens the "Get started" setup
 /// once per app start while there is no profile, badges Settings when a
 /// check-in is due, and jumps Today back to today when its tab is re-tapped.
-/// The Recipes tab is left out while its feature gate is off.
+/// The Lifting and Recipes tabs are left out while their feature gates are
+/// off.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -52,7 +54,7 @@ class HomeShell extends ConsumerStatefulWidget {
 
 /// The top-level tabs. The selection is tracked by tab, not by position, so
 /// it stays put when a tab's feature gate goes off.
-enum _Tab { today, weight, dashboard, recipes, settings }
+enum _Tab { today, weight, lifting, dashboard, recipes, settings }
 
 class _HomeShellState extends ConsumerState<HomeShell>
     with WidgetsBindingObserver {
@@ -79,6 +81,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
     return switch (tab) {
       _Tab.today => TodayScreen(key: key),
       _Tab.weight => WeightScreen(key: key),
+      _Tab.lifting => LiftingScreen(key: key),
       _Tab.dashboard => DashboardScreen(key: key),
       _Tab.recipes => RecipesScreen(key: key),
       _Tab.settings => SettingsScreen(key: key),
@@ -94,6 +97,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
       _Tab.weight => const NavigationDestination(
         icon: Icon(Icons.monitor_weight_outlined),
         label: 'Weight',
+      ),
+      _Tab.lifting => const NavigationDestination(
+        icon: Icon(Icons.fitness_center),
+        label: 'Lifting',
       ),
       _Tab.dashboard => const NavigationDestination(
         icon: Icon(Icons.insights_outlined),
@@ -179,9 +186,12 @@ class _HomeShellState extends ConsumerState<HomeShell>
   Widget build(BuildContext context) {
     final checkInDue = ref.watch(checkInDueProvider).value ?? false;
     final showRecipes = ref.watch(featureEnabledProvider(AppFeature.recipes));
+    final showLifting = ref.watch(featureEnabledProvider(AppFeature.lifting));
     final tabs = [
       for (final t in _Tab.values)
-        if (t != _Tab.recipes || showRecipes) t,
+        if ((t != _Tab.recipes || showRecipes) &&
+            (t != _Tab.lifting || showLifting))
+          t,
     ];
     // The selected tab's gate went off: fall back to Today for good, so it
     // doesn't jump back when the tab returns.
@@ -194,6 +204,20 @@ class _HomeShellState extends ConsumerState<HomeShell>
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
+        // Six labels at the default size don't fit a phone's width
+        // ("Dashboard" wraps), so they get slightly smaller text.
+        labelTextStyle: tabs.length > 5
+            ? WidgetStateProperty.resolveWith((states) {
+                final theme = Theme.of(context);
+                return theme.textTheme.labelMedium?.copyWith(
+                  fontSize: 11,
+                  letterSpacing: 0,
+                  color: states.contains(WidgetState.selected)
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurfaceVariant,
+                );
+              })
+            : null,
         onDestinationSelected: (i) => _select(tabs[i]),
         destinations: [
           for (final t in tabs) _destination(t, checkInDue: checkInDue),
