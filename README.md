@@ -18,6 +18,8 @@ regardless of your device's setting.
 
 **Get it:** [Android APK](#installing-on-your-phone) · [Web app (iPhone-friendly)](https://danieldacool.github.io/nutrition-app/)
 
+**New here?** The [user manual](https://danieldacool.github.io/nutrition-app/manual/) walks through installing the app and using every screen.
+
 ### Contents
 
 - [What it does](#what-it-does)
@@ -89,6 +91,8 @@ it look like you eat less than you really do. The full spec is in [docs/engine.m
 1. Download [`nutrition.apk`](https://github.com/DanielDaCool/nutrition-app/releases/download/latest-apk/nutrition.apk) — the `latest-apk` release, rebuilt from `main` on every push. The repo is
    public, so this works without being signed in to GitHub.
 2. Open it on the phone and allow installing from that source.
+
+For how to set up your profile and use each screen afterwards, see the [user manual](https://danieldacool.github.io/nutrition-app/manual/).
 
 For a pull request's build instead, open its run on the [Actions tab](https://github.com/DanielDaCool/nutrition-app/actions) and download the `nutrition-app-apk` artifact (needs a GitHub login), then copy `app-release.apk` to the phone.
 

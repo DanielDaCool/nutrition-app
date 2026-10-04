@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nutrition App Manual</title>
+<style>
+  /* Layout: single scrolling column, sticky section nav, card-grouped feature list */
+  :root{
+    --bg:#101118;
+    --bg-elev:#181A24;
+    --bg-elev-2:#212431;
+    --bg-elev-3:#2A2D3C;
+    --text:#E7E8F0;
+    --text-muted:#A0A4B8;
+    --accent:#8C9EFF;
+    --accent-ink:#10194D;
+    --accent-container:#2C3566;
+    --accent-container-ink:#DDE1FF;
+    --teal:#6FD3C0;
+    --teal-ink:#00382F;
+    --coral:#FF9E7A;
+    --coral-ink:#4A1A06;
+    --outline:#323647;
+    --outline-strong:#5E6378;
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    font-size:15px;
+    line-height:1.55;
+    padding-inline:0;
+    margin:0;
+  }
+  h1,h2,h3{font-family:'Sora',system-ui,sans-serif;text-wrap:balance;margin:0}
+  .wrap{max-width:720px;margin:0 auto;padding-inline:20px}
+  img{max-width:100%}
+  a{color:var(--accent)}
+  code{background:var(--bg-elev-2);padding:.12em .4em;border-radius:5px;font-size:.9em}
+
+  /* Header */
+  header.hero{
+    padding-block: calc(env(safe-area-inset-top,0px) + 28px) 24px;
+    background:linear-gradient(160deg,var(--accent-container) 0%, var(--bg) 62%);
+    border-bottom:1px solid var(--outline);
+  }
+  .hero-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .hero-row img{width:64px;height:64px;border-radius:16px;flex-shrink:0}
+  .hero-text h1{font-size:1.6rem;font-weight:700;color:var(--accent-container-ink)}
+  .hero-text p{margin:.3em 0 0;color:var(--text-muted);font-size:.92rem;max-width:40ch}
+  .get-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+  .get-btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:10px 16px;border-radius:999px;font-weight:600;font-size:.88rem;
+    text-decoration:none;border:1px solid var(--outline-strong);
+  }
+  .get-btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  .get-btn.secondary{color:var(--text);background:var(--bg-elev-2)}
+
+  /* Sticky section nav */
+  nav.toc{
+    position:sticky;top:env(safe-area-inset-top,0px);z-index:5;
+    background:rgba(16,17,24,.92);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--outline);
+  }
+  nav.toc .wrap{display:flex;gap:6px;overflow-x:auto;padding-block:10px;scrollbar-width:none}
+  nav.toc .wrap::-webkit-scrollbar{display:none}
+  nav.toc a{
+    flex:0 0 auto;font-size:.8rem;font-weight:600;color:var(--text-muted);
+    text-decoration:none;padding:6px 12px;border-radius:999px;background:var(--bg-elev);
+    white-space:nowrap;
+  }
+  nav.toc a:hover{color:var(--text)}
+
+  main{padding-block:32px 60px}
+  section{margin-bottom:40px}
+  section > .eyebrow{
+    font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--coral);margin-bottom:6px;
+  }
+  section > h2{font-size:1.3rem;margin-bottom:4px}
+  section > .lede{color:var(--text-muted);font-size:.92rem;margin:.4em 0 18px;max-width:58ch}
+
+  .step-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+  .step-list li{
+    display:flex;gap:12px;background:var(--bg-elev);border:1px solid var(--outline);
+    border-radius:14px;padding:14px 16px;
+  }
+  .step-num{
+    flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--accent-container);
+    color:var(--accent-container-ink);font-weight:700;font-size:.82rem;
+    display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;
+  }
+  .step-list p{margin:0;font-size:.92rem}
+  .step-list strong{color:var(--text)}
+
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:520px){.card-grid{grid-template-columns:1fr}}
+  .platform-card{
+    background:var(--bg-elev);border:1px solid var(--outline);border-radius:16px;padding:18px;
+    display:flex;flex-direction:column;gap:10px;min-width:0;
+  }
+  .platform-card h3{font-size:1rem}
+  .platform-card .tag{
+    align-self:flex-start;font-size:.68rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    padding:3px 9px;border-radius:999px;
+  }
+  .tag.android{background:var(--teal);color:var(--teal-ink)}
+  .tag.ios{background:var(--coral);color:var(--coral-ink)}
+  .platform-card ol{margin:0;padding-left:1.1em;font-size:.88rem;color:var(--text-muted);display:flex;flex-direction:column;gap:6px}
+  .platform-card ol li::marker{color:var(--text)}
+
+  .feature{
+    background:var(--bg-elev);border:1px solid var(--outline);border-radius:16px;
+    padding:18px 18px;margin-bottom:12px;min-width:0;
+  }
+  .feature-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .feature-head h3{font-size:1.02rem}
+  .badge{
+    font-size:.66rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:2px 8px;border-radius:999px;background:var(--accent-container);color:var(--accent-container-ink);
+  }
+  .feature p{margin:0;font-size:.9rem;color:var(--text-muted)}
+  .feature p + p{margin-top:8px}
+  .feature .path{
+    display:inline-block;margin-top:8px;font-size:.78rem;color:var(--text);
+    background:var(--bg-elev-2);border-radius:8px;padding:4px 9px;font-family:'Sora',sans-serif;
+  }
+
+  footer{border-top:1px solid var(--outline);padding-block:24px calc(env(safe-area-inset-bottom,0px) + 24px)}
+  footer p{color:var(--text-muted);font-size:.82rem}
+  footer a{color:var(--text-muted)}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-row">
+      <img src="data:image/png;base64,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" alt="Nutrition App icon, a bowl with a sprout">
+      <div class="hero-text">
+        <h1>Nutrition App Manual</h1>
+        <p>How to install it, set it up, and use every screen — food logging, weigh-ins, adaptive targets, steps and workouts, recipes.</p>
+      </div>
+    </div>
+    <div class="get-row">
+      <a class="get-btn primary" href="https://github.com/DanielDaCool/nutrition-app/releases/download/latest-apk/nutrition.apk">Download for Android</a>
+      <a class="get-btn secondary" href="https://danieldacool.github.io/nutrition-app/">Open the web app</a>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a href="#install">Install</a>
+    <a href="#setup">First-time setup</a>
+    <a href="#food">Food logging</a>
+    <a href="#weight">Weigh-ins</a>
+    <a href="#targets">Targets</a>
+    <a href="#activity">Steps &amp; workouts</a>
+    <a href="#recipes">Recipes</a>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#settings">Settings &amp; export</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="install">
+    <div class="eyebrow">Step one</div>
+    <h2>Installing the app</h2>
+    <p class="lede">Everything lives on your own phone or browser. There's no account, no server, and no login — each device keeps its own data.</p>
+    <div class="card-grid">
+      <div class="platform-card">
+        <span class="tag android">Android</span>
+        <h3>Phone APK</h3>
+        <ol>
+          <li>Open <code>nutrition.apk</code> from the download button above on your phone.</li>
+          <li>When Android warns about installing from an unknown source, allow it — the repo is public, so the file downloads without a GitHub sign-in.</li>
+          <li>Open the app once installed.</li>
+        </ol>
+      </div>
+      <div class="platform-card">
+        <span class="tag ios">iPhone &amp; everything else</span>
+        <h3>Web app</h3>
+        <ol>
+          <li>Open the web app link above in Safari (or any browser).</li>
+          <li>On iPhone, tap the Share icon, then <strong>Add to Home Screen</strong> — it opens like a normal app, no App Store needed.</li>
+          <li>It's the same app and data model, with one gap: steps and workouts need Health Connect, which only exists on Android (see <a href="#activity">Steps &amp; workouts</a>).</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="setup">
+    <div class="eyebrow">Step two</div>
+    <h2>First-time setup</h2>
+    <p class="lede">The app needs a few numbers before it can recommend targets. None of this leaves your device.</p>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><p><strong>Fill in your profile</strong> — sex, age, height, current weight, and activity level. These seed your starting calorie estimate (Mifflin-St Jeor) before there's enough history to measure it directly.</p></li>
+      <li><span class="step-num">2</span><p><strong>Pick a direction and a rate</strong> — <em>Lose weight</em> or <em>Gain weight</em>, and how fast (0.25-1.0% of body weight per week). You can change this later in Settings.</p></li>
+      <li><span class="step-num">3</span><p><strong>On Android, connect Health Connect</strong> if you want steps and workouts to show up automatically — see <a href="#activity">Steps &amp; workouts</a> below. This step doesn't exist on the web app.</p></li>
+      <li><span class="step-num">4</span><p><strong>Log today and weigh in tomorrow morning</strong> — the app needs at least 7 fully-logged days and 6 weigh-ins over a 10-day trend before it can measure your real maintenance calories instead of estimating it.</p></li>
+    </ol>
+  </section>
+
+  <section id="food">
+    <div class="eyebrow">Today tab</div>
+    <h2>Food logging</h2>
+    <p class="lede">Tap a meal on the Today screen to add to it.</p>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Search &amp; scan</h3></div>
+      <p>Search covers Open Food Facts (packaged products) and USDA (generic foods like chicken breast or rice) at once. Tap the barcode icon to scan a package instead of typing its name.</p>
+      <p>Foods you've logged before show up under <strong>Recent</strong> and <strong>Favorites</strong>, so after a couple of weeks most logging is a few taps.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Describe what you ate</h3></div>
+      <p>Type a meal the way you'd actually say it &mdash; <em>"5 spoons of cottage cheese 5% and 2 eggs"</em> or <em>"chicken breast 200g, 1 cup rice"</em> &mdash; and it's parsed as you type, matching each food to grams and calories. It works offline, with no account or API key, from a built-in list of common and Israeli foods plus anything you've added yourself.</p>
+      <p>It learns: correct a food or its grams once, and your wording and spoon sizes are remembered next time.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Add from a label</h3></div>
+      <p>No match in either database? Add the food yourself from its nutrition label (per 100&nbsp;g), and it joins your own food list for next time.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Copy a day's meals</h3></div>
+      <p>Copy yesterday's whole day, one meal from yesterday, or a whole day or single meal from any past date, into the day you're viewing &mdash; with an Undo snackbar right after. An empty meal also gets a one-tap <strong>"Same as yesterday"</strong> chip.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Edit a past day</h3></div>
+      <p>The calendar icon on Today jumps to any earlier day to fix or fill in its meals. The arrows next to it step one day at a time, and never past today.</p>
+    </div>
+  </section>
+
+  <section id="weight">
+    <div class="eyebrow">Weight tab</div>
+    <h2>Daily weigh-ins</h2>
+    <p class="lede">One weigh-in per day. The app smooths your entries into a trend line, so a salty dinner or a bad night's sleep doesn't look like real progress or a setback &mdash; only the trend feeds your targets.</p>
+  </section>
+
+  <section id="targets">
+    <div class="eyebrow">Weekly check-in</div>
+    <h2>Adaptive targets</h2>
+    <p class="lede">Once a week (Sunday by default) the check-in compares what you actually ate on fully-logged days against how your trend weight moved, and offers new numbers.</p>
+    <div class="feature">
+      <p>It estimates your real maintenance calories from that comparison, then recommends calories plus protein, fat and carbs for the rate you chose &mdash; a deficit if you're losing, a surplus if you're gaining. Only days marked <strong>"Day fully logged"</strong> count, since a day where you forgot to log dinner would make it look like you eat less than you really do.</p>
+      <p>Nothing changes until you accept the check-in, and maintenance moves by at most 150&nbsp;kcal a week, so targets shift gradually rather than swinging.</p>
+    </div>
+  </section>
+
+  <section id="activity">
+    <div class="eyebrow">Today &amp; Dashboard</div>
+    <h2>Steps &amp; workouts</h2>
+    <span class="badge" style="margin-bottom:12px;display:inline-block">Android only</span>
+    <p class="lede">Read from Health Connect, the step and workout store built into Android 14 and newer. Health Connect doesn't exist on the web, so this section and its charts are hidden there.</p>
+
+    <div class="feature">
+      <p class="path">Settings → Health Connect → Connect</p>
+      <p>Allow steps, exercise, distance and calories, then allow access to past data so the first sync can go back 90 days instead of 30.</p>
+      <p><strong>Steps</strong> start counting as soon as Health Connect can read them &mdash; your old step counter app doesn't need to share anything, though the two counts may differ slightly.</p>
+      <p><strong>Workouts</strong> sync from Hevy once you turn on Health Connect syncing inside Hevy itself; they appear on Today after the next sync, which runs whenever the app opens or there's a manual <strong>Sync now</strong> button. Workout names from Hevy don't come through yet, so they show their type instead (for example "Strength training").</p>
+      <p>Prefer to log a session by hand? Use the manual exercise entry for a walk, run or other workout &mdash; by speed and incline, a flat MET estimate, or just the calories.</p>
+      <p>Settings also has a step-goal slider (3,000-20,000, default 10,000) and an optional walk reminder notification. Steps and workouts are shown for context only; they're never added back to your calorie budget.</p>
+    </div>
+  </section>
+
+  <section id="recipes">
+    <div class="eyebrow">Recipes tab</div>
+    <h2>Recipes</h2>
+    <p class="lede">A browsable catalog of recipes grouped by meal, with search, filters by calorie or macro limits, and a <strong>Recommended for you</strong> row based on what's left of today's targets. Tap any recipe for its ingredients, steps, and full macros.</p>
+  </section>
+
+  <section id="dashboard">
+    <div class="eyebrow">Dashboard tab</div>
+    <h2>Dashboard</h2>
+    <p class="lede">Your weight trend, weekly intake against target, steps per day, workouts per week, and how your maintenance estimate has moved over time &mdash; all in one set of charts.</p>
+  </section>
+
+  <section id="settings">
+    <div class="eyebrow">Settings</div>
+    <h2>Settings &amp; export</h2>
+    <div class="feature">
+      <p>Edit your profile (it locks after the first week to keep the engine's history consistent &mdash; use the edit option there if you need to correct it), change your goal direction or rate, manage Health Connect and the walk reminder, and adjust the step goal.</p>
+      <p class="path">Settings → Export data</p>
+      <p>Writes everything &mdash; food log, weigh-ins, targets history &mdash; to a JSON file you can save or share, for backup or for moving to a new phone.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p>Food data from <a href="https://world.openfoodfacts.org">Open Food Facts</a> and <a href="https://fdc.nal.usda.gov">USDA FoodData Central</a>. Full technical details, the calorie engine's formulas, and the source code are in the <a href="https://github.com/DanielDaCool/nutrition-app">GitHub repo</a>.</p>
+</footer>
+
+</body>
+</html>
