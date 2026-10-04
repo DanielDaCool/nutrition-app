@@ -39,6 +39,22 @@
   h1,h2,h3{font-family:'Sora',system-ui,sans-serif;text-wrap:balance;margin:0}
   .wrap{max-width:720px;margin:0 auto;padding-inline:20px}
   img{max-width:100%}
+
+  /* Desktop: a wider column and a bump in scale so the page doesn't read
+     as an oversized phone screen on a monitor. */
+  @media (min-width:860px){
+    body{font-size:17px}
+    .wrap{max-width:860px;padding-inline:32px}
+    .hero-row img{width:80px;height:80px}
+    .hero-text h1{font-size:2.1rem}
+    .hero-text p{font-size:1.05rem;max-width:48ch}
+    .get-btn{padding:12px 20px;font-size:.95rem}
+    nav.toc a{font-size:.86rem;padding:7px 14px}
+    section > h2{font-size:1.6rem}
+    section > .lede{font-size:1rem}
+    .feature-head h3{font-size:1.15rem}
+    .feature p{font-size:.98rem}
+  }
   a{color:var(--accent)}
   code{background:var(--bg-elev-2);padding:.12em .4em;border-radius:5px;font-size:.9em}
 
@@ -67,8 +83,7 @@
     background:rgba(16,17,24,.92);backdrop-filter:blur(6px);
     border-bottom:1px solid var(--outline);
   }
-  nav.toc .wrap{display:flex;gap:6px;overflow-x:auto;padding-block:10px;scrollbar-width:none}
-  nav.toc .wrap::-webkit-scrollbar{display:none}
+  nav.toc .wrap{display:flex;flex-wrap:wrap;gap:6px;padding-block:10px}
   nav.toc a{
     flex:0 0 auto;font-size:.8rem;font-weight:600;color:var(--text-muted);
     text-decoration:none;padding:6px 12px;border-radius:999px;background:var(--bg-elev);
