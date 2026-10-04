@@ -54,6 +54,9 @@
     section > .lede{font-size:1rem}
     .feature-head h3{font-size:1.15rem}
     .feature p{font-size:.98rem}
+    .feature ul{font-size:.96rem}
+    .faq summary{font-size:1rem}
+    .faq details p{font-size:.95rem}
   }
   a{color:var(--accent)}
   code{background:var(--bg-elev-2);padding:.12em .4em;border-radius:5px;font-size:.9em}
@@ -145,6 +148,22 @@
     display:inline-block;margin-top:8px;font-size:.78rem;color:var(--text);
     background:var(--bg-elev-2);border-radius:8px;padding:4px 9px;font-family:'Sora',sans-serif;
   }
+  .feature h4{font-size:.86rem;color:var(--text);margin:14px 0 6px}
+  .feature h4:first-child{margin-top:0}
+  .feature ul{
+    margin:0;padding-left:1.15em;color:var(--text-muted);font-size:.9rem;
+    display:flex;flex-direction:column;gap:5px;
+  }
+  .feature ul li::marker{color:var(--text)}
+  .feature ul li strong{color:var(--text)}
+
+  .faq details{
+    background:var(--bg-elev);border:1px solid var(--outline);border-radius:14px;
+    padding:12px 16px;margin-bottom:10px;
+  }
+  .faq summary{cursor:pointer;font-weight:600;font-size:.92rem;color:var(--text)}
+  .faq summary::marker{color:var(--coral)}
+  .faq details p{margin:8px 0 0;font-size:.88rem;color:var(--text-muted)}
 
   footer{border-top:1px solid var(--outline);padding-block:24px calc(env(safe-area-inset-bottom,0px) + 24px)}
   footer p{color:var(--text-muted);font-size:.82rem}
@@ -184,6 +203,7 @@
     <a href="#recipes">Recipes</a>
     <a href="#dashboard">Dashboard</a>
     <a href="#settings">Settings &amp; export</a>
+    <a href="#faq">Troubleshooting</a>
   </div>
 </nav>
 
@@ -218,45 +238,63 @@
   <section id="setup">
     <div class="eyebrow">Step two</div>
     <h2>First-time setup</h2>
-    <p class="lede">The app needs a few numbers before it can recommend targets. None of this leaves your device.</p>
+    <p class="lede">The first time you open the app, a setup form walks you through this. None of it leaves your device.</p>
     <ol class="step-list">
-      <li><span class="step-num">1</span><p><strong>Fill in your profile</strong> — sex, age, height, current weight, and activity level. These seed your starting calorie estimate (Mifflin-St Jeor) before there's enough history to measure it directly.</p></li>
-      <li><span class="step-num">2</span><p><strong>Pick a direction and a rate</strong> — <em>Lose weight</em> or <em>Gain weight</em>, and how fast (0.25-1.0% of body weight per week). You can change this later in Settings.</p></li>
-      <li><span class="step-num">3</span><p><strong>On Android, connect Health Connect</strong> if you want steps and workouts to show up automatically — see <a href="#activity">Steps &amp; workouts</a> below. This step doesn't exist on the web app.</p></li>
-      <li><span class="step-num">4</span><p><strong>Log today and weigh in tomorrow morning</strong> — the app needs at least 7 fully-logged days and 6 weigh-ins over a 10-day trend before it can measure your real maintenance calories instead of estimating it.</p></li>
+      <li><span class="step-num">1</span><p><strong>Sex, birth date and height</strong> — a Male/Female switch, a date picker (you must be between 13 and 100 years old), and height in cm (100&ndash;250).</p></li>
+      <li><span class="step-num">2</span><p><strong>Activity level</strong> — Sedentary ("Desk job, little or no exercise"), Light ("Light exercise 1&ndash;3 days a week"), Moderate ("Exercise 3&ndash;5 days a week") or Active ("Hard exercise 6&ndash;7 days a week"). Starts on Light. This and the fields above seed your starting calorie estimate (the Mifflin&ndash;St Jeor formula) before there's enough history to measure it directly.</p></li>
+      <li><span class="step-num">3</span><p><strong>Lose weight or Gain weight</strong>, your goal weight in kg, and a weekly rate slider (0.25&ndash;1.0% of body weight a week, starts at 0.5%). The slider's top end is capped automatically from your height and body weight — losing faster or gaining faster than the cap costs more muscle than fat, so the app won't offer it. A protein slider (1.6&ndash;2.2&nbsp;g per kg, starts at 1.8) and your weekly check-in day (starts on Sunday) round out the form.</p></li>
+      <li><span class="step-num">4</span><p><strong>Today's weight</strong>, entered right there on the setup screen, plus Health Connect on Android if you want to connect it now (you can also do this later &mdash; see <a href="#activity">Steps &amp; workouts</a>). Tap <strong>Save and start</strong>, or <strong>I'll do this later</strong> to skip for now.</p></li>
+      <li><span class="step-num">5</span><p><strong>Log today and weigh in tomorrow morning.</strong> The app needs at least 7 fully-logged days and 6 weigh-ins over a 10-day trend before it can measure your real maintenance calories instead of estimating them &mdash; see <a href="#targets">Adaptive targets</a>.</p></li>
     </ol>
   </section>
 
   <section id="food">
     <div class="eyebrow">Today tab</div>
     <h2>Food logging</h2>
-    <p class="lede">Tap a meal on the Today screen to add to it.</p>
+    <p class="lede">Today always shows four meals &mdash; Breakfast, Lunch, Dinner and Snacks &mdash; plus your calorie card up top. Tap a meal, or its + icon, to add to it.</p>
 
     <div class="feature">
-      <div class="feature-head"><h3>Search &amp; scan</h3></div>
-      <p>Search covers Open Food Facts (packaged products) and USDA (generic foods like chicken breast or rice) at once. Tap the barcode icon to scan a package instead of typing its name.</p>
-      <p>Foods you've logged before show up under <strong>Recent</strong> and <strong>Favorites</strong>, so after a couple of weeks most logging is a few taps.</p>
+      <div class="feature-head"><h3>Adding food</h3></div>
+      <p>The add-food screen opens on four tabs: <strong>Recent</strong>, <strong>Favorites</strong>, <strong>My foods</strong> and <strong>Search</strong>, plus two buttons up top &mdash; <strong>Type it</strong> and, if you haven't turned off barcode scanning, <strong>Scan</strong>.</p>
+      <h4>Recent, Favorites, My foods</h4>
+      <p>Each is a plain list of foods you've used or saved before. Tap one to choose how much (grams, or servings if the food has one). A small circle-plus icon on Recent and Favorites rows re-logs the last amount instantly, with an Undo snackbar.</p>
+      <h4>Search</h4>
+      <p>Typing searches your own saved foods live, under "Your foods" &mdash; this part works offline. Below it, a "Search online for &lsquo;&hellip;&rsquo;" button queries <strong>Open Food Facts and USDA together</strong> and merges the results into one list (Open Food Facts first), each row showing brand and calories per 100&nbsp;g.</p>
+      <h4>Portion screen</h4>
+      <p>The last step for any food: pick grams or servings, see the calories and macros update live, and tap a star in the app bar to favorite it. It remembers the amount you used last time.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Scanning a barcode</h3></div>
+      <p>The Scan button opens your camera for EAN/UPC barcodes, with a torch toggle and a "Type barcode" option if the camera can't read it or you'd rather type the digits.</p>
+      <ul>
+        <li><strong>Found it</strong> &mdash; goes straight to the portion screen.</li>
+        <li><strong>Lookup failed</strong> (offline, rate-limited) &mdash; a dialog offers "Try again" or "Scan again".</li>
+        <li><strong>Not in the database</strong> &mdash; a dialog offers "Add it from the nutrition label", which opens the add-from-label form with the barcode already filled in.</li>
+      </ul>
     </div>
 
     <div class="feature">
       <div class="feature-head"><h3>Describe what you ate</h3></div>
-      <p>Type a meal the way you'd actually say it &mdash; <em>"5 spoons of cottage cheese 5% and 2 eggs"</em> or <em>"chicken breast 200g, 1 cup rice"</em> &mdash; and it's parsed as you type, matching each food to grams and calories. It works offline, with no account or API key, from a built-in list of common and Israeli foods plus anything you've added yourself.</p>
-      <p>It learns: correct a food or its grams once, and your wording and spoon sizes are remembered next time.</p>
+      <p>The <strong>Type it</strong> button opens a text box. Type a meal the way you'd actually say it &mdash; <em>"5 spoons of cottage cheese 5% and 2 eggs"</em> or <em>"chicken breast 200g, 1 cup rice"</em> &mdash; and it's parsed a third of a second after you stop typing, no account or API key, entirely offline against a built-in list of common and Israeli foods plus anything you've added yourself.</p>
+      <p>Each food becomes a card: the matched name (tap to change it), an amount chip like "5 tbsp &middot; 65&nbsp;g" (tap to adjust), the estimated calories, and a short "why" line explaining the estimate. Anything it couldn't match shows as "Didn't catch &lsquo;&hellip;&rsquo;" with a "Pick a food" or "Search online" option. Swipe a card away to drop it, then tap "Add N items" to log everything at once.</p>
+      <p>It learns two things, the moment you correct them: picking a different food for a phrase remembers that mapping next time, and typing an explicit gram amount for a spoon, cup or piece remembers your spoon size for that food. There's no separate "training" step &mdash; it just happens as you use it.</p>
     </div>
 
     <div class="feature">
       <div class="feature-head"><h3>Add from a label</h3></div>
-      <p>No match in either database? Add the food yourself from its nutrition label (per 100&nbsp;g), and it joins your own food list for next time.</p>
+      <p>No match anywhere? Add the food yourself: name, optional brand, a Per&nbsp;100&nbsp;g / Per&nbsp;serving toggle, serving size and name if you use one, then energy, protein, fat and carbs &mdash; the two bases convert automatically as you switch. It's saved to My foods for next time. Reachable from the + button on the add-food screen, from a failed barcode lookup, or from "Create food" while describing a meal.</p>
     </div>
 
     <div class="feature">
-      <div class="feature-head"><h3>Copy a day's meals</h3></div>
-      <p>Copy yesterday's whole day, one meal from yesterday, or a whole day or single meal from any past date, into the day you're viewing &mdash; with an Undo snackbar right after. An empty meal also gets a one-tap <strong>"Same as yesterday"</strong> chip.</p>
+      <div class="feature-head"><h3>Copying and editing days</h3></div>
+      <p>A copy icon by the meals card's total opens <strong>"Copy whole day from yesterday"</strong> or <strong>"&hellip;from another day"</strong> (any date up to 3 years back). Each meal also has its own &#8942; menu with the same two options for just that meal, and an empty meal gets a one-tap <strong>"Same as yesterday"</strong> chip when yesterday had something logged there. Every copy shows a 5-second Undo snackbar.</p>
+      <p>The calendar icon in Today's app bar jumps to any day in the last 3 years to fix or fill in its meals; the arrows beside it step one day at a time and stop at today, and tapping the date in the middle jumps straight back to today. Swipe a logged item left to delete it (also undo-able), or tap it to edit the amount or move it to a different meal.</p>
     </div>
 
     <div class="feature">
-      <div class="feature-head"><h3>Edit a past day</h3></div>
-      <p>The calendar icon on Today jumps to any earlier day to fix or fill in its meals. The arrows next to it step one day at a time, and never past today.</p>
+      <div class="feature-head"><h3>"Day fully logged"</h3></div>
+      <p>A switch at the bottom of the meals card, subtitled "Counts toward your weekly check-in". This is more than a label: only days you've marked fully logged are used to measure your real maintenance calories at the weekly check-in, so a day you forgot to log dinner won't quietly drag your numbers down. If you logged something yesterday but never flagged it, Today shows a one-time "Was yesterday complete?" prompt with a quick "Yes, mark it" option.</p>
     </div>
   </section>
 
@@ -269,10 +307,12 @@
   <section id="targets">
     <div class="eyebrow">Weekly check-in</div>
     <h2>Adaptive targets</h2>
-    <p class="lede">Once a week (Sunday by default) the check-in compares what you actually ate on fully-logged days against how your trend weight moved, and offers new numbers.</p>
+    <p class="lede">Once a week, on the day you chose at setup (Sunday by default), the check-in compares what you actually ate on fully-logged days against how your trend weight moved, and offers new numbers.</p>
     <div class="feature">
+      <p class="path">A banner on Today when it's due, or Settings &rarr; Weekly check-in</p>
       <p>It estimates your real maintenance calories from that comparison, then recommends calories plus protein, fat and carbs for the rate you chose &mdash; a deficit if you're losing, a surplus if you're gaining. Only days marked <strong>"Day fully logged"</strong> count, since a day where you forgot to log dinner would make it look like you eat less than you really do.</p>
-      <p>Nothing changes until you accept the check-in, and maintenance moves by at most 150&nbsp;kcal a week, so targets shift gradually rather than swinging.</p>
+      <p>The check-in screen shows a table &mdash; Current, New and the change &mdash; for calories, protein, fat, carbs and your maintenance estimate, plus a "Why" section explaining the numbers in plain language. Tap <strong>Accept</strong> to switch to the new targets, or <strong>Skip, keep my current targets</strong> to stay put this week. Nothing changes until you tap Accept, and maintenance itself moves by at most 150&nbsp;kcal a week, so targets shift gradually rather than swinging.</p>
+      <p>Your current targets also sit on the Settings screen (calories, protein/fat/carbs, and whether they're a formula estimate or based on your own data) and on Today's calorie card, which shows calories remaining (or over) and a progress bar per macro.</p>
     </div>
   </section>
 
@@ -283,34 +323,86 @@
     <p class="lede">Read from Health Connect, the step and workout store built into Android 14 and newer. Health Connect doesn't exist on the web, so this section and its charts are hidden there.</p>
 
     <div class="feature">
-      <p class="path">Settings → Health Connect → Connect</p>
-      <p>Allow steps, exercise, distance and calories, then allow access to past data so the first sync can go back 90 days instead of 30.</p>
-      <p><strong>Steps</strong> start counting as soon as Health Connect can read them &mdash; your old step counter app doesn't need to share anything, though the two counts may differ slightly.</p>
-      <p><strong>Workouts</strong> sync from Hevy once you turn on Health Connect syncing inside Hevy itself; they appear on Today after the next sync, which runs whenever the app opens or there's a manual <strong>Sync now</strong> button. Workout names from Hevy don't come through yet, so they show their type instead (for example "Strength training").</p>
-      <p>Prefer to log a session by hand? Use the manual exercise entry for a walk, run or other workout &mdash; by speed and incline, a flat MET estimate, or just the calories.</p>
-      <p>Settings also has a step-goal slider (3,000-20,000, default 10,000) and an optional walk reminder notification. Steps and workouts are shown for context only; they're never added back to your calorie budget.</p>
+      <p class="path">Settings → Health Connect</p>
+      <p>The tile's button changes with your state: <strong>Install</strong> or <strong>Update Health Connect</strong> if it's missing, <strong>Connect</strong> to grant steps/workouts/distance/calories access, then <strong>Allow full history</strong> &mdash; a second permission that lets the first sync reach back 90 days instead of 30. <strong>Sync now</strong> is always there once connected.</p>
+      <p><strong>Steps</strong> appear on Today with a progress bar toward your goal, and as a bar chart with a 7-day average line on the Dashboard. They start counting as soon as Health Connect can read them &mdash; your old step counter app doesn't need to share anything, though the two counts may differ slightly.</p>
+      <p><strong>Workouts</strong> sync from Hevy once you turn on Health Connect syncing inside Hevy itself; they appear on Today as "&lt;name&gt; &middot; &lt;duration&gt;" with "from Hevy" and the calories underneath, and as a per-week count on the Dashboard. Sync runs whenever the app opens, on Dashboard pull-to-refresh, or from the Health Connect tile's Sync now button.</p>
+      <h4>Logging a workout by hand</h4>
+      <p>The + "Add exercise" button on the Activity card opens a form. Pick an activity &mdash; treadmill/outdoor walk or run, cycling, elliptical, swimming, rowing, or Other for anything else (which just takes a name and a calorie figure you type in). Walks and runs take distance, speed and incline, each deriving the others; walking caps at 8&nbsp;km/h and running at 30&nbsp;km/h. Everything else uses your body weight (prefilled from your last weigh-in) plus a standard activity-intensity estimate. Whatever the method, the calculated calories are always editable if you'd rather enter your own.</p>
+      <h4>Step goal &amp; walk reminder</h4>
+      <p>Both live in Settings, right under Health Connect. The step goal is a slider from 3,000 to 20,000 (default 10,000). The walk reminder is a toggle that, once on, lets you set a time and a step threshold (1,000&ndash;15,000) &mdash; it's meant to nudge you if you're under that many steps by that time of day.</p>
+      <p>Steps and workouts are shown for context only; they're never added back to your calorie budget.</p>
     </div>
   </section>
 
   <section id="recipes">
     <div class="eyebrow">Recipes tab</div>
     <h2>Recipes</h2>
-    <p class="lede">A browsable catalog of recipes grouped by meal, with search, filters by calorie or macro limits, and a <strong>Recommended for you</strong> row based on what's left of today's targets. Tap any recipe for its ingredients, steps, and full macros.</p>
+    <p class="lede">A grid of recipes grouped by meal &mdash; Breakfast, Lunch, Dinner, Snacks &mdash; with search and filters, plus a <strong>Recommended for you</strong> row at the top.</p>
+    <div class="feature">
+      <p>The filter button opens max calories, min protein, max carbs and max fat fields &mdash; applied live as you type, with a Clear button. The search box matches by name or ingredient.</p>
+      <p><strong>Recommended for you</strong> looks at what's left of today's calorie and macro targets and ranks every recipe by how well it fits what's left, showing the top 5. It's hidden until you have a profile and targets set up.</p>
+      <p>Tap any recipe for a sheet with its ingredients, numbered steps, and full macros per serving.</p>
+    </div>
   </section>
 
   <section id="dashboard">
     <div class="eyebrow">Dashboard tab</div>
     <h2>Dashboard</h2>
-    <p class="lede">Your weight trend, weekly intake against target, steps per day, workouts per week, and how your maintenance estimate has moved over time &mdash; all in one set of charts.</p>
+    <p class="lede">Five charts, in order, over the time range you pick at the top:</p>
+    <div class="feature">
+      <ul>
+        <li><strong>Weight</strong> &mdash; your trend line against your goal.</li>
+        <li><strong>Average intake per week</strong> &mdash; a bar for what you ate against a bar for your target, fully-logged days only.</li>
+        <li><strong>Steps per day</strong> &mdash; daily bars with a 7-day average line. <span class="badge">Android only</span></li>
+        <li><strong>Workouts per week</strong> &mdash; a bar per week. <span class="badge">Android only</span></li>
+        <li><strong>Maintenance estimate</strong> &mdash; one point per weekly check-in, so you can see the engine's estimate of your maintenance calories move over time.</li>
+      </ul>
+      <p>Until you have a profile and a first weigh-in, this screen shows a "Finish setup" card instead.</p>
+    </div>
   </section>
 
   <section id="settings">
     <div class="eyebrow">Settings</div>
     <h2>Settings &amp; export</h2>
     <div class="feature">
-      <p>Edit your profile (it locks after the first week to keep the engine's history consistent &mdash; use the edit option there if you need to correct it), change your goal direction or rate, manage Health Connect and the walk reminder, and adjust the step goal.</p>
+      <p>Your current targets sit at the top once you have a profile, followed by your profile and the weekly check-in. On Android, four more rows follow: Health Connect, step goal, walk reminder, and Export data &mdash; all absent on the web app, since none of them apply there.</p>
+      <h4>Editing your profile</h4>
+      <p>Your profile locks as soon as it exists &mdash; it's read-only by default, to keep the calorie engine's history consistent. Tap <strong>Edit</strong> to unlock every field, make your changes, and you'll be asked to confirm before they're saved; canceling discards them and re-locks the form.</p>
+      <h4>Export data</h4>
       <p class="path">Settings → Export data</p>
-      <p>Writes everything &mdash; food log, weigh-ins, targets history &mdash; to a JSON file you can save or share, for backup or for moving to a new phone.</p>
+      <p>Writes your entire database &mdash; profile, weigh-ins, food log, target history, everything &mdash; to a JSON file named <code>nutrition-export-&lt;date&gt;.json</code>, which opens Android's share sheet so you can save it or send it anywhere. It's a full raw backup, useful as a record or to inspect your own data; there's currently no way to load an export back into the app.</p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="eyebrow">Troubleshooting</div>
+    <h2>Common questions</h2>
+    <div class="faq">
+      <details>
+        <summary>I don't see steps, workouts or the Activity card.</summary>
+        <p>That's expected on the web app &mdash; Health Connect only exists on Android, so this card and the two activity charts on the Dashboard are hidden there entirely.</p>
+      </details>
+      <details>
+        <summary>My profile fields are greyed out.</summary>
+        <p>That's normal once a profile exists &mdash; it locks itself to keep your target history consistent. Tap <strong>Edit</strong> to unlock it, then confirm when you save.</p>
+      </details>
+      <details>
+        <summary>My weekly check-in isn't showing up.</summary>
+        <p>It becomes due on your chosen check-in weekday (Sunday by default), and stays due until you open it &mdash; look for the banner on Today or the badge on Settings → Weekly check-in. It also needs a profile and enough weigh-in history to have anything new to recommend.</p>
+      </details>
+      <details>
+        <summary>A day I logged isn't counting toward my targets.</summary>
+        <p>Only days switched on as <strong>"Day fully logged"</strong> (at the bottom of the meals card) feed the weekly check-in's maintenance estimate. A logged-but-unflagged day is skipped on purpose, so an incomplete day doesn't skew the numbers.</p>
+      </details>
+      <details>
+        <summary>Scanning a barcode didn't find my product.</summary>
+        <p>Open Food Facts is crowd-sourced, so not everything is in there. The app will offer to add it yourself from its nutrition label &mdash; it's then saved for next time, barcode included.</p>
+      </details>
+      <details>
+        <summary>Can I move my data to a new phone?</summary>
+        <p>Settings → Export data gives you a full JSON backup of everything, but there's no built-in way to load it back in. Each phone keeps its own data, by design &mdash; there's no account or server behind any of this.</p>
+      </details>
     </div>
   </section>
 
