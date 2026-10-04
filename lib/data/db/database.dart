@@ -33,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   /// The on-device database file (nutrition.sqlite in app documents). On web
-  /// drift runs sqlite3.wasm in drift_worker.js (both from the drift 2.35.0
+  /// drift runs sqlite3.wasm in drift_worker.js (both from the drift 2.35.1
   /// release, in web/) and stores the database in the browser. The URIs are
   /// relative so they resolve against `<base href>` when served from a subpath.
   AppDatabase.defaults()
