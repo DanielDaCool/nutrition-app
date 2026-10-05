@@ -496,7 +496,9 @@ void main() {
     });
   });
 
-  testWidgets('web hides the Android-only settings', (tester) async {
+  testWidgets('web hides the Android-only settings but keeps backups', (
+    tester,
+  ) async {
     tallScreen(tester);
     final db = openTestDatabase();
     addTearDown(db.close);
@@ -519,7 +521,9 @@ void main() {
     expect(find.byType(HealthConnectSettingsTile), findsNothing);
     expect(find.byType(StepGoalSettingsTile), findsNothing);
     expect(find.byType(WalkReminderSettingsTile), findsNothing);
-    expect(find.byType(ExportDataTile), findsNothing);
+    // Backups work on web too: an iPhone friend's data lives only there.
+    expect(find.byType(ExportDataTile), findsOneWidget);
+    expect(find.byType(ImportDataTile), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
@@ -539,6 +543,7 @@ void main() {
     expect(find.byType(StepGoalSettingsTile), findsOneWidget);
     expect(find.byType(WalkReminderSettingsTile), findsOneWidget);
     expect(find.byType(ExportDataTile), findsOneWidget);
+    expect(find.byType(ImportDataTile), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 
