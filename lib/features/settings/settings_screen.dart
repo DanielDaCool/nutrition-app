@@ -362,6 +362,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
     final hasWeighIn = ref.read(weighInsProvider).value?.isNotEmpty ?? false;
+    final checkInDue = ref.read(checkInDueProvider).value ?? false;
     try {
       final newTargets = await ref
           .read(targetsRepositoryProvider)
@@ -387,6 +388,9 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               newTargets != null
                   ? 'Profile saved. New target: '
                         '${kcal(newTargets.macros.kcal)}'
+                  : checkInDue
+                  ? 'Profile saved. Your targets update at your weekly '
+                        'check-in, which is due now.'
                   : hasWeighIn
                   ? 'Profile saved'
                   : 'Profile saved. Next: log your weight on Today to get '
