@@ -19,18 +19,22 @@ final friday = DateTime(2026, 9, 25, 9);
 /// Sunday (default check-in weekday).
 final sunday = DateTime(2026, 9, 27, 9);
 
-Future<void> addProfile(TargetsRepository repo, {int weekday = 7}) =>
-    repo.saveProfile(
-      sex: Sex.male,
-      birthDate: DateTime(1996, 9, 25),
-      heightCm: 180,
-      activityLevel: ActivityLevel.moderate,
-      goalWeightKg: 80,
-      weeklyRatePct: 0.5,
-      proteinPerKg: 2.0,
-      checkInWeekday: weekday,
-      goalDirection: GoalDirection.lose,
-    );
+Future<void> addProfile(
+  TargetsRepository repo, {
+  int weekday = 7,
+  double goalWeightKg = 80,
+  GoalDirection goalDirection = GoalDirection.lose,
+}) => repo.saveProfile(
+  sex: Sex.male,
+  birthDate: DateTime(1996, 9, 25),
+  heightCm: 180,
+  activityLevel: ActivityLevel.moderate,
+  goalWeightKg: goalWeightKg,
+  weeklyRatePct: 0.5,
+  proteinPerKg: 2.0,
+  checkInWeekday: weekday,
+  goalDirection: goalDirection,
+);
 
 Future<void> addWeighIn(AppDatabase db, String day, double kg) => db
     .into(db.weighIns)
@@ -182,6 +186,78 @@ void main() {
     final rec = await repo.recommendToday();
     await repo.saveRecommendation(rec!);
     expect(await waitFor(container, checkInDueProvider, (d) => !d), isFalse);
+  });
+
+  test('changing the goal in the profile recalculates the target', () async {
+    await addWeighIn(db, '2026-09-24', 90);
+    await addProfile(
+      repo,
+      goalWeightKg: 100,
+      goalDirection: GoalDirection.gain,
+    );
+    final gain = await waitFor(
+      container,
+      currentTargetsProvider,
+      (t) => t != null,
+    );
+    expect(gain!.macros.kcal, greaterThan(gain.maintenanceKcal));
+
+    await addProfile(repo); // lose, goal 80
+    final lose = await waitFor(
+      container,
+      currentTargetsProvider,
+      (t) => t != null && t.macros.kcal != gain.macros.kcal,
+    );
+    expect(lose!.macros.kcal, lessThan(lose.maintenanceKcal));
+    expect(lose.effectiveFrom, '2026-09-25');
+    expect(await db.select(db.targetHistory).get(), hasLength(1));
+  });
+
+  test('a profile change replaces an older target from today', () async {
+    await addProfile(
+      repo,
+      goalWeightKg: 100,
+      goalDirection: GoalDirection.gain,
+    );
+    await addWeighIn(db, '2026-09-24', 90);
+    await addTarget(db, '2026-09-20', kcal: 3300);
+
+    await addProfile(repo);
+    final rows = await (db.select(
+      db.targetHistory,
+    )..orderBy([(t) => OrderingTerm.asc(t.effectiveFrom)])).get();
+    expect(rows.map((r) => r.effectiveFrom), ['2026-09-20', '2026-09-25']);
+    expect(rows.last.kcal, lessThan(rows.last.maintenanceKcal));
+    expect(await repo.checkInDue(), isFalse);
+  });
+
+  test('saving the profile unchanged keeps the target', () async {
+    await addProfile(repo);
+    await addWeighIn(db, '2026-09-24', 90);
+    await addTarget(db, '2026-09-20', kcal: 2000);
+
+    await addProfile(repo);
+    await addProfile(repo, weekday: DateTime.saturday);
+    final rows = await db.select(db.targetHistory).get();
+    expect(rows.single.kcal, 2000);
+  });
+
+  test('a profile change while a check-in is due leaves it due', () async {
+    now = sunday;
+    await addProfile(
+      repo,
+      goalWeightKg: 100,
+      goalDirection: GoalDirection.gain,
+    );
+    await addWeighIn(db, '2026-09-19', 90);
+    await addTarget(db, '2026-09-20', kcal: 3300);
+
+    await addProfile(repo);
+    expect((await db.select(db.targetHistory).get()).single.kcal, 3300);
+    expect(await repo.checkInDue(), isTrue);
+    // The check-in then works from the new profile.
+    final rec = (await repo.recommendToday())!;
+    expect(rec.macros.kcal, lessThan(rec.maintenanceKcal));
   });
 
   test('check-in is not due on other weekdays', () async {
