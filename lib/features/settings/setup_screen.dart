@@ -10,6 +10,7 @@ import '../../core/day_key.dart';
 import '../activity/widgets/health_connect_tile.dart';
 import '../weight/weight_logic.dart';
 import '../weight/weight_providers.dart';
+import 'import_flow.dart';
 import 'settings_screen.dart';
 
 /// Opens [SetupScreen] as a full-screen page.
@@ -22,7 +23,8 @@ Future<void> openSetup(BuildContext context) => Navigator.of(context).push(
 
 /// Full-screen first-run setup. "Save and start" stores the profile (through
 /// [ProfileForm], so validation is shared) and today's weigh-in (through the
-/// weight feature's repository); "Later" just closes it.
+/// weight feature's repository); "Restore from a backup" imports an export
+/// instead; "Later" just closes it.
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
 
@@ -92,6 +94,13 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     Navigator.of(context).maybePop();
   }
 
+  /// Moving to a new phone: restore the old one's export instead of
+  /// starting over. Closes setup once the profile is back.
+  Future<void> _restore() async {
+    final restored = await runImport(context, ref);
+    if (restored && mounted) Navigator.of(context).maybePop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -151,6 +160,14 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 const HealthConnectSettingsTile(),
               ],
             ],
+          ),
+          Center(
+            child: TextButton.icon(
+              key: const Key('setupRestore'),
+              onPressed: _restore,
+              icon: const Icon(Icons.restore),
+              label: const Text('Restore from a backup'),
+            ),
           ),
           Center(
             child: TextButton(
