@@ -363,7 +363,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     final messenger = ScaffoldMessenger.of(context);
     final hasWeighIn = ref.read(weighInsProvider).value?.isNotEmpty ?? false;
     try {
-      await ref
+      final newTargets = await ref
           .read(targetsRepositoryProvider)
           .saveProfile(
             sex: _sex,
@@ -384,7 +384,10 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              hasWeighIn
+              newTargets != null
+                  ? 'Profile saved. New target: '
+                        '${kcal(newTargets.macros.kcal)}'
+                  : hasWeighIn
                   ? 'Profile saved'
                   : 'Profile saved. Next: log your weight on Today to get '
                         'your targets.',
