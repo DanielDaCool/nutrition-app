@@ -242,6 +242,34 @@ void main() {
     expect(rows.single.kcal, 2000);
   });
 
+  test(
+    'saving unchanged recalculates a target left from another goal',
+    () async {
+      // A gain target from before saves recalculated; the profile says lose.
+      await addProfile(repo);
+      await addWeighIn(db, '2026-09-24', 90);
+      await addTarget(
+        db,
+        '2026-09-22',
+        kcal: 3300,
+        explanation: {
+          ...(await repo.recommendToday())!.explanation.toJson(),
+          'goalDirection': GoalDirection.gain.index,
+        },
+      );
+
+      await addProfile(repo);
+      final rows = await (db.select(
+        db.targetHistory,
+      )..orderBy([(t) => OrderingTerm.asc(t.effectiveFrom)])).get();
+      expect(rows.map((r) => r.effectiveFrom), ['2026-09-22', '2026-09-25']);
+      expect(rows.last.kcal, lessThan(rows.last.maintenanceKcal));
+
+      await addProfile(repo); // now in line with the profile: left alone
+      expect(await db.select(db.targetHistory).get(), hasLength(2));
+    },
+  );
+
   test('a profile change while a check-in is due leaves it due', () async {
     now = sunday;
     await addProfile(
