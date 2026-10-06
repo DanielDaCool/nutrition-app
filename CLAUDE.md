@@ -1,14 +1,20 @@
 # Nutrition App — project guide
 
-Personal Android app (single user, no login) for food logging, daily weigh-ins,
-adaptive calorie/macro targets, and steps + workouts from Health Connect.
+Android app and web app (single user per device, no login, no server) for
+food logging, daily weigh-ins, adaptive calorie/macro targets, and steps +
+workouts from Health Connect. Friends each run their own copy with their own
+local data; nothing is shared between devices except by export/import.
 Plan of record: `docs/plan.md`. Calorie engine spec: `docs/engine.md`.
 
 ## Stack (pinned)
-- Flutter 3.47.5 / Dart 3.13.4, Android only (minSdk 26).
+- Flutter 3.47.5 / Dart 3.13.4. Android (minSdk 26) and web; Android-only
+  features (Health Connect, notifications) are gated by `AppFeature.androidOnly`.
 - State: flutter_riverpod 3.x, plain providers (no codegen).
-- DB: Drift 2.35 on SQLite (`lib/data/db/`), generated code is committed.
-- Health: `health` 13.x (Health Connect). Barcode: `mobile_scanner`. Charts: `fl_chart`.
+- DB: Drift 2.35 on SQLite (`lib/data/db/`), generated code is committed. On
+  web it runs via `sqlite3.wasm`/`drift_worker.js` (vendored in `web/`),
+  storing the database in the browser.
+- Health: `health` 13.x (Health Connect, Android only). Barcode: `mobile_scanner`.
+  Charts: `fl_chart`. File picking (backup restore, incl. on web): `file_picker`.
 - Don't add or upgrade packages without the lead's approval.
 
 ## Commands
@@ -19,7 +25,14 @@ flutter analyze                  # must be clean
 flutter test                     # must pass
 flutter build apk --release      # CI only (Android SDK isn't available in the cloud sandbox)
 ```
-CI (`.github/workflows/ci.yml`) runs codegen check, analyze, test, and builds an APK artifact.
+CI (`.github/workflows/ci.yml`, `.github/workflows/web.yml`) runs the codegen
+check, analyze and test on every push/PR to `main`, and builds the Android APK
+there too — but neither workflow releases anything from a plain push. Only a
+`v*` tag (matching pubspec's `version:`, checked by
+`.github/scripts/app-version.sh`) attaches `nutrition.apk` to that tag's
+GitHub release and deploys the web build to GitHub Pages. To ship: bump
+`version:` in `pubspec.yaml` (name and build number), merge, then push a
+matching `vX.Y` tag on that commit. Don't do this unless asked.
 
 ## Conventions
 - Days are `dayKey` strings `YYYY-MM-DD` in local time (`lib/core/day_key.dart`). Never store a day as DateTime.
@@ -30,11 +43,13 @@ CI (`.github/workflows/ci.yml`) runs codegen check, analyze, test, and builds an
 - Tests: in-memory DB via `test/helpers/test_db.dart`. HTTP via `package:http/testing.dart` `MockClient`. No real network in tests.
 - Pure logic (math, parsing) lives in plain Dart files with no Flutter/DB imports, so it's unit-testable.
 - UI: Material 3, English. Keep screens simple; show loading and error states from `AsyncValue`.
+- KeyValues keys are prefixed by owner: `describe.` (food agent), `hc.` (Health Connect agent), `app.` (lead, app-shell state like the install hint and update-check timestamps — see Ownership below).
+- `lib/features/settings/data_import.dart` is the one file that writes every table, by design: restoring a backup replaces everything on the device, so it has to bypass the per-feature table owners below. No other file should write a table it doesn't own.
 
 ## Ownership (parallel work)
 | Area | Owner | Files | Writes tables |
 |---|---|---|---|
-| Shared core | lead | `pubspec.yaml`, `lib/main.dart`, `lib/app/**`, `lib/core/**`, `lib/domain/**`, `lib/data/**`, `android/**`, `.github/**`, `test/helpers/**` | — |
+| Shared core | lead | `pubspec.yaml`, `lib/main.dart`, `lib/app/**`, `lib/core/**`, `lib/domain/**`, `lib/data/**`, `android/**`, `.github/**`, `test/helpers/**` | KeyValues (keys prefixed `app.`) |
 | A. Calorie engine, check-in, settings | engine agent | `lib/features/targets/**`, `lib/features/settings/**`, `test/features/targets/**`, `test/features/settings/**` | Profiles, TargetHistory |
 | B. Food logging | food agent | `lib/features/food/**`, `test/features/food/**` | Foods, FoodLogEntries, SavedMeals, SavedMealItems, DayStatuses, KeyValues (keys prefixed `describe.`) |
 | C. Health Connect | health agent | `lib/features/activity/**`, `test/features/activity/**` | DailySteps, Workouts, KeyValues (keys prefixed `hc.`) |
