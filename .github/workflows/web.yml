@@ -37,10 +37,18 @@ jobs:
         run: flutter pub get
 
       # Pages serves the site from /<repository name>/, not the domain root.
-      # No USDA_API_KEY here: anything passed by --dart-define is readable in
-      # the public JS bundle, so the web build uses the DEMO_KEY default.
+      # The USDA key ends up readable in the public JS bundle. Accepted: it's
+      # a free api.data.gov key whose worst case is someone using up its
+      # hourly quota, and DEMO_KEY (30 requests/hour per IP) is too little
+      # for friends using the web app. Rotate the secret if it's abused.
+      # Fork PRs and forks without the secret fall back to DEMO_KEY.
       - name: Build web
-        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+        env:
+          USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
+        run: >-
+          flutter build web --release
+          --base-href "/${{ github.event.repository.name }}/"
+          --dart-define=USDA_API_KEY="${USDA_API_KEY:-DEMO_KEY}"
 
       - name: Copy user manual into the Pages build
         run: cp -r docs/manual build/web/manual
