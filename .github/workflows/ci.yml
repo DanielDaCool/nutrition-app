@@ -1,8 +1,13 @@
 name: CI
 
+# Every push to main and every pull request: codegen check, analyze, test,
+# and an APK as a downloadable artifact. Friends only get a new APK from a
+# version tag (v0.1, ...): that run attaches it to the tag's GitHub release.
+
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -34,6 +39,10 @@ jobs:
       - name: Install packages
         run: flutter pub get
 
+      # Sets APP_VERSION; on a tag, fails unless the tag matches pubspec.yaml.
+      - name: Read app version
+        run: .github/scripts/app-version.sh
+
       - name: Check generated code is up to date
         run: |
           dart run build_runner build
@@ -63,7 +72,10 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
-        run: flutter build apk --release --dart-define=USDA_API_KEY="${USDA_API_KEY:-DEMO_KEY}"
+        run: >-
+          flutter build apk --release
+          --dart-define=USDA_API_KEY="${USDA_API_KEY:-DEMO_KEY}"
+          --dart-define=APP_VERSION="$APP_VERSION"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -71,15 +83,20 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
-      - name: Publish APK as a release file (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # The release may already exist (made on GitHub with release notes);
+      # then only the APK is added or replaced. Otherwise it's created with
+      # notes generated from the merged pull requests.
+      - name: Attach APK to the version's release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
           cp build/app/outputs/flutter-apk/app-release.apk nutrition.apk
-          gh release delete latest-apk --yes --cleanup-tag || true
-          gh release create latest-apk nutrition.apk \
-            --target "$GITHUB_SHA" \
-            --title "Latest APK" \
-            --notes "Built from $GITHUB_SHA (run $GITHUB_RUN_NUMBER)." \
-            --latest
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" nutrition.apk --clobber
+            gh release edit "$TAG" --latest
+          else
+            gh release create "$TAG" nutrition.apk \
+              --verify-tag --title "$TAG" --generate-notes --latest
+          fi

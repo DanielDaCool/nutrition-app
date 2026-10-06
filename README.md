@@ -5,6 +5,7 @@
 
   [![CI](https://github.com/DanielDaCool/nutrition-app/actions/workflows/ci.yml/badge.svg)](https://github.com/DanielDaCool/nutrition-app/actions/workflows/ci.yml)
   [![Web](https://github.com/DanielDaCool/nutrition-app/actions/workflows/web.yml/badge.svg)](https://github.com/DanielDaCool/nutrition-app/actions/workflows/web.yml)
+  [![Release](https://img.shields.io/github/v/release/DanielDaCool/nutrition-app?label=release)](https://github.com/DanielDaCool/nutrition-app/releases/latest)
 </div>
 
 A personal app for losing (or gaining) weight: log what you eat, weigh in every morning, and get
@@ -13,20 +14,24 @@ Steps and gym workouts come in automatically from Health Connect (Hevy writes wo
 you can log a workout by hand.
 
 Everything is stored on the phone (or the browser, for the web build). There's no account, no
-server and no login. Dark theme only ("Midnight Indigo" — periwinkle with a coral accent),
+server and no login. Each person's data stays on their own device; Settings → Export data saves
+a backup, and Import data (or *Restore from a backup* on first run) brings it back on a new phone. Dark theme only ("Midnight Indigo" — periwinkle with a coral accent),
 regardless of your device's setting.
 
 ### 📖 [Read the user manual](https://danieldacool.github.io/nutrition-app/manual/)
 
 Installing it, first-time setup, and how to use every screen are all there, not repeated here.
 
-**Get it:** [Android APK](https://github.com/DanielDaCool/nutrition-app/releases/download/latest-apk/nutrition.apk) · [Web app (iPhone-friendly)](https://danieldacool.github.io/nutrition-app/)
+**Get it:** [Android APK](https://github.com/DanielDaCool/nutrition-app/releases/latest/download/nutrition.apk) · [Web app (iPhone-friendly)](https://danieldacool.github.io/nutrition-app/) · [What's new](https://github.com/DanielDaCool/nutrition-app/releases)
+
+Both always serve the latest release. On iPhone, open the web app in Safari and use Share → Add to
+Home Screen. Your version is shown at the bottom of Settings.
 
 ### Contents
 
 - [Development](#development)
 - [How the calorie recommendation works](#how-the-calorie-recommendation-works)
-- [Releasing (signing secrets)](#releasing-signing-secrets)
+- [Releasing a new version](#releasing-a-new-version)
 - [Data sources](#data-sources)
 
 ## Development
@@ -39,7 +44,7 @@ dart run build_runner build   # after changing lib/data/db/tables.dart
 flutter analyze
 flutter test
 flutter run                   # with a phone connected (USB debugging on)
-flutter build apk --release --dart-define=USDA_API_KEY=your_key
+flutter build apk --release --dart-define=USDA_API_KEY=your_key --dart-define=APP_VERSION=0.0.0+2
 ```
 
 For local release signing, create `android/key.properties` (it's git-ignored):
@@ -63,7 +68,7 @@ lib/
   features/
     food/                 Open Food Facts + USDA clients, food log, add-food screens
     targets/              calorie engine, current targets, weekly check-in
-    settings/             profile and goals, data export
+    settings/             profile and goals, backups (export and import)
     activity/             Health Connect sync (steps, workouts), manual exercise, step goal, walk reminder
     weight/               weigh-ins, trend chart
     today/                Today screen
@@ -80,9 +85,11 @@ Two workflows run in CI:
 
 - **`ci.yml`** — on every push to `main` and every pull request: checks that the generated database
   code is up to date, then runs analyze and the tests, and builds the release APK as a downloadable
-  artifact. On a push to `main` it also publishes that APK to the `latest-apk` GitHub release.
-- **`web.yml`** — builds the Flutter web app and, on a push to `main`, deploys it (together with
-  the user manual) to GitHub Pages at the web app link above.
+  artifact. On a version tag it also attaches the APK to that version's GitHub release.
+- **`web.yml`** — builds the Flutter web app on every push and pull request. On a version tag it
+  deploys it (together with the user manual) to GitHub Pages at the web app link above.
+
+Merging to `main` doesn't change what friends have; only [a release](#releasing-a-new-version) does.
 
 ## How the calorie recommendation works
 
@@ -103,7 +110,28 @@ Two workflows run in CI:
 Only days you mark **"Day fully logged"** count. A day where you forgot dinner would otherwise make
 it look like you eat less than you really do. The full spec is in [docs/engine.md](docs/engine.md).
 
-## Releasing (signing secrets)
+## Releasing a new version
+
+1. In `pubspec.yaml`, raise `version:`, both the name and the build number after `+`
+   (e.g. `0.0.0+2` → `0.1.0+3`). Android only installs an update with a higher build number.
+2. Merge that to `main` and wait for CI to pass.
+3. Tag the merge commit and push the tag. The tag drops trailing zeros if you like (`v0.1` is
+   version `0.1.0`), but it must match `pubspec.yaml`, or CI stops the release:
+
+   ```bash
+   git tag v0.1 origin/main
+   git push origin v0.1
+   ```
+
+   Or create the release on GitHub (Releases → Draft a new release, new tag `v0.1` on `main`)
+   to write the notes yourself.
+
+The tag's CI run builds the APK and attaches it to the `v0.1` release (creating it, with notes
+listing the merged pull requests, if it doesn't exist) and marks it as the latest. The tag's Web
+run deploys the web app. Friends get the new APK from the same download link; the web app
+updates the next time they open it.
+
+### Signing secrets
 
 **Keep your data between updates:** new versions only install over the old one if every build is
 signed with the same key. Set these repository secrets once (Settings → Secrets and variables →
@@ -115,13 +143,13 @@ Actions):
 | `ANDROID_KEYSTORE_PASSWORD` | keystore password |
 | `ANDROID_KEY_ALIAS` | key alias |
 | `ANDROID_KEY_PASSWORD` | key password |
-| `USDA_API_KEY` | optional: free key from [api.data.gov](https://api.data.gov/signup/) (the shared demo key allows ~50 searches a day) |
+| `USDA_API_KEY` | free key from [api.data.gov](https://api.data.gov/signup/), used by the APK and web builds (without it they fall back to the shared demo key, ~30 searches an hour). It's readable in the web app's JavaScript; rotate it if it's abused |
 
 Without the signing secrets, CI signs with a throwaway debug key and you'd have to uninstall
 (losing your data) to install a newer build. Keep the `.jks` file and passwords backed up outside
 the repo.
 
-For a pull request's build instead of `latest-apk`, open its run on the
+To try a pull request's build before it's released, open its run on the
 [Actions tab](https://github.com/DanielDaCool/nutrition-app/actions) and download the
 `nutrition-app-apk` artifact (needs a GitHub login), then copy `app-release.apk` to the phone.
 
