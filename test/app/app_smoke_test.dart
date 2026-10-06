@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/app.dart';
+import 'package:nutrition_app/app/install_hint_banner.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/core/app_features.dart';
+import 'package:nutrition_app/core/install_hint.dart';
+import 'package:nutrition_app/core/install_hint_repository.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
@@ -421,6 +424,130 @@ void main() {
     expect(selectedIndex(tester), 0);
     await unmount(tester);
   });
+
+  const iosInfo = BrowserInstallInfo(isIos: true, standalone: false);
+
+  Future<void> pumpIosApp(
+    WidgetTester tester,
+    AppDatabase db, {
+    List<Override> extra = const [],
+  }) => tester.pumpWidget(
+    app(
+      db,
+      extra: [browserInstallInfoProvider.overrideWithValue(iosInfo), ...extra],
+    ),
+  );
+
+  testWidgets('the install hint shows on iOS Safari', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await pumpIosApp(tester, db);
+    await settle(tester);
+    expect(find.byType(InstallHintBanner), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the install hint is absent off iOS', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    expect(find.byType(InstallHintBanner), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('the install hint is absent once opened from the Home Screen', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      app(
+        db,
+        extra: [
+          browserInstallInfoProvider.overrideWithValue(
+            const BrowserInstallInfo(isIos: true, standalone: true),
+          ),
+        ],
+      ),
+    );
+    await settle(tester);
+    expect(find.byType(InstallHintBanner), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('Not now dismisses the hint and snoozes it', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await pumpIosApp(tester, db);
+    await settle(tester);
+    expect(find.byType(InstallHintBanner), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('installHintNotNow')));
+    await settle(tester);
+    expect(find.byType(InstallHintBanner), findsNothing);
+    // Still functional underneath: the rest of the app still renders.
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final stored = await tester.runAsync(() => loadInstallHintDismissedAt(db));
+    expect(stored, now.toUtc());
+    await unmount(tester);
+  });
+
+  testWidgets('How? opens the Add to Home Screen steps', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await pumpIosApp(tester, db);
+    await settle(tester);
+
+    await tester.tap(find.byKey(const Key('installHintHow')));
+    await tester.pumpAndSettle();
+    expect(find.text('Add to Home Screen'), findsOneWidget);
+    expect(find.textContaining('export it from Settings'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('installHintHowOk')));
+    await tester.pumpAndSettle();
+    expect(find.text('Add to Home Screen'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets(
+    'the install hint gate off hides the banner and the app still renders',
+    (tester) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() => seedProfile(db));
+      await pumpIosApp(
+        tester,
+        db,
+        extra: [
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.installHint,
+          ),
+        ],
+      );
+      await settle(tester);
+      expect(find.byType(InstallHintBanner), findsNothing);
+      expect(tester.takeException(), isNull);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      await tester.tap(find.text('Settings').last);
+      await settle(tester);
+      expect(find.byType(SettingsScreen), findsOneWidget);
+      await unmount(tester);
+    },
+  );
 }
 
 /// Whether the Recipes gate is open, so a test can flip it while the app runs.
