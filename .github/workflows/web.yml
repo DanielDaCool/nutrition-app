@@ -65,11 +65,13 @@ jobs:
       - name: Build web
         env:
           USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
+          REPORT_RELAY_URL: ${{ secrets.REPORT_RELAY_URL }}
         run: >-
           flutter build web --release
           --base-href "/${{ github.event.repository.name }}/"
           --dart-define=USDA_API_KEY="${USDA_API_KEY:-DEMO_KEY}"
           --dart-define=APP_VERSION="$APP_VERSION"
+          --dart-define=REPORT_RELAY_URL="$REPORT_RELAY_URL"
 
       - name: Copy user manual into the Pages build
         run: cp -r docs/manual build/web/manual

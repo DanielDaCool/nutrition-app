@@ -65,6 +65,15 @@ enum AppFeature {
     description:
         'Export data and Import data in Settings, and Restore from a '
         'backup on first-run setup.',
+  ),
+
+  /// "Report a problem" in Settings.
+  reportProblem(
+    storageKey: 'reportProblem',
+    label: 'Report a problem',
+    description:
+        'The "Report a problem" row in Settings that sends a description, '
+        'your app version and platform to the developer.',
   );
 
   const AppFeature({

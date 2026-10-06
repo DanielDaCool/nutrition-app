@@ -49,3 +49,8 @@ app.*.map.json
 
 # Claude Code agent worktrees (transient, harness-managed)
 .claude/worktrees/
+
+# Wrangler (tools/report-relay): local secrets and build output
+tools/report-relay/.dev.vars
+tools/report-relay/.wrangler/
+tools/report-relay/node_modules/
