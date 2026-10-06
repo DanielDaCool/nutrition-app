@@ -73,10 +73,12 @@ class SettingsScreen extends ConsumerWidget {
             StepGoalSettingsTile(),
             WalkReminderSettingsTile(),
           ],
-          const Divider(),
-          const _SectionHeader('Your data'),
-          const ExportDataTile(),
-          const ImportDataTile(),
+          if (ref.watch(featureEnabledProvider(AppFeature.backup))) ...const [
+            Divider(),
+            _SectionHeader('Your data'),
+            ExportDataTile(),
+            ImportDataTile(),
+          ],
         ],
       ),
     );
