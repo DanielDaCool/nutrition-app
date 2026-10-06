@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
 import '../../core/app_features.dart';
+import '../../core/app_version.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
@@ -79,6 +80,16 @@ class SettingsScreen extends ConsumerWidget {
             ExportDataTile(),
             ImportDataTile(),
           ],
+          // Friends quote this when reporting a problem.
+          Padding(
+            key: const Key('appVersion'),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+            child: Text(
+              'Version ${appVersionLabel(appVersion)}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
         ],
       ),
     );
