@@ -22,6 +22,7 @@ import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
 import 'data_export.dart';
 import 'error_retry.dart';
+import 'import_flow.dart';
 
 /// The Settings tab of the home shell.
 ///
@@ -64,14 +65,19 @@ class SettingsScreen extends ConsumerWidget {
             const Divider(),
             ...profileSection,
           ],
-          // Health Connect, walk reminders and file export are Android-only;
-          // the step goal only applies to Health Connect steps.
+          // Health Connect and walk reminders are Android-only; the step
+          // goal only applies to Health Connect steps.
           if (!isWeb) ...const [
             Divider(),
             HealthConnectSettingsTile(),
             StepGoalSettingsTile(),
             WalkReminderSettingsTile(),
+          ],
+          if (ref.watch(featureEnabledProvider(AppFeature.backup))) ...const [
+            Divider(),
+            _SectionHeader('Your data'),
             ExportDataTile(),
+            ImportDataTile(),
           ],
         ],
       ),
@@ -809,7 +815,7 @@ class _ExportDataTileState extends ConsumerState<ExportDataTile> {
   Widget build(BuildContext context) => ListTile(
     leading: const Icon(Icons.ios_share),
     title: const Text('Export data'),
-    subtitle: const Text('All your data as a JSON file'),
+    subtitle: const Text('Save a backup of all your data'),
     trailing: _busy
         ? const SizedBox.square(
             dimension: 20,
@@ -817,5 +823,40 @@ class _ExportDataTileState extends ConsumerState<ExportDataTile> {
           )
         : null,
     onTap: _busy ? null : _export,
+  );
+}
+
+/// Restores a backup made with [ExportDataTile], replacing all data.
+class ImportDataTile extends ConsumerStatefulWidget {
+  const ImportDataTile({super.key});
+
+  @override
+  ConsumerState<ImportDataTile> createState() => _ImportDataTileState();
+}
+
+class _ImportDataTileState extends ConsumerState<ImportDataTile> {
+  bool _busy = false;
+
+  Future<void> _import() async {
+    setState(() => _busy = true);
+    try {
+      await runImport(context, ref);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: const Icon(Icons.restore),
+    title: const Text('Import data'),
+    subtitle: const Text('Restore a backup; replaces everything here'),
+    trailing: _busy
+        ? const SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : null,
+    onTap: _busy ? null : _import,
   );
 }

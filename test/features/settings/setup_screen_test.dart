@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/features/activity/widgets/health_connect_tile.dart';
 import 'package:nutrition_app/features/settings/setup_screen.dart';
@@ -128,6 +129,37 @@ void main() {
         isWeb ? findsNothing : findsOneWidget,
       );
     }
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the restore button is left out when the backup gate is off', (
+    tester,
+  ) async {
+    final db = openTestDatabase();
+    addTearDown(db.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.backup,
+          ),
+        ],
+        child: const MaterialApp(home: SetupScreen()),
+      ),
+    );
+    await settle(tester);
+    await tester.scrollUntilVisible(
+      find.text("I'll do this later"),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.byKey(const Key('setupRestore')), findsNothing);
+    expect(find.byType(SetupScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 }

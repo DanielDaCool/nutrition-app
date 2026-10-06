@@ -55,6 +55,16 @@ enum AppFeature {
     description:
         'The "Lose weight / Gain weight" choice in your profile, for '
         'targets that add weight instead of losing it.',
+  ),
+
+  /// Export data and Import data in Settings, and Restore from a backup on
+  /// first-run setup.
+  backup(
+    storageKey: 'backup',
+    label: 'Backups',
+    description:
+        'Export data and Import data in Settings, and Restore from a '
+        'backup on first-run setup.',
   );
 
   const AppFeature({
