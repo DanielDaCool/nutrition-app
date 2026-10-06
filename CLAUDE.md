@@ -30,6 +30,10 @@ CI (`.github/workflows/ci.yml`) runs codegen check, analyze, test, and builds an
 - Tests: in-memory DB via `test/helpers/test_db.dart`. HTTP via `package:http/testing.dart` `MockClient`. No real network in tests.
 - Pure logic (math, parsing) lives in plain Dart files with no Flutter/DB imports, so it's unit-testable.
 - UI: Material 3, English. Keep screens simple; show loading and error states from `AsyncValue`.
+- Schema changes. A change to `lib/data/db/tables.dart` needs all three:
+  1. A migration step in `AppDatabase.migration` (`lib/data/db/database.dart`), bumping `schemaVersion`.
+  2. A matching step in `_upgrade` (`lib/features/settings/data_import.dart`) applying the same transform to an older backup file — a restore never runs through the migrator, so a backup made before the change has to be upgraded by hand on the way in.
+  3. A test upgrading from every earlier schema version (`test/data/migration_test.dart` for the on-device file, `test/features/settings/data_import_test.dart` for a backup). `test/data/migration_test.dart` also pins the current `schemaVersion` with a comment pointing back at these three steps — bump that test alongside the version.
 
 ## Ownership (parallel work)
 | Area | Owner | Files | Writes tables |
