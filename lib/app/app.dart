@@ -18,6 +18,7 @@ import '../features/targets/targets_providers.dart';
 import '../features/today/today_screen.dart';
 import '../features/weight/weight_providers.dart';
 import '../features/weight/weight_screen.dart';
+import 'install_hint_banner.dart';
 import 'providers.dart';
 import 'theme.dart';
 
@@ -187,11 +188,32 @@ class _HomeShellState extends ConsumerState<HomeShell>
     // doesn't jump back when the tab returns.
     if (!tabs.contains(_tab)) _tab = _Tab.today;
     final index = tabs.indexOf(_tab);
+    Widget body = IndexedStack(
+      index: index,
+      children: [for (final t in tabs) _page(t)],
+    );
+    // The hint sits above the status bar inset instead of inside it, so the
+    // screens below (each with their own AppBar/SafeArea) must not also
+    // apply that inset, or it would be counted twice.
+    if (ref.watch(showInstallHintProvider)) {
+      body = SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const InstallHintBanner(),
+            Expanded(
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: body,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: [for (final t in tabs) _page(t)],
-      ),
+      body: body,
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => _select(tabs[i]),
