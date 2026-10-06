@@ -24,6 +24,7 @@ import '../weight/weight_providers.dart';
 import 'data_export.dart';
 import 'error_retry.dart';
 import 'import_flow.dart';
+import 'report_problem_tile.dart';
 
 /// The Settings tab of the home shell.
 ///
@@ -79,6 +80,10 @@ class SettingsScreen extends ConsumerWidget {
             _SectionHeader('Your data'),
             ExportDataTile(),
             ImportDataTile(),
+          ],
+          if (ref.watch(featureEnabledProvider(AppFeature.reportProblem))) ...[
+            const Divider(),
+            const ReportProblemTile(),
           ],
           // Friends quote this when reporting a problem.
           Padding(

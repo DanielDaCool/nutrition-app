@@ -72,10 +72,12 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
+          REPORT_RELAY_URL: ${{ secrets.REPORT_RELAY_URL }}
         run: >-
           flutter build apk --release
           --dart-define=USDA_API_KEY="${USDA_API_KEY:-DEMO_KEY}"
           --dart-define=APP_VERSION="$APP_VERSION"
+          --dart-define=REPORT_RELAY_URL="$REPORT_RELAY_URL"
 
       - uses: actions/upload-artifact@v4
         with:

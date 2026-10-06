@@ -1,0 +1,6 @@
+name = "nutrition-report-relay"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# GITHUB_TOKEN is set as a secret (`wrangler secret put GITHUB_TOKEN`), never
+# written here or committed anywhere. See README.md.
