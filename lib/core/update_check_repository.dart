@@ -81,7 +81,8 @@ Future<String?> latestReleaseTag(
         key: _checkedAtKey,
         value: now.toUtc().toIso8601String(),
       ),
-      if (tag != null) KeyValuesCompanion.insert(key: _latestTagKey, value: tag),
+      if (tag != null)
+        KeyValuesCompanion.insert(key: _latestTagKey, value: tag),
     ]);
   });
   return tag;

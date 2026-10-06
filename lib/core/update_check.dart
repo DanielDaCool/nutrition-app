@@ -75,5 +75,9 @@ bool isUpdateAvailable({
 const updateCheckInterval = Duration(days: 1);
 
 /// Whether it's been long enough since [lastCheckedAt] to check again.
-bool shouldCheckForUpdate({required DateTime? lastCheckedAt, required DateTime now}) =>
-    lastCheckedAt == null || now.difference(lastCheckedAt) >= updateCheckInterval;
+bool shouldCheckForUpdate({
+  required DateTime? lastCheckedAt,
+  required DateTime now,
+}) =>
+    lastCheckedAt == null ||
+    now.difference(lastCheckedAt) >= updateCheckInterval;
