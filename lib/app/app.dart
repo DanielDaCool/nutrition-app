@@ -21,6 +21,7 @@ import '../features/weight/weight_screen.dart';
 import 'install_hint_banner.dart';
 import 'providers.dart';
 import 'theme.dart';
+import 'update_available_banner.dart';
 
 /// Root `MaterialApp`: dark only (see theme.dart), whatever the phone's
 /// setting.
@@ -192,15 +193,20 @@ class _HomeShellState extends ConsumerState<HomeShell>
       index: index,
       children: [for (final t in tabs) _page(t)],
     );
-    // The hint sits above the status bar inset instead of inside it, so the
+    // Banners sit above the status bar inset instead of inside it, so the
     // screens below (each with their own AppBar/SafeArea) must not also
     // apply that inset, or it would be counted twice.
-    if (ref.watch(showInstallHintProvider)) {
+    final banners = <Widget>[
+      if (ref.watch(showInstallHintProvider)) const InstallHintBanner(),
+      if (ref.watch(updateAvailableTagProvider) != null)
+        const UpdateAvailableBanner(),
+    ];
+    if (banners.isNotEmpty) {
       body = SafeArea(
         bottom: false,
         child: Column(
           children: [
-            const InstallHintBanner(),
+            ...banners,
             Expanded(
               child: MediaQuery.removePadding(
                 context: context,
