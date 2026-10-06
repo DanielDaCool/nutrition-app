@@ -2,6 +2,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
@@ -10,6 +12,7 @@ import 'package:nutrition_app/features/activity/widgets/health_connect_tile.dart
 import 'package:nutrition_app/features/activity/widgets/step_goal_tile.dart';
 import 'package:nutrition_app/features/activity/widgets/walk_reminder_tile.dart';
 import 'package:nutrition_app/features/settings/data_export.dart';
+import 'package:nutrition_app/features/settings/report_problem_tile.dart';
 import 'package:nutrition_app/features/settings/settings_screen.dart';
 
 import '../../helpers/test_db.dart';
@@ -561,9 +564,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('the backup rows are left out when switched off', (
-    tester,
-  ) async {
+  testWidgets('the backup rows are left out when switched off', (tester) async {
     tallScreen(tester);
     final db = openTestDatabase();
     addTearDown(db.close);
@@ -589,6 +590,130 @@ void main() {
     expect(find.text('Your data'), findsNothing);
     // Android-only rows stay, since only the backup gate is off here.
     expect(find.byType(HealthConnectSettingsTile), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('sending a report closes the dialog on success', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    http.BaseRequest? sent;
+    final client = MockClient((request) async {
+      sent = request;
+      return http.Response('', 200);
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          reportProblemClientProvider.overrideWithValue(client),
+          reportRelayUrlProvider.overrideWithValue(
+            'https://relay.example/report',
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byType(ReportProblemTile), findsOneWidget);
+    await tester.tap(find.byType(ReportProblemTile));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+
+    // Nothing typed: validated locally, no request sent.
+    await tester.tap(find.byKey(const Key('reportProblemSend')));
+    await tester.pump();
+    expect(find.text('Describe what went wrong first.'), findsOneWidget);
+    expect(sent, isNull);
+
+    await tester.enterText(
+      find.byKey(const Key('reportProblemDescription')),
+      'The app crashed on save',
+    );
+    await tester.tap(find.byKey(const Key('reportProblemSend')));
+    await settle(tester);
+    await tester.pumpAndSettle();
+
+    expect(sent, isNotNull);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('Thanks — your report was sent.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a failed send keeps the dialog open with an error', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    final client = MockClient((request) async => http.Response('', 500));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          reportProblemClientProvider.overrideWithValue(client),
+          reportRelayUrlProvider.overrideWithValue(
+            'https://relay.example/report',
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    await tester.tap(find.byType(ReportProblemTile));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('reportProblemDescription')),
+      'The app crashed on save',
+    );
+    await tester.tap(find.byKey(const Key('reportProblemSend')));
+    await settle(tester);
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+      find.text("Couldn't send that. Check your connection and try again."),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the report-a-problem row is left out when switched off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.reportProblem,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    expect(find.byType(ReportProblemTile), findsNothing);
+    // Everything else, including the version footer, is unaffected.
+    expect(find.byType(ExportDataTile), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

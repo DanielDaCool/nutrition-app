@@ -74,6 +74,15 @@ enum AppFeature {
     description:
         'The banner on iPhone Safari suggesting you add Nutrition to your '
         'Home Screen so your data survives longer.',
+  ),
+
+  /// "Report a problem" in Settings.
+  reportProblem(
+    storageKey: 'reportProblem',
+    label: 'Report a problem',
+    description:
+        'The "Report a problem" row in Settings that sends a description, '
+        'your app version and platform to the developer.',
   );
 
   const AppFeature({
