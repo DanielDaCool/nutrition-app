@@ -83,4 +83,20 @@ void main() {
     expect(row.distanceKm, isNull);
     expect(row.inclinePct, isNull);
   });
+
+  test('bumping schemaVersion needs a migration step and an import upgrade', () {
+    // This number changed? A schema change needs all of:
+    //  1. A migration step in AppDatabase.migration (lib/data/db/database.dart)
+    //     — existing installs get it applied to their on-device file.
+    //  2. A matching step in _upgrade (lib/features/settings/data_import.dart)
+    //     — the same transform, so a backup made before this change still
+    //     imports (it never goes through the migrator).
+    //  3. A test exercising the upgrade from every earlier schema version
+    //     (here, and in test/features/settings/data_import_test.dart).
+    // Bump this assertion once all three are done, so the diff doesn't slip
+    // through unnoticed.
+    final db = open();
+    addTearDown(db.close);
+    expect(db.schemaVersion, 3);
+  });
 }

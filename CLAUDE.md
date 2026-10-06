@@ -45,6 +45,10 @@ matching `vX.Y` tag on that commit. Don't do this unless asked.
 - UI: Material 3, English. Keep screens simple; show loading and error states from `AsyncValue`.
 - KeyValues keys are prefixed by owner: `describe.` (food agent), `hc.` (Health Connect agent), `app.` (lead, app-shell state like the install hint and update-check timestamps — see Ownership below).
 - `lib/features/settings/data_import.dart` is the one file that writes every table, by design: restoring a backup replaces everything on the device, so it has to bypass the per-feature table owners below. No other file should write a table it doesn't own.
+- Schema changes. A change to `lib/data/db/tables.dart` needs all three:
+  1. A migration step in `AppDatabase.migration` (`lib/data/db/database.dart`), bumping `schemaVersion`.
+  2. A matching step in `_upgrade` (`lib/features/settings/data_import.dart`) applying the same transform to an older backup file — a restore never runs through the migrator, so a backup made before the change has to be upgraded by hand on the way in.
+  3. A test upgrading from every earlier schema version (`test/data/migration_test.dart` for the on-device file, `test/features/settings/data_import_test.dart` for a backup). `test/data/migration_test.dart` also pins the current `schemaVersion` with a comment pointing back at these three steps — bump that test alongside the version.
 
 ## Ownership (parallel work)
 | Area | Owner | Files | Writes tables |
