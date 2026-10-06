@@ -547,6 +547,20 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('shows the app version at the bottom', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    // Tests don't pass --dart-define=APP_VERSION.
+    expect(find.text('Version Development build'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the backup rows are left out when switched off', (
     tester,
   ) async {
