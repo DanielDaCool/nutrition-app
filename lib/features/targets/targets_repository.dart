@@ -35,7 +35,17 @@ class TargetsRepository {
 
   /// Inserts or updates the single profile row. [birthDate] is truncated to
   /// a local date; [checkInWeekday] uses DateTime.weekday (7 = Sunday).
-  Future<void> saveProfile({
+  ///
+  /// Targets are stored, not derived on read, so when the save changes
+  /// something the engine uses (goal, rate, body details) the target in
+  /// effect is worked out again from today. The same happens when nothing
+  /// changed but that target was made for another goal direction or rate
+  /// (left behind by a save from before targets were recalculated). Returns
+  /// the new target, or null when none was written: nothing relevant
+  /// changed, there is no target or weigh-in yet, or a check-in is due (it
+  /// then works from the new profile, and a row for today would mark it as
+  /// done unseen).
+  Future<DailyTargets?> saveProfile({
     required Sex sex,
     required DateTime birthDate,
     required double heightCm,
@@ -45,23 +55,69 @@ class TargetsRepository {
     required double proteinPerKg,
     required int checkInWeekday,
     required GoalDirection goalDirection,
-  }) => db
-      .into(db.profiles)
-      .insertOnConflictUpdate(
-        ProfilesCompanion.insert(
-          id: const Value(1),
-          sex: sex.index,
-          birthDate: DateTime(birthDate.year, birthDate.month, birthDate.day),
-          heightCm: heightCm,
-          activityLevel: activityLevel.index,
-          goalWeightKg: goalWeightKg,
-          weeklyRatePct: Value(weeklyRatePct),
-          proteinPerKg: Value(proteinPerKg),
-          checkInWeekday: Value(checkInWeekday),
-          goalDirection: Value(goalDirection.index),
-          updatedAt: clock(),
-        ),
-      );
+  }) => db.transaction(() async {
+    final before = await loadProfile();
+    final birthDay = DateTime(birthDate.year, birthDate.month, birthDate.day);
+    await db
+        .into(db.profiles)
+        .insertOnConflictUpdate(
+          ProfilesCompanion.insert(
+            id: const Value(1),
+            sex: sex.index,
+            birthDate: birthDay,
+            heightCm: heightCm,
+            activityLevel: activityLevel.index,
+            goalWeightKg: goalWeightKg,
+            weeklyRatePct: Value(weeklyRatePct),
+            proteinPerKg: Value(proteinPerKg),
+            checkInWeekday: Value(checkInWeekday),
+            goalDirection: Value(goalDirection.index),
+            updatedAt: clock(),
+          ),
+        );
+    if (before == null) return null;
+    final unchanged =
+        before.sex == sex.index &&
+        before.birthDate == birthDay &&
+        before.heightCm == heightCm &&
+        before.activityLevel == activityLevel.index &&
+        before.goalWeightKg == goalWeightKg &&
+        before.weeklyRatePct == weeklyRatePct &&
+        before.proteinPerKg == proteinPerKg &&
+        before.goalDirection == goalDirection.index;
+    final current = await latestTarget(today);
+    if (current == null) return null;
+    if (unchanged &&
+        !await _madeForOtherGoal(current, goalDirection, weeklyRatePct)) {
+      return null;
+    }
+    if (await checkInDue()) return null;
+    final rec = await recommendToday();
+    if (rec == null) return null;
+    await saveRecommendation(rec);
+    return rec.toDailyTargets();
+  });
+
+  /// True when [target] was worked out for another goal direction or weekly
+  /// rate than the profile now has: a target left behind by a profile change
+  /// that didn't recalculate it. False when its explanation can't be read.
+  Future<bool> _madeForOtherGoal(
+    TargetRecord target,
+    GoalDirection goalDirection,
+    double weeklyRatePct,
+  ) async {
+    final map = await _explanationMap(target);
+    if (map == null) return false;
+    final Explanation e;
+    try {
+      e = Explanation.fromJson(map);
+    } on Object {
+      return false;
+    }
+    final rate = e.weeklyRatePctRaw;
+    return e.goalDirection != goalDirection ||
+        (rate != null && (rate - weeklyRatePct).abs() > 0.01);
+  }
 
   /// Converts a DB row (enum indexes) to the engine's profile type.
   static EngineProfile toEngineProfile(Profile p) => EngineProfile(
