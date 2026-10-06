@@ -83,6 +83,10 @@ final showInstallHintProvider = Provider<bool>((ref) {
 /// HTTP client for the update check; override with a `MockClient` in tests.
 final updateCheckClientProvider = Provider<http.Client>((ref) => http.Client());
 
+/// The app's own version ([appVersion]); override in tests, since a test
+/// run has no `APP_VERSION` dart-define and so always sees a dev build.
+final appVersionProvider = Provider<String>((ref) => appVersion);
+
 /// The latest release tag on GitHub, checked at most once a day. Null if
 /// it's never been fetched successfully. Disabled on web (see
 /// [AppFeature.updateAvailable]), where nothing is ever checked.
@@ -126,7 +130,10 @@ final updateAvailableTagProvider = Provider<String?>((ref) {
   if (latest.isLoading || dismissed.isLoading) return null;
   final tag = latest.value;
   if (tag == null) return null;
-  if (!isUpdateAvailable(currentVersion: appVersion, latestTag: tag)) {
+  if (!isUpdateAvailable(
+    currentVersion: ref.watch(appVersionProvider),
+    latestTag: tag,
+  )) {
     return null;
   }
   return tag == dismissed.value ? null : tag;
