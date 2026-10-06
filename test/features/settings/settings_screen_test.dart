@@ -547,6 +547,38 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the backup rows are left out when switched off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.backup,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    expect(find.byType(ExportDataTile), findsNothing);
+    expect(find.byType(ImportDataTile), findsNothing);
+    expect(find.text('Your data'), findsNothing);
+    // Android-only rows stay, since only the backup gate is off here.
+    expect(find.byType(HealthConnectSettingsTile), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the lose/gain choice is hidden while gain goals are off', (
     tester,
   ) async {

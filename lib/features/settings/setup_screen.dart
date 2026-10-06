@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/app_features.dart';
 import '../../core/day_key.dart';
 import '../activity/widgets/health_connect_tile.dart';
 import '../weight/weight_logic.dart';
@@ -161,14 +162,15 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               ],
             ],
           ),
-          Center(
-            child: TextButton.icon(
-              key: const Key('setupRestore'),
-              onPressed: _restore,
-              icon: const Icon(Icons.restore),
-              label: const Text('Restore from a backup'),
+          if (ref.watch(featureEnabledProvider(AppFeature.backup)))
+            Center(
+              child: TextButton.icon(
+                key: const Key('setupRestore'),
+                onPressed: _restore,
+                icon: const Icon(Icons.restore),
+                label: const Text('Restore from a backup'),
+              ),
             ),
-          ),
           Center(
             child: TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
