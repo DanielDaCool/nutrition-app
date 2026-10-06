@@ -203,7 +203,7 @@
     <a href="#activity">Steps &amp; workouts</a>
     <a href="#recipes">Recipes</a>
     <a href="#dashboard">Dashboard</a>
-    <a href="#settings">Settings &amp; export</a>
+    <a href="#settings">Settings &amp; backups</a>
     <a href="#faq">Troubleshooting</a>
   </div>
 </nav>
@@ -365,14 +365,18 @@
 
   <section id="settings" style="--feature-accent:var(--accent)">
     <div class="eyebrow">Settings</div>
-    <h2>Settings &amp; export</h2>
+    <h2>Settings &amp; backups</h2>
     <div class="feature">
-      <p>Your current targets sit at the top once you have a profile, followed by your profile and the weekly check-in. On Android, four more rows follow: Health Connect, step goal, walk reminder, and Export data &mdash; all absent on the web app, since none of them apply there.</p>
+      <p>Your current targets sit at the top once you have a profile, followed by your profile and the weekly check-in. On Android, three more rows follow: Health Connect, step goal and walk reminder &mdash; absent on the web app, since they don't apply there. Last comes <strong>Your data</strong>, with Export data and Import data, on both Android and the web app.</p>
       <h4>Editing your profile</h4>
       <p>Your profile locks as soon as it exists &mdash; it's read-only by default, to keep the calorie engine's history consistent. Tap <strong>Edit</strong> to unlock every field, make your changes, and you'll be asked to confirm before they're saved; canceling discards them and re-locks the form.</p>
       <h4>Export data</h4>
       <p class="path">Settings → Export data</p>
-      <p>Writes your entire database &mdash; profile, weigh-ins, food log, target history, everything &mdash; to a JSON file named <code>nutrition-export-&lt;date&gt;.json</code>, which opens Android's share sheet so you can save it or send it anywhere. It's a full raw backup, useful as a record or to inspect your own data; there's currently no way to load an export back into the app.</p>
+      <p>Writes your entire database &mdash; profile, weigh-ins, food log, target history, everything &mdash; to a JSON file named <code>nutrition-export-&lt;date&gt;.json</code> and opens the share sheet so you can save it or send it anywhere. On iPhone, pick <strong>Save to Files</strong>. Browsers that can't share files download it instead. Your data lives only on your phone, so export now and then and keep the file somewhere safe.</p>
+      <h4>Import data</h4>
+      <p class="path">Settings → Import data</p>
+      <p>Pick an export file and the app shows when it was made and how many weigh-ins and logged foods it holds. Tap <strong>Replace</strong> to restore it. This <strong>replaces everything</strong> on this device: anything logged here that isn't in the file is gone. If the file isn't a backup, or anything goes wrong, nothing is changed. Backups from older versions of the app import fine; a backup from a newer version asks you to update the app first.</p>
+      <p>Setting up a new phone? The <strong>Get started</strong> screen has <strong>Restore from a backup</strong>, so you can skip the profile and pick up where you left off.</p>
     </div>
   </section>
 
@@ -402,7 +406,7 @@
       </details>
       <details>
         <summary>Can I move my data to a new phone?</summary>
-        <p>Settings → Export data gives you a full JSON backup of everything, but there's no built-in way to load it back in. Each phone keeps its own data, by design &mdash; there's no account or server behind any of this.</p>
+        <p>Yes. On the old phone, Settings → Export data and save the file. On the new one, open the app and tap <strong>Restore from a backup</strong> on the Get started screen (or Settings → Import data) and pick that file. Each phone keeps its own data, by design &mdash; there's no account or server behind any of this, so the file is your only copy.</p>
       </details>
     </div>
   </section>

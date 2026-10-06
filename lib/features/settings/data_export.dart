@@ -1,10 +1,12 @@
 // OWNER: engine agent (A).
-// Full-database JSON export, shared through the Android share sheet.
+// Full-database JSON export, shared through the system share sheet (on web,
+// the browser's, falling back to a download).
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -37,18 +39,33 @@ Future<Map<String, Object?>> exportAllTables(
   };
 }
 
-/// Writes the export to a temp file and opens the Android share sheet.
+/// Opens the share sheet with the export as a JSON file. On Android the file
+/// is written to a temp directory first; the web has no file system, so it
+/// shares the bytes and the browser downloads them if it can't share files.
 ///
 /// The file is named after [now]'s day key. Errors (I/O, sharing) propagate
 /// to the caller.
 Future<ShareResult> shareExport(AppDatabase db, DateTime now) async {
   final data = await exportAllTables(db, now: now);
-  final dir = await getTemporaryDirectory();
-  final file = File('${dir.path}/nutrition-export-${dayKeyOf(now)}.json');
-  await file.writeAsString(const JsonEncoder.withIndent(' ').convert(data));
+  final name = 'nutrition-export-${dayKeyOf(now)}.json';
+  final text = const JsonEncoder.withIndent(' ').convert(data);
+  final XFile file;
+  if (kIsWeb) {
+    file = XFile.fromData(
+      utf8.encode(text),
+      name: name,
+      mimeType: 'application/json',
+    );
+  } else {
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/$name';
+    await File(path).writeAsString(text);
+    file = XFile(path, mimeType: 'application/json');
+  }
   return SharePlus.instance.share(
     ShareParams(
-      files: [XFile(file.path, mimeType: 'application/json')],
+      files: [file],
+      fileNameOverrides: [name],
       subject: 'Nutrition data export',
       title: 'Export data',
     ),

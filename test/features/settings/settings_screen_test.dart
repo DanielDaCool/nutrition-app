@@ -496,7 +496,9 @@ void main() {
     });
   });
 
-  testWidgets('web hides the Android-only settings', (tester) async {
+  testWidgets('web hides the Android-only settings but keeps backups', (
+    tester,
+  ) async {
     tallScreen(tester);
     final db = openTestDatabase();
     addTearDown(db.close);
@@ -519,7 +521,9 @@ void main() {
     expect(find.byType(HealthConnectSettingsTile), findsNothing);
     expect(find.byType(StepGoalSettingsTile), findsNothing);
     expect(find.byType(WalkReminderSettingsTile), findsNothing);
-    expect(find.byType(ExportDataTile), findsNothing);
+    // Backups work on web too: an iPhone friend's data lives only there.
+    expect(find.byType(ExportDataTile), findsOneWidget);
+    expect(find.byType(ImportDataTile), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
@@ -539,6 +543,39 @@ void main() {
     expect(find.byType(StepGoalSettingsTile), findsOneWidget);
     expect(find.byType(WalkReminderSettingsTile), findsOneWidget);
     expect(find.byType(ExportDataTile), findsOneWidget);
+    expect(find.byType(ImportDataTile), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the backup rows are left out when switched off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.backup,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    expect(find.byType(ExportDataTile), findsNothing);
+    expect(find.byType(ImportDataTile), findsNothing);
+    expect(find.text('Your data'), findsNothing);
+    // Android-only rows stay, since only the backup gate is off here.
+    expect(find.byType(HealthConnectSettingsTile), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
