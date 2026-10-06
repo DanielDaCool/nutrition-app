@@ -83,6 +83,16 @@ enum AppFeature {
     description:
         'The "Report a problem" row in Settings that sends a description, '
         'your app version and platform to the developer.',
+  ),
+
+  /// The "Update available" banner that links to the latest release's APK.
+  updateAvailable(
+    storageKey: 'updateAvailable',
+    label: 'Update available banner',
+    description:
+        'The banner telling you a newer version is out, with a link to '
+        'download it.',
+    androidOnly: true,
   );
 
   const AppFeature({
