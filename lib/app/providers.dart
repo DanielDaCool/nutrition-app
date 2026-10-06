@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/app_features.dart';
+import '../core/browser_install.dart';
 import '../core/day_key.dart';
+import '../core/install_hint.dart';
 import '../data/db/database.dart';
 
 /// The app database. Overridden in main() (real file) and in tests (in-memory).
@@ -20,6 +22,12 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 /// widget, lock-screen notification, walk reminders, file export) hide
 /// themselves when set; override in tests to check the web layout.
 final isWebProvider = Provider<bool>((ref) => kIsWeb);
+
+/// How the web app is running (iOS? opened from the Home Screen?), read once
+/// at start. Always "not applicable" off the web; override in tests.
+final browserInstallInfoProvider = Provider<BrowserInstallInfo>(
+  (ref) => readBrowserInstallInfo(),
+);
 
 /// Whether an [AppFeature]'s UI should show. Here that is simply "exists on
 /// this platform"; it can be overridden (a fork does) to add user choice.
