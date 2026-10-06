@@ -28,21 +28,24 @@ void main() {
     expect(await loadUpdateCheckedAt(db), now.toUtc());
   });
 
-  test('a second check within a day reuses the cached tag, no request', () async {
-    var calls = 0;
-    final client = MockClient((request) async {
-      calls++;
-      return http.Response(jsonEncode({'tag_name': 'v0.1'}), 200);
-    });
-    await latestReleaseTag(db, client, now);
-    final tag = await latestReleaseTag(
-      db,
-      client,
-      now.add(const Duration(hours: 1)),
-    );
-    expect(tag, 'v0.1');
-    expect(calls, 1);
-  });
+  test(
+    'a second check within a day reuses the cached tag, no request',
+    () async {
+      var calls = 0;
+      final client = MockClient((request) async {
+        calls++;
+        return http.Response(jsonEncode({'tag_name': 'v0.1'}), 200);
+      });
+      await latestReleaseTag(db, client, now);
+      final tag = await latestReleaseTag(
+        db,
+        client,
+        now.add(const Duration(hours: 1)),
+      );
+      expect(tag, 'v0.1');
+      expect(calls, 1);
+    },
+  );
 
   test('a check a day later asks again', () async {
     await latestReleaseTag(db, clientReturning(200, {'tag_name': 'v0.1'}), now);

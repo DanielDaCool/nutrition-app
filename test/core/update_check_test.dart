@@ -52,10 +52,7 @@ void main() {
     });
 
     test('false for a dev build with no baked-in version', () {
-      expect(
-        isUpdateAvailable(currentVersion: '', latestTag: 'v0.1'),
-        isFalse,
-      );
+      expect(isUpdateAvailable(currentVersion: '', latestTag: 'v0.1'), isFalse);
     });
 
     test('false when there is no latest tag yet', () {
