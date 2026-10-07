@@ -93,6 +93,17 @@ enum AppFeature {
         'The banner telling you a newer version is out, with a link to '
         'download it.',
     androidOnly: true,
+  ),
+
+  /// The "Post with my GitHub account" choice in Report a problem.
+  githubReport(
+    storageKey: 'githubReport',
+    label: 'Report with your GitHub account',
+    description:
+        'The "Post with my GitHub account" choice when reporting a '
+        "problem, so the issue appears under your own account instead of "
+        'the anonymous relay.',
+    androidOnly: true,
   );
 
   const AppFeature({

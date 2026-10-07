@@ -62,6 +62,44 @@ repo go to the address you want (GitHub → Settings → Notifications).
   `user report`, titled with the platform and app version. Friends
   shouldn't put anything personal in a report.
 
+## Posting as yourself (optional)
+
+"Report a problem" also offers "Post with my GitHub account": instead of
+going through this Worker, the app signs the user in with GitHub's OAuth
+*device flow* and files the issue directly with their own token, so it
+shows up under their account. This needs no server of its own — the app
+only needs the OAuth App's **client id**, which is public by design (device
+flow has no client secret) — but it does need Daniel to create that OAuth
+App once:
+
+1. GitHub → Settings → Developer settings → OAuth Apps → **New OAuth App**.
+   - Application name: anything, e.g. "Nutrition app reports".
+   - Homepage URL: `https://github.com/DanielDaCool/nutrition-app`.
+   - Authorization callback URL: required by the form but unused by device
+     flow; the homepage URL works.
+   - Register the app, then open it and check **Enable Device Flow**.
+2. Copy the **Client ID** shown on the app's page (not the secret — the app
+   never needs it, and device flow doesn't use one).
+3. Add it as the `REPORT_GITHUB_CLIENT_ID` repository secret (GitHub →
+   Settings → Secrets and variables → Actions). `ci.yml` already passes it
+   through as `--dart-define=GITHUB_OAUTH_CLIENT_ID=...`; without it set,
+   the app builds with no client id and the "Post with my GitHub account"
+   choice is hidden — same graceful degradation as `REPORT_RELAY_URL`.
+   (It's not actually secret, but a repository secret is a convenient place
+   to store it and matches how the other build-time values here are
+   wired in; a repository *variable* would work just as well. Note that a
+   secret's name can't start with `GITHUB_`, which is why the secret is
+   named `REPORT_GITHUB_CLIENT_ID` while the dart-define it feeds is
+   `GITHUB_OAUTH_CLIENT_ID`.)
+
+This path only works on Android: github.com's device-flow endpoints don't
+send CORS headers, so a browser can't call them directly, and the web build
+hides the choice accordingly (`AppFeature.githubReport` is `androidOnly`).
+
+The issue this creates uses the same title and body format as the relay's,
+with the same `user report` label — just authored by the user instead of
+by this Worker's token.
+
 ## Testing locally
 
 ```

@@ -73,11 +73,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
           REPORT_RELAY_URL: ${{ secrets.REPORT_RELAY_URL }}
+          REPORT_GITHUB_CLIENT_ID: ${{ secrets.REPORT_GITHUB_CLIENT_ID }}
         run: >-
           flutter build apk --release
           --dart-define=USDA_API_KEY="${USDA_API_KEY:-DEMO_KEY}"
           --dart-define=APP_VERSION="$APP_VERSION"
           --dart-define=REPORT_RELAY_URL="$REPORT_RELAY_URL"
+          --dart-define=GITHUB_OAUTH_CLIENT_ID="$REPORT_GITHUB_CLIENT_ID"
 
       - uses: actions/upload-artifact@v4
         with:

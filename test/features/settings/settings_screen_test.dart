@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -716,6 +718,191 @@ void main() {
     expect(find.byType(ExportDataTile), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'the GitHub report choice is hidden with no client id configured',
+    (tester) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() => seedProfile(db));
+
+      await tester.pumpWidget(app(db));
+      await settle(tester);
+
+      await tester.tap(find.byType(ReportProblemTile));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('reportModeGithub')), findsNothing);
+      expect(find.byKey(const Key('reportModeRelay')), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+    },
+  );
+
+  testWidgets('the GitHub report choice is hidden when its feature is off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          githubOAuthClientIdProvider.overrideWithValue('abc123'),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.githubReport,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    await tester.tap(find.byType(ReportProblemTile));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('reportModeGithub')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets(
+    'posting with GitHub signs in with the device flow, then files the '
+    'issue as the user',
+    (tester) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() => seedProfile(db));
+
+      http.BaseRequest? issueRequest;
+      final client = MockClient((request) async {
+        if (request.url.path == '/login/device/code') {
+          return http.Response(
+            jsonEncode({
+              'device_code': 'devcode',
+              'user_code': 'ABCD-1234',
+              'verification_uri': 'https://github.com/login/device',
+              'interval': 0,
+              'expires_in': 900,
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/login/oauth/access_token') {
+          return http.Response(jsonEncode({'access_token': 'tok123'}), 200);
+        }
+        issueRequest = request;
+        return http.Response('', 201);
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            clockProvider.overrideWithValue(() => now),
+            reportProblemClientProvider.overrideWithValue(client),
+            githubOAuthClientIdProvider.overrideWithValue('abc123'),
+          ],
+          child: const MaterialApp(home: SettingsScreen()),
+        ),
+      );
+      await settle(tester);
+
+      await tester.tap(find.byType(ReportProblemTile));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('reportModeGithub')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('reportModeGithub')));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('reportProblemDescription')),
+        'It crashed on save',
+      );
+      await tester.tap(find.byKey(const Key('reportProblemSend')));
+      await settle(tester);
+      await tester.pump();
+
+      expect(find.byKey(const Key('githubUserCode')), findsOneWidget);
+      expect(find.text('ABCD-1234'), findsOneWidget);
+
+      // A poll with interval 0 happens almost immediately; let it resolve.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await settle(tester);
+      await tester.pumpAndSettle();
+
+      expect(issueRequest, isNotNull);
+      expect(issueRequest!.headers['Authorization'], 'Bearer tok123');
+      expect(find.text('Thanks — your report was sent.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+    },
+  );
+
+  testWidgets('canceling GitHub sign-in returns to the report dialog', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    final client = MockClient((request) async {
+      // Never resolves until the test ends; cancel should not wait on it.
+      return http.Response(
+        jsonEncode({
+          'device_code': 'devcode',
+          'user_code': 'ABCD-1234',
+          'verification_uri': 'https://github.com/login/device',
+          'interval': 60,
+          'expires_in': 900,
+        }),
+        200,
+      );
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          reportProblemClientProvider.overrideWithValue(client),
+          githubOAuthClientIdProvider.overrideWithValue('abc123'),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    await tester.tap(find.byType(ReportProblemTile));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('reportModeGithub')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('reportProblemDescription')),
+      'It crashed on save',
+    );
+    await tester.tap(find.byKey(const Key('reportProblemSend')));
+    await settle(tester);
+    await tester.pump();
+
+    expect(find.byKey(const Key('githubUserCode')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('githubCancelAuth')));
+    await tester.pump();
+
+    expect(find.byKey(const Key('reportModeGithub')), findsOneWidget);
+    expect(find.byKey(const Key('githubUserCode')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
   });
 
   testWidgets('the lose/gain choice is hidden while gain goals are off', (
