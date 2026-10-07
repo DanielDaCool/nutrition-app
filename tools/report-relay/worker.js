@@ -109,7 +109,10 @@ export default {
       console.error(
         `GitHub issue create failed: ${githubResponse.status} ${body}`,
       );
-      return json(502, { error: 'Could not file the report right now.' });
+      return json(502, {
+        error: 'Could not file the report right now.',
+        githubStatus: githubResponse.status,
+      });
     }
 
     return json(201, { ok: true });
