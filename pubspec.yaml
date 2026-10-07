@@ -1,7 +1,7 @@
 name: nutrition_app
 description: "Personal nutrition and calorie tracker (Android and web)."
 publish_to: 'none'
-version: 0.0.0+2
+version: 0.1.0+3
 
 environment:
   sdk: ^3.13.4
