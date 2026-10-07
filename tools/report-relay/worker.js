@@ -105,6 +105,10 @@ export default {
     });
 
     if (!githubResponse.ok) {
+      const body = await githubResponse.text();
+      console.error(
+        `GitHub issue create failed: ${githubResponse.status} ${body}`,
+      );
       return json(502, { error: 'Could not file the report right now.' });
     }
 
