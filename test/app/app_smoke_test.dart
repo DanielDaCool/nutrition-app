@@ -1,13 +1,19 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:nutrition_app/app/app.dart';
 import 'package:nutrition_app/app/install_hint_banner.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/app/update_available_banner.dart';
 import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/core/install_hint.dart';
 import 'package:nutrition_app/core/install_hint_repository.dart';
+import 'package:nutrition_app/core/update_check_repository.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
@@ -548,6 +554,92 @@ void main() {
       await unmount(tester);
     },
   );
+
+  http.Client releaseClient(String tag) => MockClient(
+    (request) async => http.Response(jsonEncode({'tag_name': tag}), 200),
+  );
+
+  List<Override> updateOverrides(String tag) => [
+    appVersionProvider.overrideWithValue('0.0.0+2'),
+    updateCheckClientProvider.overrideWithValue(releaseClient(tag)),
+  ];
+
+  testWidgets('the update banner shows when a newer release exists', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db, extra: updateOverrides('v0.1')));
+    await settle(tester);
+    expect(find.byType(UpdateAvailableBanner), findsOneWidget);
+    expect(find.textContaining('v0.1'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the update banner is absent when already up to date', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db, extra: updateOverrides('v0.0')));
+    await settle(tester);
+    expect(find.byType(UpdateAvailableBanner), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('Not now dismisses the update banner for that release', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db, extra: updateOverrides('v0.1')));
+    await settle(tester);
+    expect(find.byType(UpdateAvailableBanner), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('updateBannerNotNow')));
+    await settle(tester);
+    expect(find.byType(UpdateAvailableBanner), findsNothing);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    final dismissed = await tester.runAsync(() => loadUpdateDismissedTag(db));
+    expect(dismissed, 'v0.1');
+    await unmount(tester);
+  });
+
+  testWidgets('the update banner gate off hides it and the app still renders', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      app(
+        db,
+        extra: [
+          ...updateOverrides('v0.1'),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.updateAvailable,
+          ),
+        ],
+      ),
+    );
+    await settle(tester);
+    expect(find.byType(UpdateAvailableBanner), findsNothing);
+    expect(tester.takeException(), isNull);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    await tester.tap(find.text('Settings').last);
+    await settle(tester);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    await unmount(tester);
+  });
 }
 
 /// Whether the Recipes gate is open, so a test can flip it while the app runs.
