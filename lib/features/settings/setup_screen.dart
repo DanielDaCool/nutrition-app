@@ -11,6 +11,7 @@ import '../../core/day_key.dart';
 import '../activity/widgets/health_connect_tile.dart';
 import '../weight/weight_logic.dart';
 import '../weight/weight_providers.dart';
+import '../weight/widgets/weight_input.dart';
 import 'import_flow.dart';
 import 'settings_screen.dart';
 
@@ -145,9 +146,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       ? 'Optional, you already logged a weigh-in'
                       : 'Needed for your first target',
                 ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+                keyboardType: weightKeyboardType,
+                inputFormatters: const [WeightInputFormatter()],
                 textInputAction: TextInputAction.done,
                 validator: _validateWeight,
               ),

@@ -458,6 +458,35 @@ void main() {
     expect(ageOn(DateTime(1996, 12, 1), DateTime(2026, 9, 25)), 29);
   });
 
+  testWidgets(
+    'a birth date too far in the past names both bounds, not just the '
+    '13-years-ago one',
+    (tester) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.pumpWidget(app(db));
+      await settle(tester);
+
+      await tester.tap(find.byKey(const Key('birthDate')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(Dialog),
+          matching: find.byType(TextField),
+        ),
+        // now is 2026-09-25: firstDate is 1926, so this is a year too old.
+        '09/25/1925',
+      );
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enter a date between 1926 and 2013'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+    },
+  );
+
   testWidgets('invalid form is not saved', (tester) async {
     tallScreen(tester);
     final db = openTestDatabase();
@@ -470,6 +499,39 @@ void main() {
     await settle(tester);
     expect(find.text('Enter your height'), findsOneWidget);
     expect(await tester.runAsync(() => db.select(db.profiles).get()), isEmpty);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('height and goal weight reject letters and a minus sign', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    await tester.enterText(find.byKey(const Key('heightCm')), '180');
+    await tester.enterText(find.byKey(const Key('heightCm')), '-abc180');
+    await tester.pump();
+    expect(
+      (tester.widget(find.byKey(const Key('heightCm'))) as TextFormField)
+          .controller!
+          .text,
+      '180',
+    );
+
+    await tester.enterText(find.byKey(const Key('goalWeightKg')), '80');
+    await tester.enterText(find.byKey(const Key('goalWeightKg')), '-abc80');
+    await tester.pump();
+    expect(
+      (tester.widget(find.byKey(const Key('goalWeightKg'))) as TextFormField)
+          .controller!
+          .text,
+      '80',
+    );
+
     await tester.pumpWidget(const SizedBox());
     await settle(tester);
   });
