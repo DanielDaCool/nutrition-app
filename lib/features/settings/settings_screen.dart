@@ -5,6 +5,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -232,6 +233,24 @@ int ageOn(DateTime birthDate, DateTime now) {
   return age;
 }
 
+/// Keeps digits and one decimal point; a typed '-', letter, or other
+/// character is rejected outright (matches [WeightInputFormatter] in the
+/// weight feature), rather than only erroring on save.
+class _NonNegativeDecimalFormatter extends TextInputFormatter {
+  const _NonNegativeDecimalFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text.replaceAll(',', '.');
+    final valid = RegExp(r'^\d{0,3}(\.\d{0,2})?$').hasMatch(text);
+    if (!valid) return oldValue;
+    return newValue.copyWith(text: text);
+  }
+}
+
 /// Profile & goal settings, saved to the single Profiles row (id = 1).
 ///
 /// Also used by the first-run setup: [extra] widgets (e.g. a weigh-in field)
@@ -315,16 +334,21 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
 
   Future<void> _pickBirthDate() async {
     final now = ref.read(clockProvider)();
+    final firstDate = DateTime(now.year - 100);
+    final lastDate = DateTime(now.year - 13, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
       initialDate: _birthDate ?? DateTime(now.year - 30, now.month, now.day),
-      firstDate: DateTime(now.year - 100),
-      lastDate: DateTime(now.year - 13, now.month, now.day),
+      firstDate: firstDate,
+      lastDate: lastDate,
       initialEntryMode: DatePickerEntryMode.input,
       helpText: 'Birth date',
       fieldHintText: 'MM/DD/YYYY',
       errorFormatText: 'Type it like 09/25/1996',
-      errorInvalidText: 'Pick a date at least 13 years ago',
+      // Covers both edges: too recent (under 13) and too old (over 100),
+      // rather than always blaming the 13-years-ago bound.
+      errorInvalidText:
+          'Enter a date between ${firstDate.year} and ${lastDate.year}',
     );
     if (picked != null) {
       setState(() {
@@ -585,6 +609,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
+              inputFormatters: const [_NonNegativeDecimalFormatter()],
               textInputAction: TextInputAction.next,
               validator: _range('height', 100, 250),
             ),
@@ -662,6 +687,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
+              inputFormatters: const [_NonNegativeDecimalFormatter()],
               textInputAction: widget.extra.isEmpty
                   ? TextInputAction.done
                   : TextInputAction.next,
