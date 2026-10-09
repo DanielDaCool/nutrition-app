@@ -257,6 +257,29 @@ class _NonNegativeDecimalFormatter extends TextInputFormatter {
 /// go inside the same [Form] above the save button, so their validators run
 /// with the profile's, and [onSaved] runs after the profile is stored instead
 /// of the default "Profile saved" snackbar.
+/// Formats birth-date entry as `MM/DD/YYYY` by inserting the `/` separators
+/// as digits are typed, so only the 8 digits need to be typed.
+class _DateSlashFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final capped = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final buffer = StringBuffer();
+    for (var i = 0; i < capped.length; i++) {
+      if (i == 2 || i == 4) buffer.write('/');
+      buffer.write(capped[i]);
+    }
+    final text = buffer.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+}
+
 class ProfileForm extends ConsumerStatefulWidget {
   const ProfileForm({
     super.key,
@@ -336,19 +359,62 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     final now = ref.read(clockProvider)();
     final firstDate = DateTime(now.year - 100);
     final lastDate = DateTime(now.year - 13, now.month, now.day);
-    final picked = await showDatePicker(
+    final controller = TextEditingController(
+      text: _birthDate == null ? '' : _formatMmDdYyyy(_birthDate!),
+    );
+    String? errorText;
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: _birthDate ?? DateTime(now.year - 30, now.month, now.day),
-      firstDate: firstDate,
-      lastDate: lastDate,
-      initialEntryMode: DatePickerEntryMode.input,
-      helpText: 'Birth date',
-      fieldHintText: 'MM/DD/YYYY',
-      errorFormatText: 'Type it like 09/25/1996',
-      // Covers both edges: too recent (under 13) and too old (over 100),
-      // rather than always blaming the 13-years-ago bound.
-      errorInvalidText:
-          'Enter a date between ${firstDate.year} and ${lastDate.year}',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Birth date'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            // Auto-inserts the `/` separators, so typing the 8 digits is
+            // all that's needed.
+            inputFormatters: [_DateSlashFormatter()],
+            decoration: InputDecoration(
+              hintText: 'MM/DD/YYYY',
+              errorText: errorText,
+            ),
+            onSubmitted: (_) => Navigator.of(ctx).pop(
+              _parseMmDdYyyy(controller.text),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final parsed = _parseMmDdYyyy(controller.text);
+                if (parsed == null) {
+                  setDialogState(
+                    () => errorText = 'Type it like 09/25/1996',
+                  );
+                  return;
+                }
+                // Covers both edges: too recent (under 13) and too old
+                // (over 100), rather than always blaming the 13-years-ago
+                // bound.
+                if (parsed.isBefore(firstDate) || parsed.isAfter(lastDate)) {
+                  setDialogState(
+                    () => errorText =
+                        'Enter a date between ${firstDate.year} and '
+                        '${lastDate.year}',
+                  );
+                  return;
+                }
+                Navigator.of(ctx).pop(parsed);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
     );
     if (picked != null) {
       setState(() {
@@ -356,6 +422,27 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
         _birthError = null;
       });
     }
+  }
+
+  static String _formatMmDdYyyy(DateTime d) =>
+      '${d.month.toString().padLeft(2, '0')}/'
+      '${d.day.toString().padLeft(2, '0')}/'
+      '${d.year.toString().padLeft(4, '0')}';
+
+  static DateTime? _parseMmDdYyyy(String s) {
+    final match = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(s.trim());
+    if (match == null) return null;
+    final month = int.parse(match.group(1)!);
+    final day = int.parse(match.group(2)!);
+    final year = int.parse(match.group(3)!);
+    if (month < 1 || month > 12) return null;
+    final date = DateTime(year, month, day);
+    // DateTime rolls an invalid day (e.g. day 30 in February) into the
+    // next month instead of throwing, so catch that here.
+    if (date.month != month || date.day != day || date.year != year) {
+      return null;
+    }
+    return date;
   }
 
   bool get _hasExistingProfile => ref.read(profileProvider).value != null;
