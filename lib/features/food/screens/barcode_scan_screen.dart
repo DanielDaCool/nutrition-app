@@ -68,10 +68,21 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
         actions: [
           // Browsers can't switch the torch; toggleTorch() throws on web.
           if (!ref.watch(isWebProvider))
-            IconButton(
-              tooltip: 'Torch',
-              icon: const Icon(Icons.flashlight_on_outlined),
-              onPressed: () => _controller.toggleTorch(),
+            ValueListenableBuilder<MobileScannerState>(
+              valueListenable: _controller,
+              builder: (context, state, _) {
+                final isOn = state.torchState == TorchState.on;
+                return IconButton(
+                  tooltip: isOn ? 'Turn torch off' : 'Turn torch on',
+                  icon: Icon(
+                    isOn
+                        ? Icons.flashlight_on
+                        : Icons.flashlight_on_outlined,
+                    color: isOn ? Theme.of(context).colorScheme.primary : null,
+                  ),
+                  onPressed: () => _controller.toggleTorch(),
+                );
+              },
             ),
         ],
       ),

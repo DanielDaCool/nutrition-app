@@ -438,6 +438,53 @@ void main() {
     await settle(tester);
   });
 
+  testWidgets('editing a middle digit of the birth date keeps the cursor '
+      'near the edit instead of jumping to the end', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    await tester.tap(find.byKey(const Key('birthDate')));
+    await tester.pumpAndSettle();
+    final field = find.descendant(
+      of: find.byType(Dialog),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(field, '09251996');
+    expect(
+      (tester.widget(field) as TextField).controller!.text,
+      '09/25/1996',
+    );
+
+    // Regression: the old formatter ignored the edit position and always
+    // collapsed the cursor to the end, so correcting a typo in the middle
+    // (e.g. day "25" should have been "05") left the cursor stranded at the
+    // end instead of where the user was editing.
+    await tester.showKeyboard(field);
+    // Replaces the '2' at index 3 with '0': "09/25/1996" -> "09/05/1996",
+    // as the platform would report it, with the cursor right after the
+    // digit that was just typed.
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '09/05/1996',
+        selection: TextSelection.collapsed(offset: 4),
+      ),
+    );
+    await tester.pump();
+
+    final updated = tester.widget(field) as TextField;
+    expect(updated.controller!.text, '09/05/1996');
+    expect(
+      updated.controller!.selection,
+      const TextSelection.collapsed(offset: 4),
+    );
+
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
   testWidgets('picking Gain weight saves goalDirection as gain', (
     tester,
   ) async {

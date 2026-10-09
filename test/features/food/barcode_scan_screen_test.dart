@@ -15,9 +15,12 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('Android offers the torch button', (tester) async {
+  testWidgets('Android offers the torch button, off by default', (
+    tester,
+  ) async {
     await pumpScan(tester, isWeb: false);
-    expect(find.byTooltip('Torch'), findsOneWidget);
+    expect(find.byTooltip('Turn torch on'), findsOneWidget);
+    expect(find.byIcon(Icons.flashlight_on_outlined), findsOneWidget);
     expect(find.text('Type barcode'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
@@ -26,7 +29,8 @@ void main() {
     tester,
   ) async {
     await pumpScan(tester, isWeb: true);
-    expect(find.byTooltip('Torch'), findsNothing);
+    expect(find.byTooltip('Turn torch on'), findsNothing);
+    expect(find.byTooltip('Turn torch off'), findsNothing);
     expect(find.text('Type barcode'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
