@@ -2,6 +2,7 @@
 library;
 
 import '../nutrition_math.dart';
+import 'barcode_format.dart';
 import 'remote_food.dart';
 
 /// Fields requested from OFF, so responses stay small.
@@ -31,8 +32,12 @@ String? _text(Object? v) {
 /// no usable name or barcode. [barcode] is used when the product has no
 /// `code` field.
 RemoteFood? parseOffProduct(Map<String, dynamic> product, {String? barcode}) {
-  final code = _text(product['code']) ?? barcode;
-  if (code == null) return null;
+  // OFF's own `code` can be in a different (but equivalent) form than what
+  // was scanned, e.g. zero-padded to EAN-13; normalize so it still matches
+  // a later scan.
+  final rawCode = _text(product['code']) ?? barcode;
+  if (rawCode == null) return null;
+  final code = normalizeBarcode(rawCode);
 
   // Prefer English, then the main-language name, then generic/Hebrew names.
   final name =

@@ -9,6 +9,7 @@ import '../../../domain/models.dart';
 import '../describe/builtin_foods.dart';
 import '../describe/describe_memory.dart';
 import '../nutrition_math.dart';
+import 'barcode_format.dart';
 import 'remote_food.dart';
 
 /// One logged portion joined with its food, for the meals list.
@@ -168,7 +169,7 @@ class FoodRepository {
             source: FoodSource.custom,
             name: input.name.trim(),
             brand: Value(_blankToNull(input.brand)),
-            barcode: Value(_blankToNull(input.barcode)),
+            barcode: Value(_normalizedBarcode(input.barcode)),
             kcalPer100g: input.per100g.kcal,
             proteinPer100g: input.per100g.proteinG,
             fatPer100g: input.per100g.fatG,
@@ -187,7 +188,7 @@ class FoodRepository {
       FoodsCompanion(
         name: Value(input.name.trim()),
         brand: Value(_blankToNull(input.brand)),
-        barcode: Value(_blankToNull(input.barcode)),
+        barcode: Value(_normalizedBarcode(input.barcode)),
         kcalPer100g: Value(input.per100g.kcal),
         proteinPer100g: Value(input.per100g.proteinG),
         fatPer100g: Value(input.per100g.fatG),
@@ -207,20 +208,25 @@ class FoodRepository {
 
   /// A food saved locally for [barcode]: the user's own food first (entered
   /// from the label on purpose), then a cached Open Food Facts product.
+  /// Matches whichever equivalent form (UPC-A or EAN-13) the barcode was
+  /// saved under, since a scan of the same physical barcode doesn't always
+  /// decode to the same digit string.
   Future<Food?> findByBarcode(String barcode) async {
-    final code = barcode.trim();
+    final candidates = barcodeVariants(normalizeBarcode(barcode)).toList();
     final custom =
         await (_db.select(_db.foods)
               ..where(
                 (f) =>
-                    f.source.equals(FoodSource.custom) & f.barcode.equals(code),
+                    f.source.equals(FoodSource.custom) &
+                    f.barcode.isIn(candidates),
               )
               ..orderBy([(f) => OrderingTerm.desc(f.id)])
               ..limit(1))
             .getSingleOrNull();
     if (custom != null) return custom;
     return (_db.select(_db.foods)..where(
-          (f) => f.source.equals(FoodSource.off) & f.externalId.equals(code),
+          (f) =>
+              f.source.equals(FoodSource.off) & f.externalId.isIn(candidates),
         ))
         .getSingleOrNull();
   }
@@ -657,5 +663,13 @@ class FoodRepository {
   static String? _blankToNull(String? s) {
     final t = s?.trim();
     return (t == null || t.isEmpty) ? null : t;
+  }
+
+  /// [_blankToNull], then widened to the canonical UPC-A/EAN-13 form so a
+  /// barcode typed or prefilled from a scan matches a later scan of the
+  /// same physical barcode even if it decodes differently next time.
+  static String? _normalizedBarcode(String? s) {
+    final t = _blankToNull(s);
+    return t == null ? null : normalizeBarcode(t);
   }
 }

@@ -134,6 +134,29 @@ void main() {
       },
     );
 
+    test('findByBarcode matches UPC-A/EAN-13 either way round, so a later '
+        'scan decoded under the other symbology still recalls it', () async {
+      // Saved as a 12-digit UPC-A code (e.g. typed from the label);
+      // scanned again later as the equivalent 13-digit EAN-13.
+      await repo.createCustom(custom('Peanut butter', barcode: '036000291452'));
+      expect(
+        (await repo.findByBarcode('0036000291452'))!.name,
+        'Peanut butter',
+      );
+
+      // And the other way: saved under the scan's EAN-13 form (this is
+      // what createCustom now stores either way), found by its bare
+      // UPC-A digits.
+      expect((await repo.findByBarcode('036000291452'))!.name, 'Peanut butter');
+    });
+
+    test('createCustom stores a 12-digit barcode in its EAN-13 form', () async {
+      final f = await repo.createCustom(
+        custom('Peanut butter', barcode: '036000291452'),
+      );
+      expect(f.barcode, '0036000291452');
+    });
+
     test(
       'recent is ordered by lastUsedAt, favorites by use then name',
       () async {
@@ -319,58 +342,55 @@ void main() {
       },
     );
 
-    test(
-      'copyDay copies every meal of the source day, keeping categories, '
-      'without touching the source entries',
-      () async {
-        final a = await repo.createCustom(custom('A'));
-        final b = await repo.createCustom(custom('B'));
-        await repo.logFood(
-          dayKey: '2026-09-24',
-          meal: Meal.breakfast,
-          foodId: a.id,
-          grams: 50,
-        );
-        await repo.logFood(
-          dayKey: '2026-09-24',
-          meal: Meal.breakfast,
-          foodId: b.id,
-          grams: 120,
-        );
-        await repo.logFood(
-          dayKey: '2026-09-24',
-          meal: Meal.lunch,
-          foodId: b.id,
-          grams: 300,
-        );
+    test('copyDay copies every meal of the source day, keeping categories, '
+        'without touching the source entries', () async {
+      final a = await repo.createCustom(custom('A'));
+      final b = await repo.createCustom(custom('B'));
+      await repo.logFood(
+        dayKey: '2026-09-24',
+        meal: Meal.breakfast,
+        foodId: a.id,
+        grams: 50,
+      );
+      await repo.logFood(
+        dayKey: '2026-09-24',
+        meal: Meal.breakfast,
+        foodId: b.id,
+        grams: 120,
+      );
+      await repo.logFood(
+        dayKey: '2026-09-24',
+        meal: Meal.lunch,
+        foodId: b.id,
+        grams: 300,
+      );
 
-        final ids = await repo.copyDay(
-          fromDay: '2026-09-24',
-          toDay: '2026-09-25',
-        );
-        expect(ids, hasLength(3));
+      final ids = await repo.copyDay(
+        fromDay: '2026-09-24',
+        toDay: '2026-09-25',
+      );
+      expect(ids, hasLength(3));
 
-        final copied = await (db.select(
-          db.foodLogEntries,
-        )..where((t) => t.dayKey.equals('2026-09-25'))).get();
-        expect(copied.map((e) => (e.foodId, e.grams, e.meal)), [
-          (a.id, 50.0, Meal.breakfast.index),
-          (b.id, 120.0, Meal.breakfast.index),
-          (b.id, 300.0, Meal.lunch.index),
-        ]);
-        expect(copied.map((e) => e.kcal), [50.0, 120.0, 300.0]);
+      final copied = await (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals('2026-09-25'))).get();
+      expect(copied.map((e) => (e.foodId, e.grams, e.meal)), [
+        (a.id, 50.0, Meal.breakfast.index),
+        (b.id, 120.0, Meal.breakfast.index),
+        (b.id, 300.0, Meal.lunch.index),
+      ]);
+      expect(copied.map((e) => e.kcal), [50.0, 120.0, 300.0]);
 
-        // The source day is untouched (copy, not move).
-        final source = await (db.select(
-          db.foodLogEntries,
-        )..where((t) => t.dayKey.equals('2026-09-24'))).get();
-        expect(source, hasLength(3));
+      // The source day is untouched (copy, not move).
+      final source = await (db.select(
+        db.foodLogEntries,
+      )..where((t) => t.dayKey.equals('2026-09-24'))).get();
+      expect(source, hasLength(3));
 
-        // Undo deletes exactly the copied rows.
-        await repo.deleteEntries(ids);
-        expect(await db.select(db.foodLogEntries).get(), hasLength(3));
-      },
-    );
+      // Undo deletes exactly the copied rows.
+      await repo.deleteEntries(ids);
+      expect(await db.select(db.foodLogEntries).get(), hasLength(3));
+    });
 
     test('copyDay returns nothing when the source day is empty', () async {
       expect(
@@ -581,6 +601,37 @@ void main() {
         }
         expect(calls, 0);
         expect(await db.select(db.foods).get(), isEmpty);
+      },
+    );
+
+    test(
+      'a food added from the label after a UPC-A scan is recalled when '
+      'the same product is later scanned as EAN-13 (or vice versa)',
+      () async {
+        var calls = 0;
+        final lookup = BarcodeLookup(
+          repo,
+          off(
+            404,
+            fixtureText('off_product_not_found.json'),
+            onCall: () => calls++,
+          ),
+        );
+        // First scan decodes the physical barcode as 12-digit UPC-A; OFF
+        // doesn't have it, so the user adds it from the label under
+        // whatever code the result carried.
+        final first = await lookup.lookup('036000291452') as BarcodeNeedsLabel;
+        await repo.createCustom(
+          custom('Peanut butter', barcode: first.barcode),
+        );
+
+        // Next time, the scanner happens to decode the same physical
+        // barcode as 13-digit EAN-13 instead.
+        final second = await lookup.lookup('0036000291452');
+        expect(second, isA<BarcodeFound>());
+        expect((second as BarcodeFound).food.name, 'Peanut butter');
+        expect(second.fromCache, isTrue);
+        expect(calls, 1); // only the first, failed OFF lookup
       },
     );
 

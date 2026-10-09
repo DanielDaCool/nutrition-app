@@ -63,6 +63,15 @@ void main() {
       expect(f.isComplete, isFalse);
     });
 
+    test('a 12-digit UPC-A code from OFF is widened to EAN-13', () {
+      final f = parseOffProduct({
+        'code': '036000291452',
+        'product_name': 'X',
+        'nutriments': {'energy-kcal_100g': 100},
+      })!;
+      expect(f.externalId, '0036000291452');
+    });
+
     test('status 0 means not found', () {
       expect(
         parseOffProductResponse(
