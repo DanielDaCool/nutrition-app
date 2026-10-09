@@ -410,6 +410,34 @@ void main() {
     await settle(tester);
   });
 
+  testWidgets('typing birth date digits only auto-inserts the slashes', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    await tester.tap(find.byKey(const Key('birthDate')));
+    await tester.pumpAndSettle();
+    final field = find.descendant(
+      of: find.byType(Dialog),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(field, '09251996');
+    expect(
+      (tester.widget(field) as TextField).controller!.text,
+      '09/25/1996',
+    );
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sep 25, 1996 · 30 years old'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
   testWidgets('picking Gain weight saves goalDirection as gain', (
     tester,
   ) async {
