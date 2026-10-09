@@ -2,6 +2,7 @@
 // has to enter it from the label.
 
 import '../../../data/db/database.dart';
+import 'barcode_format.dart';
 import 'food_repository.dart';
 import 'off_client.dart';
 import 'remote_food.dart';
@@ -63,7 +64,10 @@ class BarcodeLookup {
   /// [BarcodeNeedsLabel]. A complete OFF product is saved locally before
   /// it's returned.
   Future<BarcodeResult> lookup(String barcode) async {
-    final code = barcode.trim();
+    // Normalized so the same physical barcode matches whether this scan (or
+    // an earlier one, for a food already saved) decoded it as UPC-A or
+    // EAN-13.
+    final code = normalizeBarcode(barcode);
     // A food the user saved under this code wins, whatever the code looks
     // like.
     final local = await _repo.findByBarcode(code);
