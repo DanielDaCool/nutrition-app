@@ -99,9 +99,12 @@ Merging to `main` doesn't change what friends have; only [a release](#releasing-
    `average intake − (trend weight change × 7700 kcal/kg) ÷ days`.
    It blends from the formula to the measured value as more logged days come in.
 3. **Target:** maintenance minus the deficit (losing) or plus the surplus (gaining) for your
-   weekly rate (0.25–1.0 % of body weight per week). The deficit side is capped at 25 % of
-   maintenance or 1000 kcal, and the target never drops below your BMR (or 1500 kcal for men,
-   1200 kcal for women).
+   weekly rate, which you pick with a slider from 0.25 % of body weight a week up to a cap the
+   app sets from your BMI and body fat. Losing: cap is 0.5–1.0 % (higher BMI/body fat allows a
+   faster loss rate), deficit capped at 25 % of maintenance or 750 kcal, target never below
+   your BMR (or 1500 kcal for men, 1200 kcal for women). Gaining: cap is 0.25–0.5 % (leaner
+   people get more surplus headroom for muscle building; modest surpluses build about as much
+   muscle as large ones), surplus capped at 25 % of maintenance or 500 kcal.
 4. **Macros:** protein 1.6–2.2 g per kg, fat is the larger of 0.8 g per kg and 25 % of calories,
    and carbs fill the rest (at least 50 g).
 5. **Stability:** maintenance moves at most 150 kcal per week, and the target only changes when you

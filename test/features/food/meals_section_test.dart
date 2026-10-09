@@ -520,6 +520,38 @@ void main() {
     expect(find.text('Foods you log will show up here.'), findsOneWidget);
     await tearDownTree(tester);
   });
+
+  testWidgets(
+    'the header row does not overflow on a narrow phone with an ordinary day',
+    (tester) async {
+      // Regression: the trailing "<kcal> · P <g> g" summary plus the copy-day
+      // menu button overflowed the ListTile at 320px even with a completely
+      // typical day's worth of food, not just an extreme one.
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.runAsync(() async {
+        final f = await repo.createCustom(
+          const CustomFoodInput(
+            name: 'Breakfast sandwich',
+            per100g: Macros(kcal: 250, proteinG: 15, fatG: 10, carbsG: 20),
+          ),
+        );
+        await repo.logFood(
+          dayKey: _day,
+          meal: Meal.breakfast,
+          foodId: f.id,
+          grams: 200,
+        );
+      });
+      await pumpSection(tester);
+
+      expect(tester.takeException(), isNull);
+      await tearDownTree(tester);
+    },
+  );
 }
 
 /// Lets drift's async queries complete between frames.

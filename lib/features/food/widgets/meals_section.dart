@@ -53,22 +53,38 @@ class MealsSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ListTile(
-            title: Text('Meals', style: theme.textTheme.titleMedium),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (total != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Text(
-                      '${fmtKcal(total.kcal)} · '
-                      'P ${fmtNum(total.proteinG, decimals: 0)} g',
-                      style: theme.textTheme.titleSmall,
-                    ),
+          // A custom Row rather than ListTile(trailing: ...): ListTile sizes
+          // trailing to its unconstrained preferred width and asserts if
+          // that would consume the whole tile, which a plain Flexible/
+          // Expanded inside trailing doesn't prevent (it still reports its
+          // child's full intrinsic width). Building the row ourselves lets
+          // the summary text actually shrink instead of asserting.
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Meals', style: theme.textTheme.titleMedium),
                   ),
-                _CopyDayMenu(dayKey: dayKey),
-              ],
+                  if (total != null)
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8, right: 4),
+                        child: Text(
+                          '${fmtKcal(total.kcal)} · '
+                          'P ${fmtNum(total.proteinG, decimals: 0)} g',
+                          style: theme.textTheme.titleSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ),
+                  _CopyDayMenu(dayKey: dayKey),
+                ],
+              ),
             ),
           ),
           body,
