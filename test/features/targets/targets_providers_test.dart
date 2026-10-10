@@ -473,6 +473,7 @@ void main() {
       expect(input.intake['2026-09-23']!.fullyLogged, isTrue);
       expect(input.intake['2026-09-24']!.fullyLogged, isFalse);
       expect(input.previousMaintenanceKcal, 2900);
+      expect(input.previousEffectiveFromDayKey, '2026-09-20');
     },
   );
 
