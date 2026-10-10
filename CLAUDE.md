@@ -58,6 +58,7 @@ matching `vX.Y` tag on that commit. Don't do this unless asked.
 | B. Food logging | food agent | `lib/features/food/**`, `test/features/food/**` | Foods, FoodLogEntries, SavedMeals, SavedMealItems, DayStatuses, KeyValues (keys prefixed `describe.`) |
 | C. Health Connect | health agent | `lib/features/activity/**`, `test/features/activity/**` | DailySteps, Workouts, KeyValues (keys prefixed `hc.`) |
 | D. Weight, Today, Dashboard | charts agent | `lib/features/weight/**`, `lib/features/today/**`, `lib/features/dashboard/**`, `test/features/{weight,today,dashboard}/**` | WeighIns |
+| E. Recipes | food agent | `lib/features/recipes/**`, `test/features/recipes/**` | (reads only; no tables of its own) |
 
 Contract names (keep them; replace stub bodies):
 - A: `currentTargetsProvider`, `checkInDueProvider`, `CheckInScreen`, `SettingsScreen`

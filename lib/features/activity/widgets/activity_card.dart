@@ -190,33 +190,55 @@ class ActivityCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 16,
+            runSpacing: 4,
             children: [
-              Icon(
-                Icons.directions_walk,
-                size: 32,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(formatSteps(steps), style: theme.textTheme.headlineMedium),
-              const SizedBox(width: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text('steps', style: theme.textTheme.bodyMedium),
-              ),
-              if (activeCalories != null) ...[
-                const SizedBox(width: 16),
-                const Icon(Icons.local_fire_department, color: Colors.deepOrange),
-                const SizedBox(width: 4),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '${activeCalories.round()} kcal',
-                    style: theme.textTheme.bodyMedium,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.directions_walk,
+                    size: 32,
+                    color: theme.colorScheme.primary,
                   ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      formatSteps(steps),
+                      style: theme.textTheme.headlineMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text('steps', style: theme.textTheme.bodyMedium),
+                  ),
+                ],
+              ),
+              if (activeCalories != null)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.local_fire_department,
+                      color: Colors.deepOrange,
+                    ),
+                    const SizedBox(width: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '${activeCalories.round()} kcal',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
             ],
           ),
           const SizedBox(height: 8),

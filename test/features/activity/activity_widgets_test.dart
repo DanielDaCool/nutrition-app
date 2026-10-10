@@ -102,6 +102,36 @@ void main() {
       await unmount(tester);
     });
 
+    testWidgets('steps and calories row does not overflow on a narrow phone', (
+      tester,
+    ) async {
+      // Regression: a Row with no Flexible/Expanded overflowed by ~160px at
+      // this width with realistic (not even extreme) step/calorie values.
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.runAsync(() async {
+        await db
+            .into(db.dailySteps)
+            .insert(
+              DailyStepsCompanion.insert(
+                dayKey: '2026-09-25',
+                steps: 15234,
+                syncedAt: now,
+              ),
+            );
+      });
+      source.activeCaloriesByDay['2026-09-25'] = 842;
+      await pump(tester, const ActivityCard(dayKey: '2026-09-25'));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('15,234'), findsOneWidget);
+      expect(find.text('842 kcal'), findsOneWidget);
+      await unmount(tester);
+    });
+
     testWidgets('omits calories when Health Connect has no permission', (
       tester,
     ) async {

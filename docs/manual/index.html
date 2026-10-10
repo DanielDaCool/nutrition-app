@@ -245,8 +245,8 @@
     <ol class="step-list">
       <li><span class="step-num">1</span><p><strong>Sex, birth date and height</strong> — a Male/Female switch, a date picker (you must be between 13 and 100 years old), and height in cm (100&ndash;250).</p></li>
       <li><span class="step-num">2</span><p><strong>Activity level</strong> — Sedentary ("Desk job, little or no exercise"), Light ("Light exercise 1&ndash;3 days a week"), Moderate ("Exercise 3&ndash;5 days a week") or Active ("Hard exercise 6&ndash;7 days a week"). Starts on Light. This and the fields above seed your starting calorie estimate (the Mifflin&ndash;St Jeor formula) before there's enough history to measure it directly.</p></li>
-      <li><span class="step-num">3</span><p><strong>Lose weight or Gain weight</strong>, your goal weight in kg, and a weekly rate slider (0.25&ndash;1.0% of body weight a week, starts at 0.5%). The slider's top end is capped automatically from your height and body weight — losing faster or gaining faster than the cap costs more muscle than fat, so the app won't offer it. A protein slider (1.6&ndash;2.2&nbsp;g per kg, starts at 1.8) and your weekly check-in day (starts on Sunday) round out the form.</p></li>
-      <li><span class="step-num">4</span><p><strong>Today's weight</strong>, entered right there on the setup screen, plus Health Connect on Android if you want to connect it now (you can also do this later &mdash; see <a href="#activity">Steps &amp; workouts</a>). Tap <strong>Save and start</strong>, or <strong>I'll do this later</strong> to skip for now.</p></li>
+      <li><span class="step-num">3</span><p><strong>Lose weight or Gain weight</strong>, your goal weight in kg, and a weekly rate slider from 0.25% of body weight a week up to a cap the app sets from your height and body composition — up to 1.0% when losing, up to 0.5% when gaining (gaining caps lower: large surpluses mostly add fat, not muscle). Going faster than your cap costs more muscle than fat, so the app won't offer it. A protein slider (1.6&ndash;2.2&nbsp;g per kg, starts at 1.8) and your weekly check-in day (starts on Sunday) round out the form.</p></li>
+      <li><span class="step-num">4</span><p><strong>Today's weight</strong>, entered right there on the setup screen, plus Health Connect on Android if you want to connect it now (you can also do this later &mdash; see <a href="#activity">Steps &amp; workouts</a>). Tap <strong>Save and start</strong>, or <strong>I'll do this later</strong> to skip for now (there's also a <strong>Later</strong> button in the app bar at the top of this screen that does the same thing).</p></li>
       <li><span class="step-num">5</span><p><strong>Log today and weigh in tomorrow morning.</strong> The app needs at least 7 fully-logged days and 6 weigh-ins over a 10-day trend before it can measure your real maintenance calories instead of estimating them &mdash; see <a href="#targets">Adaptive targets</a>.</p></li>
     </ol>
   </section>
@@ -273,7 +273,7 @@
       <ul>
         <li><strong>Found it</strong> &mdash; goes straight to the portion screen.</li>
         <li><strong>Lookup failed</strong> (offline, rate-limited) &mdash; a dialog offers "Try again" or "Scan again".</li>
-        <li><strong>Not in the database</strong> &mdash; a dialog offers "Add it from the nutrition label", which opens the add-from-label form with the barcode already filled in.</li>
+        <li><strong>Not in the database</strong> &mdash; a "Not found" dialog offers "Add from label", which opens the add-from-label form with the barcode already filled in.</li>
       </ul>
     </div>
 
@@ -305,6 +305,21 @@
     <div class="eyebrow">Weight tab</div>
     <h2>Daily weigh-ins</h2>
     <p class="lede">One weigh-in per day. The app smooths your entries into a trend line, so a salty dinner or a bad night's sleep doesn't look like real progress or a setback &mdash; only the trend feeds your targets.</p>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Logging a weigh-in</h3></div>
+      <p>The fastest way is the <strong>Morning weigh-in</strong> card that sits right on the Today tab, above the calorie card, whenever you haven't logged today's weight yet &mdash; type the number and tap <strong>Save</strong>, no need to switch tabs. You can also add or edit any day's weigh-in from the Weight tab itself: the <strong>Weigh-in</strong> button at the bottom (it becomes <strong>Update today</strong> once you've already logged today) opens the same dialog, with a date picker ("Tap to change the date") so you can log a day you missed.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Trend, changes and chart</h3></div>
+      <p>The summary card at the top shows your current trend weight, its change over the last 7 and 30 days, and (if you've set a goal weight) how far you still have to go. Below it, the chart has three range chips &mdash; <strong>30 d</strong>, <strong>90 d</strong> and <strong>All</strong> &mdash; to zoom the trend line in or out.</p>
+    </div>
+
+    <div class="feature">
+      <div class="feature-head"><h3>Weigh-in history</h3></div>
+      <p>Below the chart, every weigh-in is listed newest first, each showing its date, weight and the change from the previous entry. Tap one to edit it in the same dialog used to log a new one, or tap its <strong>delete</strong> icon to remove it (with an Undo snackbar, same as deleting a logged food). The list starts short and shows a <strong>"Show all (N more)"</strong> button once there's more history than fits.</p>
+    </div>
   </section>
 
   <section id="targets" style="--feature-accent:var(--teal)">

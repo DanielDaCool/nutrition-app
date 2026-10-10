@@ -265,18 +265,40 @@ class _DateSlashFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
+    // Count digits before the cursor in the raw edited text (reflecting
+    // whatever insertion/deletion just happened), not just the final length,
+    // so editing a digit in the middle of the field re-places the cursor
+    // after that same digit instead of always snapping to the end.
+    final cursor = newValue.selection.end.clamp(0, newValue.text.length);
+    var digitsBeforeCursor = 0;
+    for (var i = 0; i < cursor; i++) {
+      if (_isDigit(newValue.text[i])) digitsBeforeCursor++;
+    }
+
     final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
     final capped = digits.length > 8 ? digits.substring(0, 8) : digits;
+    if (digitsBeforeCursor > capped.length) {
+      digitsBeforeCursor = capped.length;
+    }
+
     final buffer = StringBuffer();
     for (var i = 0; i < capped.length; i++) {
       if (i == 2 || i == 4) buffer.write('/');
       buffer.write(capped[i]);
     }
     final text = buffer.toString();
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
-    );
+
+    var offset = digitsBeforeCursor;
+    if (digitsBeforeCursor > 2) offset++;
+    if (digitsBeforeCursor > 4) offset++;
+    offset = offset.clamp(0, text.length);
+
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: offset));
+  }
+
+  bool _isDigit(String ch) {
+    final code = ch.codeUnitAt(0);
+    return code >= 0x30 && code <= 0x39;
   }
 }
 
