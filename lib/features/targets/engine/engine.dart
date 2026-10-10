@@ -50,8 +50,29 @@ const int kPhaseSkipDays = 14;
 const double kPhaseChangeThresholdKcal = 300;
 
 /// Week-to-week drift variance (kcal²) added to the Kalman prior before each
-/// update — how much the true maintenance is expected to wander on its own.
+/// update — how much the true maintenance is expected to wander on its own
+/// for one week. Scaled by the number of weeks actually elapsed since the
+/// previous target (see [weeksSincePrevious]), since check-ins can be
+/// skipped for arbitrarily long stretches.
 const double kProcessNoiseVarianceKcal2 = 50 * 50;
+
+/// Longest gap, in weeks, that [weeksSincePrevious] will scale the process
+/// noise by. Without a cap, someone returning after a year-long gap would
+/// have their prior variance driven so high that a single noisy week's
+/// measurement would be trusted completely — the cap keeps the prior from
+/// ever being discarded quite that fast.
+const int kMaxProcessNoiseWeeks = 12;
+
+/// How many weeks have elapsed between [previousDayKey] and [today] (at
+/// least 1, so a same-week or early check-in still adds one noise
+/// increment), capped at [kMaxProcessNoiseWeeks]. Returns 1 when there's no
+/// previous day to compare against (the normal one-week assumption).
+int weeksSincePrevious(String? previousDayKey, String today) {
+  if (previousDayKey == null) return 1;
+  final days = daysBetween(previousDayKey, today);
+  if (days <= 7) return 1;
+  return math.min(kMaxProcessNoiseWeeks, (days / 7).round());
+}
 
 /// Fallback measurement variance (kcal²) when a proper standard error can't
 /// be computed (e.g. the trend-difference method, which has no residuals).
@@ -131,6 +152,7 @@ class EngineInput {
     this.previousMaintenanceMode,
     this.previousSmoothedMeasuredKcal,
     this.previousMeasuredVarianceKcal2,
+    this.previousEffectiveFromDayKey,
   });
 
   /// Day key of "today" (the day the recommendation takes effect).
@@ -170,6 +192,14 @@ class EngineInput {
 
   /// Variance (kcal²) behind [previousSmoothedMeasuredKcal].
   final double? previousMeasuredVarianceKcal2;
+
+  /// Day the previous target took effect (null for the first target). Used
+  /// to scale the Kalman process noise (§3) by how long it's actually been
+  /// since the last check-in, rather than assuming exactly one week —
+  /// skipped check-ins are allowed (see [checkInDue] in
+  /// targets_repository.dart) and shouldn't let a stale prior keep
+  /// outweighing a fresh, clean measurement.
+  final String? previousEffectiveFromDayKey;
 }
 
 /// The numbers behind a recommendation, stored as JSON with the target.
@@ -753,6 +783,16 @@ Recommendation recommend(EngineInput input) {
   // this week's measured value against the last accepted one, so a noisy
   // week counts for less than a clean one. Carried forward even on a week
   // with no fresh measurement, so a later one still has a real prior.
+  // The process noise is scaled by how many weeks have actually elapsed
+  // since the previous target (Fix 6): check-ins can be skipped for
+  // arbitrarily long stretches (see checkInDue in targets_repository.dart),
+  // and a stale prior shouldn't keep outweighing a fresh, clean measurement
+  // just because only one noise increment was ever added for the gap.
+  final elapsedWeeks = weeksSincePrevious(
+    input.previousEffectiveFromDayKey,
+    input.today,
+  );
+  final processNoiseKcal2 = elapsedWeeks * kProcessNoiseVarianceKcal2;
   double? smoothedMeasuredKcal;
   double? measuredVarianceKcal2;
   if (m.value != null) {
@@ -764,7 +804,7 @@ Recommendation recommend(EngineInput input) {
       final priorVar =
           (input.previousMeasuredVarianceKcal2 ??
               kDefaultMeasurementVarianceKcal2) +
-          kProcessNoiseVarianceKcal2;
+          processNoiseKcal2;
       final measVar = m.varianceKcal2 ?? kDefaultMeasurementVarianceKcal2;
       final k = priorVar / (priorVar + measVar);
       smoothedMeasuredKcal =
@@ -780,7 +820,7 @@ Recommendation recommend(EngineInput input) {
     smoothedMeasuredKcal = input.previousSmoothedMeasuredKcal;
     measuredVarianceKcal2 = input.previousMeasuredVarianceKcal2 == null
         ? null
-        : input.previousMeasuredVarianceKcal2! + kProcessNoiseVarianceKcal2;
+        : input.previousMeasuredVarianceKcal2! + processNoiseKcal2;
   }
   // Publicly reported "this week's measured value" stays null exactly when
   // there was no fresh measurement, regardless of the carried-forward state.

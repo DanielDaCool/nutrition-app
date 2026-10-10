@@ -339,6 +339,7 @@ class TargetsRepository {
       previousMaintenanceMode: previousExplanation?.maintenanceMode,
       previousSmoothedMeasuredKcal: previousExplanation?.smoothedMeasuredKcal,
       previousMeasuredVarianceKcal2: previousExplanation?.measuredVarianceKcal2,
+      previousEffectiveFromDayKey: previous?.effectiveFrom,
     );
   }
 

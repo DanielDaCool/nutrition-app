@@ -74,8 +74,14 @@ yesterday, there's no measurement yet ("still settling in after a diet change").
 Treats the measured maintenance as a slowly drifting value, updated with a 1-variable Kalman
 filter instead of trusting each week's raw reading outright:
 - Prior: the previous smoothed measured value, with its variance increased by a process-noise term
-  (SD 50 kcal, i.e. +2,500 kcal² — how much the true maintenance is expected to drift on its own
-  between check-ins).
+  (SD 50 kcal, i.e. +2,500 kcal² per week — how much the true maintenance is expected to drift on
+  its own between check-ins), scaled by the number of weeks actually elapsed since the previous
+  target's `effectiveFrom` (`weeksSincePrevious`, rounded, minimum 1, capped at 12 weeks) rather
+  than always assuming exactly one week. Check-ins can be skipped for arbitrarily long stretches
+  (`checkInDue` stays true until the user acts — §6), and without this scaling a prior built from
+  regular weekly check-ins stayed almost as confident after a 10-week gap as after a 1-week one,
+  so a fresh, clean measurement was underweighted relative to a now-stale prior. No previous
+  target (the first recommendation) counts as 1 week, the original assumption.
 - Measurement: this week's rawMeasured, with the variance from §2 (so a noisy week counts less).
 - `K = priorVar / (priorVar + measVar)`; `smoothed = prior + K × (rawMeasured − prior)`.
 - The very first measurement (no prior) is taken as-is. A week with no fresh measurement carries

@@ -871,6 +871,98 @@ void main() {
       );
       expect(r.method, TargetMethod.formula); // w = 0, doesn't use the prior
     });
+
+    test(
+      'a long gap since the previous target trusts a fresh measurement '
+      'much more than a one-week-old one would',
+      () {
+        // A confident old estimate (as if several regular weekly check-ins
+        // had settled near 2500 with low variance), then a 60-day history
+        // at a genuinely different true maintenance of 2200 (flat weight,
+        // steady logging) -- a clean, unambiguous raw measurement.
+        final h = history(maintenanceKcal: 2200, intakeKcal: 2200);
+
+        final oneWeekAgo = recommend(
+          EngineInput(
+            today: today,
+            profile: profile(),
+            weighIns: h.weighIns,
+            intake: h.intake,
+            previousSmoothedMeasuredKcal: 2500,
+            previousMeasuredVarianceKcal2: 100 * 100,
+            previousEffectiveFromDayKey: addDays(today, -7),
+          ),
+        );
+        final tenWeeksAgo = recommend(
+          EngineInput(
+            today: today,
+            profile: profile(),
+            weighIns: h.weighIns,
+            intake: h.intake,
+            previousSmoothedMeasuredKcal: 2500,
+            previousMeasuredVarianceKcal2: 100 * 100,
+            previousEffectiveFromDayKey: addDays(today, -70),
+          ),
+        );
+
+        // Same raw measurement, same prior -- but the 10-week-old prior
+        // should carry much less weight than the 1-week-old one, so the
+        // smoothed estimate should land closer to the fresh ~2200 reading.
+        expect(
+          tenWeeksAgo.explanation.smoothedMeasuredKcal!,
+          lessThan(oneWeekAgo.explanation.smoothedMeasuredKcal!),
+        );
+        // Before this fix, both cases added the same fixed process-noise
+        // increment regardless of elapsed time, so a 10-week-stale prior
+        // was trusted almost as much as a 1-week-old one.
+        expect(
+          tenWeeksAgo.explanation.smoothedMeasuredKcal!,
+          lessThan(2350), // much closer to the fresh 2200 reading
+        );
+      },
+    );
+
+    test(
+      'the elapsed-gap scaling is capped, not unbounded, for a very long gap',
+      () {
+        final h = history(maintenanceKcal: 2200, intakeKcal: 2200);
+        final cappedGap = recommend(
+          EngineInput(
+            today: today,
+            profile: profile(),
+            weighIns: h.weighIns,
+            intake: h.intake,
+            previousSmoothedMeasuredKcal: 2500,
+            previousMeasuredVarianceKcal2: 100 * 100,
+            previousEffectiveFromDayKey: addDays(today, -7 * 12), // the cap
+          ),
+        );
+        final beyondCap = recommend(
+          EngineInput(
+            today: today,
+            profile: profile(),
+            weighIns: h.weighIns,
+            intake: h.intake,
+            previousSmoothedMeasuredKcal: 2500,
+            previousMeasuredVarianceKcal2: 100 * 100,
+            previousEffectiveFromDayKey: addDays(today, -400), // well past it
+          ),
+        );
+        expect(
+          beyondCap.explanation.smoothedMeasuredKcal,
+          cappedGap.explanation.smoothedMeasuredKcal,
+        );
+      },
+    );
+
+    test('weeksSincePrevious', () {
+      expect(weeksSincePrevious(null, today), 1); // no previous target
+      expect(weeksSincePrevious(addDays(today, -3), today), 1); // same week
+      expect(weeksSincePrevious(addDays(today, -7), today), 1);
+      expect(weeksSincePrevious(addDays(today, -14), today), 2);
+      expect(weeksSincePrevious(addDays(today, -70), today), 10);
+      expect(weeksSincePrevious(addDays(today, -400), today), 12); // capped
+    });
   });
 
   group('simulation (Fix 1-3 combined)', () {
