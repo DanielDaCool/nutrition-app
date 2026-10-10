@@ -157,17 +157,6 @@ void main() {
   });
 
   group('headlines', () {
-    test('weightHeadline shows the latest trend and its change', () {
-      const points = [
-        TrendPoint(dayKey: '2026-09-01', trendKg: 84.3),
-        TrendPoint(dayKey: '2026-09-02', trendKg: 83.8),
-        TrendPoint(dayKey: '2026-09-03', trendKg: 83.14),
-      ];
-      expect(weightHeadline(points), 'Trend 83.1 kg · −1.2 kg');
-      expect(weightHeadline(points.sublist(0, 1)), 'Trend 84.3 kg');
-      expect(weightHeadline(const []), isNull);
-    });
-
     test('stepsHeadline averages days with data, rounded to 100', () {
       expect(
         stepsHeadline([

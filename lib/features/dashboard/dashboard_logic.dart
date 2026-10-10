@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../core/day_key.dart';
 import '../../domain/models.dart';
-import '../weight/weight_logic.dart';
 
 /// A target row reduced to what the dashboard needs.
 class TargetPoint {
@@ -221,16 +220,6 @@ final _count = NumberFormat.decimalPattern('en_US');
 
 /// Rounds [v] to the nearest [step] and adds thousands separators.
 String _rounded(double v, int step) => _count.format((v / step).round() * step);
-
-/// "Trend 83.1 kg · −1.2 kg": the latest trend and its change over [points]
-/// (the trend within the range). Null without points.
-String? weightHeadline(List<TrendPoint> points) {
-  if (points.isEmpty) return null;
-  final last = points.last.trendKg;
-  final head = 'Trend ${formatKg(last)} kg';
-  if (points.length < 2) return head;
-  return '$head · ${formatChangeKg(last - points.first.trendKg)}';
-}
 
 /// "Avg 8,400/day" over days with step data (rounded to 100). Null when no
 /// day has steps.

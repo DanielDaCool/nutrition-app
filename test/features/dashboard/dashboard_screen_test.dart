@@ -237,8 +237,13 @@ void main() {
       expect(find.textContaining('No maintenance estimate'), findsNothing);
       expect(find.text('kcal/day'), findsNWidgets(2));
       expect(find.text('steps'), findsOneWidget);
-      // Headline numbers on each card.
-      expect(find.textContaining(RegExp(r'^Trend \d+\.\d kg · ')), findsOne);
+      // The weight trend itself lives on the Weight tab; Dashboard just
+      // points there once there's enough data to show one.
+      expect(
+        find.text('See your trend and weigh-ins on the Weight tab'),
+        findsOneWidget,
+      );
+      // Headline numbers on each remaining card.
       expect(find.textContaining(RegExp(r'^Avg [\d,]+/day$')), findsOne);
       expect(
         find.textContaining(RegExp(r'^Avg 2,050 of [\d,]+ kcal$')),

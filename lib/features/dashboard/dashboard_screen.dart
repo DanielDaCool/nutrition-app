@@ -16,7 +16,6 @@ import '../food/food_providers.dart';
 import '../settings/settings_screen.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weigh_in_actions.dart';
-import '../weight/weight_logic.dart';
 import '../weight/weight_providers.dart';
 import '../weight/widgets/weight_chart.dart';
 import 'dashboard_logic.dart';
@@ -85,7 +84,7 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             ...switch (window.value) {
               final w? => [
-                _WeightSection(window: w, hideWhenEmpty: setupIncomplete),
+                _WeightSection(hideWhenEmpty: setupIncomplete),
                 _IntakeSection(window: w, hideWhenEmpty: setupIncomplete),
                 if (showActivity) ...[
                   _StepsSection(window: w, hideWhenEmpty: setupIncomplete),
@@ -281,45 +280,41 @@ class _ErrorText extends StatelessWidget {
   }
 }
 
+/// The full trend chart and weigh-in list live on the Weight tab; this just
+/// nudges a first weigh-in (nothing to view yet) or points there (so the
+/// chart isn't repeated on both tabs).
 class _WeightSection extends ConsumerWidget {
-  const _WeightSection({required this.window, required this.hideWhenEmpty});
-  final _Window window;
+  const _WeightSection({required this.hideWhenEmpty});
   final bool hideWhenEmpty;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final trend = ref.watch(weightTrendProvider);
-    final goalKg = ref.watch(profileProvider).value?.goalWeightKg;
-    final count = ref.watch(weighInsProvider).value?.length ?? 0;
-    final pending = _pending(trend, () => ref.invalidate(weighInsProvider));
+    final weighIns = ref.watch(weighInsProvider);
+    final pending = _pending(weighIns, () => ref.invalidate(weighInsProvider));
     if (pending != null) return _Section(title: 'Weight', child: pending);
 
-    final points = trendSince(trend.value!, window.$1);
-    if (points.isEmpty && hideWhenEmpty) return const SizedBox.shrink();
-    final addButton = FilledButton.tonalIcon(
-      onPressed: () => openWeighInDialog(context, ref),
-      icon: const Icon(Icons.add),
-      label: const Text('Add weigh-in'),
-    );
+    final count = weighIns.value!.length;
+    if (count == 0 && hideWhenEmpty) return const SizedBox.shrink();
+    if (count < 2) {
+      return _Section(
+        title: 'Weight',
+        child: ChartEmptyState(
+          message: 'Your trend appears after a few weigh-ins',
+          action: FilledButton.tonalIcon(
+            onPressed: () => openWeighInDialog(context, ref),
+            icon: const Icon(Icons.add),
+            label: const Text('Add weigh-in'),
+          ),
+        ),
+      );
+    }
     return _Section(
       title: 'Weight',
-      headline: weightHeadline(points),
-      child: count < 2
-          ? ChartEmptyState(
-              message: 'Your trend appears after a few weigh-ins',
-              action: addButton,
-            )
-          : points.isEmpty
-          ? ChartEmptyState(
-              message: 'No weigh-ins in this range yet',
-              action: addButton,
-            )
-          : WeightChart(
-              points: points,
-              showWeighIns: false,
-              height: 200,
-              goalKg: goalKg,
-            ),
+      child: const ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.monitor_weight_outlined),
+        title: Text('See your trend and weigh-ins on the Weight tab'),
+      ),
     );
   }
 }
