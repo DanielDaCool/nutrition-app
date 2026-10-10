@@ -126,7 +126,9 @@ void main() {
       2470,
     ); // matches engine_test.dart's formula-only case
 
-    expect(find.text('2,470 kcal'), findsOneWidget);
+    // The kcal/macro breakdown itself lives on the Today tab; Settings
+    // shows only how the current target came to be.
+    expect(find.textContaining('Maintenance about'), findsOneWidget);
     expect(find.text('Profile saved'), findsOneWidget);
     // With a profile, targets come first again.
     expect(

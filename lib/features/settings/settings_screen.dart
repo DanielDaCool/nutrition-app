@@ -113,7 +113,10 @@ class _SectionHeader extends StatelessWidget {
   );
 }
 
-/// The targets in effect today.
+/// How today's targets came to be: the maintenance estimate behind them and
+/// when they took effect. The targets themselves (kcal, macros, eaten vs.
+/// remaining) are tracked live on the Today tab, so they aren't repeated
+/// here.
 class CurrentTargetsCard extends ConsumerWidget {
   const CurrentTargetsCard({super.key});
 
@@ -145,22 +148,19 @@ class CurrentTargetsCard extends ConsumerWidget {
                           'weight to get your daily targets.',
               );
             }
-            final m = t.macros;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Daily targets', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(kcal(m.kcal), style: theme.textTheme.headlineMedium),
-                Text(
-                  'Protein ${m.proteinG.round()} g · Fat ${m.fatG.round()} g · '
-                  'Carbs ${m.carbsG.round()} g',
-                ),
+                Text('Your targets', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 4),
                 Text(
                   'Maintenance about ${kcal(t.maintenanceKcal)} '
                   '(${_methodText(t.method)}) · since ${t.effectiveFrom}',
                   style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  "See the Today tab for today's calories and macros.",
                 ),
               ],
             );
