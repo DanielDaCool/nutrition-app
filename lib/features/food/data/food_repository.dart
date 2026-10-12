@@ -24,6 +24,7 @@ class LoggedItem {
     required this.grams,
     required this.macros,
     required this.createdAt,
+    this.source = '',
   });
 
   final int id;
@@ -42,6 +43,44 @@ class LoggedItem {
   /// food don't change it.
   final Macros macros;
   final DateTime createdAt;
+
+  /// `Foods.source` of the food ([FoodSource.recipe] entries are counted in
+  /// servings of 100 pseudo-grams rather than grams).
+  final String source;
+}
+
+/// One food and amount in a [SavedMealView], with the food's current values.
+class SavedMealItemView {
+  const SavedMealItemView({
+    required this.foodId,
+    required this.foodName,
+    required this.source,
+    required this.grams,
+    required this.macros,
+  });
+
+  final int foodId;
+  final String foodName;
+  final String source;
+  final double grams;
+
+  /// Nutrition of [grams] at the food's current per-100 g values.
+  final Macros macros;
+}
+
+/// A saved meal with its items and their total at current food values.
+class SavedMealView {
+  const SavedMealView({
+    required this.id,
+    required this.name,
+    required this.items,
+  });
+
+  final int id;
+  final String name;
+  final List<SavedMealItemView> items;
+
+  Macros get total => items.fold(Macros.zero, (a, b) => a + b.macros);
 }
 
 /// What [FoodRepository.logMany] wrote: the new entries, and the value each
@@ -82,8 +121,11 @@ Macros per100gOf(Food f) => Macros(
   carbsG: f.carbsPer100g,
 );
 
+/// Pseudo-grams in one serving of a recipe food ([FoodSource.recipe]).
+const double recipeServingGrams = 100;
+
 /// All reads and writes of the food feature's tables (Foods, FoodLogEntries,
-/// DayStatuses) and its `describe.*` KeyValues rows.
+/// SavedMeals, SavedMealItems, DayStatuses) and its `describe.*` KeyValues rows.
 class FoodRepository {
   FoodRepository(this._db, this._now);
 
@@ -231,6 +273,23 @@ class FoodRepository {
         .getSingleOrNull();
   }
 
+  /// Saves a recipe as a hidden food (see [FoodSource.recipe]) or refreshes
+  /// the stored copy when the catalog numbers changed. Log entries keep
+  /// their own snapshot, so history doesn't move.
+  Future<Food> upsertRecipeFood(Recipe r) => upsertRemote(
+    RemoteFood(
+      source: FoodSource.recipe,
+      externalId: r.id,
+      name: r.name,
+      kcalPer100g: r.perServing.kcal,
+      proteinPer100g: r.perServing.proteinG,
+      fatPer100g: r.perServing.fatG,
+      carbsPer100g: r.perServing.carbsG,
+      servingName: '1 serving',
+      servingGrams: recipeServingGrams,
+    ),
+  );
+
   /// Most recently logged foods, newest first.
   Stream<List<Food>> watchRecent({int limit = 50}) =>
       (_db.select(_db.foods)
@@ -253,9 +312,14 @@ class FoodRepository {
             ]))
           .watch();
 
-  /// Every saved food (for matching described meals), by id.
+  /// Every saved food (for matching described meals), by id. Recipe foods
+  /// are left out so describing a meal behaves as it did before recipes
+  /// could be logged.
   Stream<List<Food>> watchAllFoods() =>
-      (_db.select(_db.foods)..orderBy([(f) => OrderingTerm.asc(f.id)])).watch();
+      (_db.select(_db.foods)
+            ..where((f) => f.source.equals(FoodSource.recipe).not())
+            ..orderBy([(f) => OrderingTerm.asc(f.id)]))
+          .watch();
 
   /// The user's own foods, alphabetically.
   Stream<List<Food>> watchCustom() =>
@@ -317,6 +381,141 @@ class FoodRepository {
       }
       return LoggedBatch(entryIds: ids, previousMemory: previous);
     });
+  }
+
+  /// Logs [servings] of [recipe] (one serving = 100 pseudo-grams of its
+  /// hidden food) with a snapshot of `perServing × servings`. Returns the
+  /// entry id.
+  Future<int> logRecipe({
+    required String dayKey,
+    required Meal meal,
+    required Recipe recipe,
+    required double servings,
+  }) {
+    final grams = servings * recipeServingGrams;
+    _checkGrams(grams);
+    return _db.transaction(() async {
+      final food = await upsertRecipeFood(recipe);
+      return _insertEntry(dayKey, meal, food.id, grams);
+    });
+  }
+
+  // ------------------------------------------------------------ saved meals
+
+  /// Saves [items] as a named meal, all in one transaction. A saved meal
+  /// points at foods by id; foods are never deleted, so the reference stays
+  /// valid. Returns the meal id.
+  Future<int> createSavedMeal(
+    String name,
+    List<({int foodId, double grams})> items,
+  ) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'must not be blank');
+    }
+    if (items.isEmpty) {
+      throw ArgumentError.value(items, 'items', 'must not be empty');
+    }
+    for (final i in items) {
+      _checkGrams(i.grams);
+    }
+    return _db.transaction(() async {
+      final id = await _db
+          .into(_db.savedMeals)
+          .insert(SavedMealsCompanion.insert(name: trimmed, createdAt: _now()));
+      for (final i in items) {
+        await _db
+            .into(_db.savedMealItems)
+            .insert(
+              SavedMealItemsCompanion.insert(
+                savedMealId: id,
+                foodId: i.foodId,
+                grams: i.grams,
+              ),
+            );
+      }
+      return id;
+    });
+  }
+
+  /// Saved meals by name, each with its items at the foods' current values.
+  /// Re-emits when meals, their items or the foods change.
+  Stream<List<SavedMealView>> watchSavedMeals() => _db
+      .customSelect(
+        'SELECT 1',
+        readsFrom: {_db.savedMeals, _db.savedMealItems, _db.foods},
+      )
+      .watch()
+      .asyncMap((_) => savedMeals());
+
+  /// One-shot version of [watchSavedMeals].
+  Future<List<SavedMealView>> savedMeals() => _db.transaction(() async {
+    final meals =
+        await (_db.select(_db.savedMeals)..orderBy([
+              (m) => OrderingTerm.asc(m.name.collate(Collate.noCase)),
+              (m) => OrderingTerm.asc(m.id),
+            ]))
+            .get();
+    final rows = await (_db.select(_db.savedMealItems).join([
+      innerJoin(_db.foods, _db.foods.id.equalsExp(_db.savedMealItems.foodId)),
+    ])..orderBy([OrderingTerm.asc(_db.savedMealItems.id)])).get();
+    final byMeal = <int, List<SavedMealItemView>>{};
+    for (final row in rows) {
+      final item = row.readTable(_db.savedMealItems);
+      final food = row.readTable(_db.foods);
+      byMeal
+          .putIfAbsent(item.savedMealId, () => [])
+          .add(
+            SavedMealItemView(
+              foodId: food.id,
+              foodName: food.name,
+              source: food.source,
+              grams: item.grams,
+              macros: macrosForGrams(per100gOf(food), item.grams),
+            ),
+          );
+    }
+    return [
+      for (final m in meals)
+        SavedMealView(id: m.id, name: m.name, items: byMeal[m.id] ?? const []),
+    ];
+  });
+
+  /// Renames a saved meal.
+  Future<void> renameSavedMeal(int id, String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'must not be blank');
+    }
+    return (_db.update(_db.savedMeals)..where((m) => m.id.equals(id))).write(
+      SavedMealsCompanion(name: Value(trimmed)),
+    );
+  }
+
+  /// Deletes a saved meal and its items. Entries already logged from it
+  /// stay.
+  Future<void> deleteSavedMeal(int id) =>
+      (_db.delete(_db.savedMeals)..where((m) => m.id.equals(id))).go();
+
+  /// Logs every item of a saved meal into [meal] of [dayKey] with fresh
+  /// snapshots, in one batch that [undoLogMany] can take back. Returns an
+  /// empty batch when the meal is gone or has no items.
+  Future<LoggedBatch> logSavedMeal({
+    required String dayKey,
+    required Meal meal,
+    required int savedMealId,
+  }) async {
+    final items =
+        await (_db.select(_db.savedMealItems)
+              ..where((i) => i.savedMealId.equals(savedMealId))
+              ..orderBy([(i) => OrderingTerm.asc(i.id)]))
+            .get();
+    if (items.isEmpty) return const LoggedBatch(entryIds: []);
+    return logMany(
+      dayKey: dayKey,
+      meal: meal,
+      items: [for (final i in items) (foodId: i.foodId, grams: i.grams)],
+    );
   }
 
   /// Undoes [logMany]: deletes its entries and puts the remembered rows
@@ -546,6 +745,7 @@ class FoodRepository {
       carbsG: e.carbsG,
     ),
     createdAt: e.createdAt,
+    source: f.source,
   );
 
   // ------------------------------------------------------ describe memory

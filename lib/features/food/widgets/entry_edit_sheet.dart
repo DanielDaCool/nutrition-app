@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/models.dart';
 import '../data/food_repository.dart';
+import '../data/remote_food.dart';
 import '../nutrition_math.dart';
 import 'food_format.dart';
 
@@ -46,8 +47,15 @@ class EntryEditSheet extends StatefulWidget {
 }
 
 class _EntryEditSheetState extends State<EntryEditSheet> {
-  /// The grams as first shown (rounded to 0.1 g).
-  late final _shownGrams = fmtNum(widget.item.grams);
+  /// A recipe entry is edited in servings (100 pseudo-grams each).
+  late final bool _isRecipe = widget.item.source == FoodSource.recipe;
+  late final double _unitGrams = _isRecipe ? recipeServingGrams : 1;
+
+  /// The amount as first shown (grams rounded to 0.1 g, or servings).
+  late final _shownGrams = fmtNum(
+    widget.item.grams / _unitGrams,
+    decimals: _isRecipe ? 2 : 1,
+  );
   late final _grams = TextEditingController(
     text: _shownGrams,
   )..selection = TextSelection(baseOffset: 0, extentOffset: _shownGrams.length);
@@ -65,7 +73,7 @@ class _EntryEditSheetState extends State<EntryEditSheet> {
     // entry to another meal doesn't nudge 14.86 g to 14.9 g.
     if (_grams.text.trim() == _shownGrams) return widget.item.grams;
     final v = parseAmount(_grams.text);
-    return v == null || v <= 0 ? null : v;
+    return v == null || v <= 0 ? null : v * _unitGrams;
   }
 
   void _save() {
@@ -111,8 +119,8 @@ class _EntryEditSheetState extends State<EntryEditSheet> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: 'Amount',
-                suffixText: 'g',
+                labelText: _isRecipe ? 'Servings' : 'Amount',
+                suffixText: _isRecipe ? '× serving' : 'g',
                 border: const OutlineInputBorder(),
                 errorText: _error,
                 helperText: kcal == null ? null : fmtKcal(kcal),
@@ -201,7 +209,9 @@ class LoggedItemTile extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: Text('${fmtNum(item.grams)} g · ${macroLine(item.macros)}'),
+        subtitle: Text(
+          '${fmtAmount(item.grams, item.source)} · ${macroLine(item.macros)}',
+        ),
         trailing: Text(fmtKcal(item.macros.kcal)),
         onTap: onTap,
       ),
