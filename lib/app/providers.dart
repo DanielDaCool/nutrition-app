@@ -11,6 +11,7 @@ import '../core/app_features.dart';
 import '../core/app_version.dart';
 import '../core/browser_install.dart';
 import '../core/day_key.dart';
+import '../core/feature_choices_repository.dart';
 import '../core/install_hint.dart';
 import '../core/install_hint_repository.dart';
 import '../core/update_check.dart';
@@ -36,11 +37,25 @@ final browserInstallInfoProvider = Provider<BrowserInstallInfo>(
   (ref) => readBrowserInstallInfo(),
 );
 
-/// Whether an [AppFeature]'s UI should show. Here that is simply "exists on
-/// this platform"; it can be overridden (a fork does) to add user choice.
-final featureEnabledProvider = Provider.family<bool, AppFeature>(
-  (ref, feature) => feature.availableOn(isWeb: ref.watch(isWebProvider)),
+/// Storage keys of the features the user has switched off (see
+/// `core/feature_choices_repository.dart`). Empty while loading or on error.
+final disabledFeaturesProvider = StreamProvider<Set<String>>(
+  (ref) => watchDisabledFeatureKeys(ref.watch(databaseProvider)),
 );
+
+/// Whether an [AppFeature]'s UI should show: it exists on this platform, and
+/// it is either not user-choosable or not switched off in Choose features.
+/// While the choices load, or if they can't be read, features stay on.
+final featureEnabledProvider = Provider.family<bool, AppFeature>((
+  ref,
+  feature,
+) {
+  if (!feature.availableOn(isWeb: ref.watch(isWebProvider))) return false;
+  if (!feature.userChoosable) return true;
+  final disabled =
+      ref.watch(disabledFeaturesProvider).value ?? const <String>{};
+  return !disabled.contains(feature.storageKey);
+});
 
 /// When the "Add to Home Screen" hint was last dismissed, loaded from
 /// KeyValues.

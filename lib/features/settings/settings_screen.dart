@@ -22,6 +22,7 @@ import '../targets/engine/engine.dart';
 import '../targets/engine/explain.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
+import 'choose_features_screen.dart';
 import 'data_export.dart';
 import 'error_retry.dart';
 import 'import_flow.dart';
@@ -70,12 +71,27 @@ class SettingsScreen extends ConsumerWidget {
           ],
           // Health Connect and walk reminders are Android-only; the step
           // goal only applies to Health Connect steps.
-          if (!isWeb) ...const [
-            Divider(),
-            HealthConnectSettingsTile(),
-            StepGoalSettingsTile(),
-            WalkReminderSettingsTile(),
+          if (!isWeb) ...[
+            const Divider(),
+            const HealthConnectSettingsTile(),
+            const StepGoalSettingsTile(),
+            if (ref.watch(featureEnabledProvider(AppFeature.walkReminders)))
+              const WalkReminderSettingsTile(),
           ],
+          const Divider(),
+          ListTile(
+            key: const Key('chooseFeaturesTile'),
+            leading: const Icon(Icons.tune),
+            title: const Text('Choose features'),
+            subtitle: const Text('Switch off the parts you do not use'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                fullscreenDialog: true,
+                builder: (_) => const ChooseFeaturesScreen(),
+              ),
+            ),
+          ),
           if (ref.watch(featureEnabledProvider(AppFeature.backup))) ...const [
             Divider(),
             _SectionHeader('Your data'),

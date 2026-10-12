@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/app_features.dart';
 import '../core/day_key.dart';
 import '../features/activity/activity_providers.dart';
+import '../features/activity/walk_reminder_providers.dart';
+import '../features/activity/walk_reminder_repository.dart';
 import '../features/dashboard/dashboard_providers.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/recipes/recipes_screen.dart';
@@ -44,7 +46,8 @@ class NutritionApp extends StatelessWidget {
 /// whenever the app returns to the foreground, opens the "Get started" setup
 /// once per app start while there is no profile, badges Settings when a
 /// check-in is due, and jumps Today back to today when its tab is re-tapped.
-/// The Recipes tab is left out while its feature gate is off.
+/// The Recipes and Dashboard tabs are left out while their feature gates are
+/// off. The walk reminder's background check follows its gate.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
@@ -126,6 +129,31 @@ class _HomeShellState extends ConsumerState<HomeShell>
     ref.listenManual(profileProvider, (_, next) {
       if (next case AsyncData(value: null)) _offerSetup();
     }, fireImmediately: true);
+    // Only on changes: a build that starts with the walk reminder on keeps
+    // the check it already has.
+    ref.listenManual(featureEnabledProvider(AppFeature.walkReminders), (
+      _,
+      next,
+    ) {
+      _syncWalkReminder(next);
+    });
+  }
+
+  /// Keeps the walk reminder's background check in step with its gate. Saved
+  /// settings are never changed: gate off cancels the check, gate on
+  /// re-registers it from the saved settings. Skipped on web.
+  Future<void> _syncWalkReminder(bool shown) async {
+    if (ref.read(isWebProvider)) return;
+    try {
+      final db = ref.read(databaseProvider);
+      final saved = await loadWalkReminderSettings(db);
+      if (!mounted) return;
+      await ref
+          .read(walkReminderSchedulerProvider)
+          .apply(shown ? saved : saved.copyWith(enabled: false));
+    } catch (_) {
+      // Nothing to show: the check is set again on the next change.
+    }
   }
 
   @override
@@ -180,10 +208,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
   @override
   Widget build(BuildContext context) {
     final checkInDue = ref.watch(checkInDueProvider).value ?? false;
-    final showRecipes = ref.watch(featureEnabledProvider(AppFeature.recipes));
+    final gateOpen = {
+      _Tab.recipes: ref.watch(featureEnabledProvider(AppFeature.recipes)),
+      _Tab.dashboard: ref.watch(featureEnabledProvider(AppFeature.dashboard)),
+    };
     final tabs = [
       for (final t in _Tab.values)
-        if (t != _Tab.recipes || showRecipes) t,
+        if (gateOpen[t] ?? true) t,
     ];
     // The selected tab's gate went off: fall back to Today for good, so it
     // doesn't jump back when the tab returns.

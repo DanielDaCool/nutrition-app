@@ -261,37 +261,34 @@ void main() {
     }
   });
 
-  testWidgets(
-    'workouts chart fetches full Monday-aligned weeks, not a partial '
-    'first/last week',
-    (tester) async {
-      await addProfileAndWeighIn();
-      final requestedWindows = <(String, String)>[];
-      final extra = [
-        activityRangeProvider.overrideWith((ref, r) {
-          requestedWindows.add(r);
-          return Stream.value(const []);
-        }),
-      ];
-      await pumpDashboard(tester, extra: extra);
-      expect(tester.takeException(), isNull);
+  testWidgets('workouts chart fetches full Monday-aligned weeks, not a partial '
+      'first/last week', (tester) async {
+    await addProfileAndWeighIn();
+    final requestedWindows = <(String, String)>[];
+    final extra = [
+      activityRangeProvider.overrideWith((ref, r) {
+        requestedWindows.add(r);
+        return Stream.value(const []);
+      }),
+    ];
+    await pumpDashboard(tester, extra: extra);
+    expect(tester.takeException(), isNull);
 
-      // The dashboard window itself: today - 27 .. today (not Monday-
-      // aligned in general).
-      const today = '2026-09-25';
-      final plainWindow = (addDays(today, -27), today);
-      expect(requestedWindows, contains(plainWindow));
+    // The dashboard window itself: today - 27 .. today (not Monday-
+    // aligned in general).
+    const today = '2026-09-25';
+    final plainWindow = (addDays(today, -27), today);
+    expect(requestedWindows, contains(plainWindow));
 
-      // The workouts chart fetches from the Monday on/before that `from`,
-      // so every bucketed week (including the first) is a full 7 days.
-      final chartWindow = (weekStartOf(plainWindow.$1), today);
-      expect(chartWindow.$1, isNot(plainWindow.$1)); // the range isn't
-      // already Monday-aligned, so this genuinely exercises the fix.
-      expect(requestedWindows, contains(chartWindow));
+    // The workouts chart fetches from the Monday on/before that `from`,
+    // so every bucketed week (including the first) is a full 7 days.
+    final chartWindow = (weekStartOf(plainWindow.$1), today);
+    expect(chartWindow.$1, isNot(plainWindow.$1)); // the range isn't
+    // already Monday-aligned, so this genuinely exercises the fix.
+    expect(requestedWindows, contains(chartWindow));
 
-      await unmount(tester);
-    },
-  );
+    await unmount(tester);
+  });
 
   testWidgets(
     'steps chart fetches 6 lead-in days for a real trailing 7-day average',
@@ -330,7 +327,7 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('the steps and workouts charts are left out when switched off', (
+  testWidgets('the steps chart is left out when Steps is switched off', (
     tester,
   ) async {
     await addProfileAndWeighIn();
@@ -349,10 +346,30 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     expect(find.text('Steps per day'), findsNothing);
-    expect(find.text('Workouts per week'), findsNothing);
+    // Workouts is its own feature and stays.
+    expect(find.text('Workouts per week'), findsOneWidget);
     // The other sections stay.
     expect(find.textContaining('No fully logged days'), findsOneWidget);
     expect(find.textContaining('No maintenance estimate yet'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('the workouts chart is left out when Workouts is switched off', (
+    tester,
+  ) async {
+    await addProfileAndWeighIn();
+    await pumpDashboard(
+      tester,
+      extra: [
+        featureEnabledProvider.overrideWith(
+          (ref, f) => f != AppFeature.workouts,
+        ),
+      ],
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('Workouts per week'), findsNothing);
+    expect(find.text('Steps per day'), findsOneWidget);
+    expect(find.textContaining('No fully logged days'), findsOneWidget);
     await unmount(tester);
   });
 }

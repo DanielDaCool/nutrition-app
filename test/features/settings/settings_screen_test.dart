@@ -11,6 +11,7 @@ import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/widgets/health_connect_tile.dart';
 import 'package:nutrition_app/features/activity/widgets/step_goal_tile.dart';
 import 'package:nutrition_app/features/activity/widgets/walk_reminder_tile.dart';
+import 'package:nutrition_app/features/settings/choose_features_screen.dart';
 import 'package:nutrition_app/features/settings/data_export.dart';
 import 'package:nutrition_app/features/settings/report_problem_tile.dart';
 import 'package:nutrition_app/features/settings/settings_screen.dart';
@@ -882,6 +883,49 @@ void main() {
     expect(find.byKey(const Key('profileForm')), findsOneWidget);
     expect(find.byKey(const Key('goalWeightKg')), findsOneWidget);
     expect(find.byKey(const Key('goalDirection')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Choose features opens the screen from Settings', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    await tester.tap(find.byKey(const Key('chooseFeaturesTile')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ChooseFeaturesScreen), findsOneWidget);
+    expect(find.byKey(const Key('feature-recipes')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the walk reminder tile is left out while its gate is off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.walkReminders,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+    expect(find.byType(WalkReminderSettingsTile), findsNothing);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byKey(const Key('chooseFeaturesTile')), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

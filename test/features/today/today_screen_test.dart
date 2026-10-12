@@ -445,7 +445,8 @@ void main() {
           intakeFor: (d) => intake(d, logged: false),
           extra: [
             foodRepositoryProvider.overrideWith(
-              (ref) => _ThrowingSetFullyLoggedRepo(db, () => DateTime(2026, 9, 25)),
+              (ref) =>
+                  _ThrowingSetFullyLoggedRepo(db, () => DateTime(2026, 9, 25)),
             ),
           ],
         );
@@ -508,7 +509,24 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('the activity card is left out when switched off', (
+  testWidgets('the activity card is left out when both its parts are off', (
+    tester,
+  ) async {
+    await pumpToday(
+      tester,
+      extra: [
+        featureEnabledProvider.overrideWith(
+          (ref, f) => f != AppFeature.activity && f != AppFeature.workouts,
+        ),
+      ],
+    );
+    expect(find.byType(ActivityCard), findsNothing);
+    expect(find.byType(MealsSection), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
+  });
+
+  testWidgets('the activity card stays while either of its parts is on', (
     tester,
   ) async {
     await pumpToday(
@@ -519,8 +537,19 @@ void main() {
         ),
       ],
     );
-    expect(find.byType(ActivityCard), findsNothing);
-    expect(find.byType(MealsSection), findsOneWidget);
+    expect(find.byType(ActivityCard), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
+
+    await pumpToday(
+      tester,
+      extra: [
+        featureEnabledProvider.overrideWith(
+          (ref, f) => f != AppFeature.workouts,
+        ),
+      ],
+    );
+    expect(find.byType(ActivityCard), findsOneWidget);
     expect(tester.takeException(), isNull);
     await unmount(tester);
   });

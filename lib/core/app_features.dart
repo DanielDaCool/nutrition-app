@@ -1,9 +1,9 @@
 // Registry of the app features whose UI is gated, so a build can hide them.
 // Pure Dart: no Flutter, DB or Riverpod imports.
 
-/// A part of the app whose UI is gated so a build can hide it. In this app
-/// every available feature is always on; a fork overrides
-/// `featureEnabledProvider` to let the user switch features off.
+/// A part of the app whose UI is gated so a build can hide it. The user can
+/// switch most of them off in Settings -> Choose features; see
+/// `featureEnabledProvider` (`lib/app/providers.dart`).
 ///
 /// To add a feature: add a value here, then wrap its UI in
 /// `ref.watch(featureEnabledProvider(AppFeature.x))`
@@ -12,15 +12,15 @@
 /// Only append values, and never rename a [storageKey]: builds that store a
 /// per-feature choice store it under that id.
 enum AppFeature {
-  /// The Activity card on Today and the steps and workouts charts on the
+  /// The steps part of the Activity card on Today and the steps chart on the
   /// Dashboard. Display only: Health Connect syncing, its settings rows, the
   /// home widget and notifications are not affected.
   activity(
     storageKey: 'activity',
-    label: 'Steps and workouts',
+    label: 'Steps',
     description:
-        'The activity card on Today and the steps and workouts charts on '
-        'the Dashboard.',
+        'The steps part of the activity card on Today and the steps chart '
+        'on the Dashboard.',
     androidOnly: true,
   ),
 
@@ -45,6 +45,7 @@ enum AppFeature {
     storageKey: 'barcodeScan',
     label: 'Barcode scanning',
     description: 'The Scan button when adding food.',
+    userChoosable: false,
   ),
 
   /// The "Lose weight / Gain weight" choice in the profile form. While it's
@@ -55,6 +56,7 @@ enum AppFeature {
     description:
         'The "Lose weight / Gain weight" choice in your profile, for '
         'targets that add weight instead of losing it.',
+    userChoosable: false,
   ),
 
   /// Export data and Import data in Settings, and Restore from a backup on
@@ -65,6 +67,7 @@ enum AppFeature {
     description:
         'Export data and Import data in Settings, and Restore from a '
         'backup on first-run setup.',
+    userChoosable: false,
   ),
 
   /// The "Add to Home Screen" banner shown on iPhone Safari.
@@ -74,6 +77,7 @@ enum AppFeature {
     description:
         'The banner on iPhone Safari suggesting you add Nutrition to your '
         'Home Screen so your data survives longer.',
+    userChoosable: false,
   ),
 
   /// "Report a problem" in Settings.
@@ -83,6 +87,7 @@ enum AppFeature {
     description:
         'The "Report a problem" row in Settings that sends a description, '
         'your app version and platform to the developer.',
+    userChoosable: false,
   ),
 
   /// The "Update available" banner that links to the latest release's APK.
@@ -93,6 +98,35 @@ enum AppFeature {
         'The banner telling you a newer version is out, with a link to '
         'download it.',
     androidOnly: true,
+    userChoosable: false,
+  ),
+
+  /// The Dashboard tab in the bottom navigation.
+  dashboard(
+    storageKey: 'dashboard',
+    label: 'Dashboard',
+    description:
+        'The Dashboard tab with your weight, calorie and activity charts.',
+  ),
+
+  /// The walk reminder setting in Settings and its evening notification.
+  walkReminders(
+    storageKey: 'walkReminders',
+    label: 'Walk reminder',
+    description:
+        'The walk reminder setting in Settings and its evening notification.',
+    androidOnly: true,
+  ),
+
+  /// The workouts part of the Activity card on Today (including adding an
+  /// exercise) and the workouts chart on the Dashboard.
+  workouts(
+    storageKey: 'workouts',
+    label: 'Workouts',
+    description:
+        'The workouts part of the activity card on Today, with adding an '
+        'exercise, and the workouts chart on the Dashboard.',
+    androidOnly: true,
   );
 
   const AppFeature({
@@ -100,6 +134,7 @@ enum AppFeature {
     required this.label,
     required this.description,
     this.androidOnly = false,
+    this.userChoosable = true,
   });
 
   /// Stable id of the feature. Never rename.
@@ -115,6 +150,16 @@ enum AppFeature {
   /// True for features that only exist in the Android app.
   final bool androidOnly;
 
+  /// Whether the user may switch this feature off in Choose features. False
+  /// for features whose hiding could strand data or hide a safety notice
+  /// (backups, for one).
+  final bool userChoosable;
+
   /// Whether the feature exists at all on this platform.
   bool availableOn({required bool isWeb}) => !(androidOnly && isWeb);
+
+  /// Whether the user can see and switch this feature on this platform: it
+  /// exists here and is [userChoosable]. Choose features lists exactly these.
+  bool choosableOn({required bool isWeb}) =>
+      userChoosable && availableOn(isWeb: isWeb);
 }

@@ -14,6 +14,29 @@ void main() {
     expect(AppFeature.yesterdayPrompt.storageKey, 'yesterdayPrompt');
     expect(AppFeature.barcodeScan.storageKey, 'barcodeScan');
     expect(AppFeature.gainGoals.storageKey, 'gainGoals');
+    expect(AppFeature.backup.storageKey, 'backup');
+  });
+
+  test('the features added for Choose features are pinned', () {
+    expect(AppFeature.dashboard.storageKey, 'dashboard');
+    expect(AppFeature.dashboard.label, 'Dashboard');
+    expect(AppFeature.dashboard.androidOnly, isFalse);
+    expect(AppFeature.walkReminders.storageKey, 'walkReminders');
+    expect(AppFeature.walkReminders.label, 'Walk reminder');
+    expect(AppFeature.walkReminders.androidOnly, isTrue);
+    expect(AppFeature.workouts.storageKey, 'workouts');
+    expect(AppFeature.workouts.label, 'Workouts');
+    expect(AppFeature.workouts.androidOnly, isTrue);
+    // Appended at the end, so the earlier values keep their order.
+    expect(AppFeature.values.skip(AppFeature.values.length - 3), [
+      AppFeature.dashboard,
+      AppFeature.walkReminders,
+      AppFeature.workouts,
+    ]);
+  });
+
+  test('the steps feature keeps its key and is labelled Steps', () {
+    expect(AppFeature.activity.label, 'Steps');
   });
 
   test('every feature has a label and a description', () {
@@ -31,5 +54,44 @@ void main() {
       expect(f.availableOn(isWeb: false), isTrue, reason: f.name);
       expect(f.availableOn(isWeb: true), !f.androidOnly, reason: f.name);
     }
+  });
+
+  test('exactly the agreed features are user-choosable', () {
+    final choosable = {
+      for (final f in AppFeature.values)
+        if (f.userChoosable) f,
+    };
+    expect(choosable, {
+      AppFeature.activity,
+      AppFeature.recipes,
+      AppFeature.yesterdayPrompt,
+      AppFeature.dashboard,
+      AppFeature.walkReminders,
+      AppFeature.workouts,
+    });
+  });
+
+  test('backups, safety banners and always-on features are not choosable', () {
+    for (final f in [
+      AppFeature.backup,
+      AppFeature.installHint,
+      AppFeature.reportProblem,
+      AppFeature.updateAvailable,
+      AppFeature.barcodeScan,
+      AppFeature.gainGoals,
+    ]) {
+      expect(f.userChoosable, isFalse, reason: f.name);
+      expect(f.choosableOn(isWeb: false), isFalse, reason: f.name);
+    }
+  });
+
+  test('choosableOn needs both user-choosable and available here', () {
+    expect(AppFeature.dashboard.choosableOn(isWeb: true), isTrue);
+    expect(AppFeature.dashboard.choosableOn(isWeb: false), isTrue);
+    expect(AppFeature.recipes.choosableOn(isWeb: true), isTrue);
+    expect(AppFeature.walkReminders.choosableOn(isWeb: true), isFalse);
+    expect(AppFeature.walkReminders.choosableOn(isWeb: false), isTrue);
+    expect(AppFeature.workouts.choosableOn(isWeb: true), isFalse);
+    expect(AppFeature.activity.choosableOn(isWeb: true), isFalse);
   });
 }

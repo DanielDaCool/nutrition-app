@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
+import '../../../core/app_features.dart';
 import '../../../domain/models.dart';
 import '../../weight/weight_logic.dart';
 import '../../weight/weight_providers.dart';
@@ -14,6 +16,10 @@ import 'add_exercise_dialog.dart';
 
 /// Steps and workouts for one day. Shown on the Today screen.
 ///
+/// Each part has its own feature gate: the steps part follows
+/// [AppFeature.activity], the workouts part (and its add button) follows
+/// [AppFeature.workouts]. With both off the card renders nothing.
+///
 /// When Health Connect is missing or not connected it offers the fix right
 /// here (Install / Connect) instead of only saying there is no data.
 class ActivityCard extends ConsumerWidget {
@@ -24,6 +30,9 @@ class ActivityCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final showSteps = ref.watch(featureEnabledProvider(AppFeature.activity));
+    final showWorkouts = ref.watch(featureEnabledProvider(AppFeature.workouts));
+    if (!showSteps && !showWorkouts) return const SizedBox.shrink();
     final activity = ref.watch(dayActivityProvider(dayKey));
     final status = ref.watch(healthStatusProvider);
     final defaultWeightKg = latestWeighInKg(
@@ -48,17 +57,18 @@ class ActivityCard extends ConsumerWidget {
                   Expanded(
                     child: Text('Activity', style: theme.textTheme.titleMedium),
                   ),
-                  IconButton(
-                    key: const Key('addExerciseButton'),
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Add exercise',
-                    onPressed: () => showAddExerciseDialog(
-                      context,
-                      ref,
-                      dayKey: dayKey,
-                      defaultWeightKg: defaultWeightKg,
+                  if (showWorkouts)
+                    IconButton(
+                      key: const Key('addExerciseButton'),
+                      icon: const Icon(Icons.add),
+                      tooltip: 'Add exercise',
+                      onPressed: () => showAddExerciseDialog(
+                        context,
+                        ref,
+                        dayKey: dayKey,
+                        defaultWeightKg: defaultWeightKg,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -70,6 +80,8 @@ class ActivityCard extends ConsumerWidget {
                 hideEmpty: setup != null,
                 activeCalories: activeCalories,
                 stepGoal: stepGoal,
+                showSteps: showSteps,
+                showWorkouts: showWorkouts,
               ),
               AsyncError(:final error) => [_errorRow(ref, error)],
               _ => const [
@@ -145,18 +157,22 @@ class ActivityCard extends ConsumerWidget {
     required bool hideEmpty,
     required double? activeCalories,
     required int stepGoal,
+    required bool showSteps,
+    required bool showWorkouts,
   }) {
-    final steps = day.steps;
+    final hasSteps = showSteps && day.steps != null;
+    final workouts = showWorkouts ? day.workouts : const <WorkoutSummary>[];
     // Only fall back to the "no activity" empty state when Health Connect
     // isn't connected and there's truly nothing to show. Otherwise (even a
     // day with 0 synced steps) the goal section below is always worth
     // showing.
-    if (steps == null && day.workouts.isEmpty && hideEmpty) {
+    if (!hasSteps && workouts.isEmpty && hideEmpty) {
       return const [];
     }
     return [
-      _stepsSection(context, steps ?? 0, stepGoal, activeCalories),
-      for (final w in day.workouts)
+      if (showSteps)
+        _stepsSection(context, day.steps ?? 0, stepGoal, activeCalories),
+      for (final w in workouts)
         ListTile(
           leading: Icon(
             w.isManual ? Icons.edit_calendar : Icons.fitness_center,
