@@ -14,6 +14,7 @@ import '../food_providers.dart';
 import '../screens/add_food_screen.dart';
 import 'entry_edit_sheet.dart';
 import 'error_retry.dart';
+import '../quick_calories.dart';
 import 'food_format.dart';
 import 'saved_meal_list.dart';
 import 'undo_snack.dart';
@@ -90,6 +91,17 @@ class MealsSection extends ConsumerWidget {
             ),
           ),
           body,
+          if (_incompleteNote(items.value) case final note?)
+            Padding(
+              key: const Key('macros-incomplete-note'),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: Text(
+                note,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('Day fully logged'),
@@ -103,6 +115,18 @@ class MealsSection extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// "Includes 650 kcal without protein, fat or carb details." when the day
+  /// has quick adds with blank macros. Shown whatever the quick-add gate
+  /// says: it describes data already logged.
+  static String? _incompleteNote(List<LoggedItem>? items) {
+    if (items == null) return null;
+    final kcal = incompleteKcal([
+      for (final i in items) (i.macros.kcal, i.macrosIncomplete),
+    ]);
+    if (!items.any((i) => i.macrosIncomplete)) return null;
+    return 'Includes ${fmtKcal(kcal)} without protein, fat or carb details.';
   }
 
   Widget _meals(BuildContext context, WidgetRef ref, List<LoggedItem> items) {

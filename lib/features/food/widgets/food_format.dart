@@ -37,6 +37,7 @@ String sourceLabel(String source) => switch (source) {
   'usda' => 'USDA',
   'builtin' => 'Typical values',
   'recipe' => 'Recipe',
+  'quick' || 'quickKcal' => 'Quick add',
   _ => 'My food',
 };
 
@@ -84,8 +85,10 @@ String withDay(String title, String dayKey, String todayKey) {
 }
 
 /// An amount as the user thinks of it: "150 g", or "1.5 servings" for a
-/// recipe ([FoodSource.recipe] stores a serving as 100 pseudo-grams).
+/// recipe ([FoodSource.recipe] stores a serving as 100 pseudo-grams). A quick
+/// add has no amount, so it reads "Quick add".
 String fmtAmount(double grams, String source) {
+  if (FoodSource.isQuick(source)) return 'Quick add';
   if (source != FoodSource.recipe) return '${fmtNum(grams)} g';
   final servings = grams / 100;
   return '${fmtNum(servings, decimals: 2)} '
@@ -99,9 +102,10 @@ String addedMessage(
   double kcal,
   Meal meal, {
   String source = '',
-}) =>
-    'Added $foodName · ${fmtAmount(grams, source)} · ${fmtKcal(kcal)} '
-    'to ${mealLabel(meal)}';
+}) => FoodSource.isQuick(source)
+    ? 'Added $foodName · ${fmtKcal(kcal)} to ${mealLabel(meal)}'
+    : 'Added $foodName · ${fmtAmount(grams, source)} · ${fmtKcal(kcal)} '
+          'to ${mealLabel(meal)}';
 
 /// "150 g last time · 248 kcal" for a food's last logged amount.
 String lastTimeLine(Food f, double grams) =>

@@ -113,6 +113,15 @@ enum AppFeature {
     description:
         'Save a meal from its menu on Today, and add it again in one tap '
         'from the Saved tab when adding food.',
+  ),
+
+  /// The "Quick add calories" button when adding food.
+  quickCalories(
+    storageKey: 'quickCalories',
+    label: 'Quick add calories',
+    description:
+        'The lightning button when adding food that logs a calorie number '
+        'with optional protein, fat and carbs, without picking a food.',
   );
 
   const AppFeature({
