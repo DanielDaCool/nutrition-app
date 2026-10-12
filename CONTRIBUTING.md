@@ -15,7 +15,7 @@ flutter test                  # must pass
 ```
 
 The project layout and conventions (units, `dayKey` strings, one writer per table, tests with an
-in-memory database) are in [README.md](README.md#development) and [CLAUDE.md](CLAUDE.md).
+in-memory database) are in [README.md](README.md#development).
 
 ## Pull requests
 
