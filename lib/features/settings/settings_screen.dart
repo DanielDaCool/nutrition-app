@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import '../../app/providers.dart';
 import '../../core/app_features.dart';
 import '../../core/app_version.dart';
+import '../../core/day_key.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
@@ -23,6 +24,7 @@ import '../targets/engine/engine.dart';
 import '../targets/engine/explain.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
+import 'csv_data.dart';
 import 'data_export.dart';
 import 'error_retry.dart';
 import 'import_flow.dart';
@@ -79,11 +81,17 @@ class SettingsScreen extends ConsumerWidget {
             StepGoalSettingsTile(),
             WalkReminderSettingsTile(),
           ],
-          if (ref.watch(featureEnabledProvider(AppFeature.backup))) ...const [
-            Divider(),
-            _SectionHeader('Your data'),
-            ExportDataTile(),
-            ImportDataTile(),
+          // "Your data" shows when either backups or CSV export is on.
+          if (ref.watch(featureEnabledProvider(AppFeature.backup)) ||
+              ref.watch(featureEnabledProvider(AppFeature.csvExport))) ...[
+            const Divider(),
+            const _SectionHeader('Your data'),
+            if (ref.watch(featureEnabledProvider(AppFeature.backup)))
+              const ExportDataTile(),
+            if (ref.watch(featureEnabledProvider(AppFeature.csvExport)))
+              const ExportCsvTile(),
+            if (ref.watch(featureEnabledProvider(AppFeature.backup)))
+              const ImportDataTile(),
           ],
           if (ref.watch(featureEnabledProvider(AppFeature.reportProblem))) ...[
             const Divider(),
@@ -993,6 +1001,113 @@ class _ExportDataTileState extends ConsumerState<ExportDataTile> {
           )
         : null,
     onTap: _busy ? null : _export,
+  );
+}
+
+/// The CSV files "Export as CSV" can share.
+enum _CsvFile {
+  foodLog('Food log', 'food-log'),
+  weighIns('Weigh-ins', 'weigh-ins'),
+  targets('Targets', 'targets');
+
+  const _CsvFile(this.label, this.fileStem);
+  final String label;
+  final String fileStem;
+}
+
+/// Opens a sheet to share the food log, weigh-ins or targets as a CSV file
+/// for a spreadsheet. One file per tap. A backup (JSON) is what Import reads;
+/// these files are for looking at the data elsewhere.
+class ExportCsvTile extends ConsumerStatefulWidget {
+  const ExportCsvTile({super.key});
+
+  @override
+  ConsumerState<ExportCsvTile> createState() => _ExportCsvTileState();
+}
+
+class _ExportCsvTileState extends ConsumerState<ExportCsvTile> {
+  bool _busy = false;
+
+  Future<void> _share(_CsvFile file) async {
+    final db = ref.read(databaseProvider);
+    final name =
+        'nutrition-${file.fileStem}-${dayKeyOf(ref.read(clockProvider)())}.csv';
+    setState(() => _busy = true);
+    try {
+      final text = switch (file) {
+        _CsvFile.foodLog => await foodLogCsv(db),
+        _CsvFile.weighIns => await weighInsCsv(db),
+        _CsvFile.targets => await targetsCsv(db),
+      };
+      await shareTextFile(
+        name: name,
+        mimeType: 'text/csv',
+        text: text,
+        subject: 'Nutrition ${file.label.toLowerCase()}',
+        title: 'Export as CSV',
+      );
+    } catch (e, s) {
+      debugPrint('CSV export failed: $e\n$s');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("Couldn't export that file"),
+            action: SnackBarAction(
+              label: 'Try again',
+              onPressed: () {
+                if (mounted) _share(file);
+              },
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _choose() async {
+    final file = await showModalBottomSheet<_CsvFile>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text('Export as CSV'),
+              subtitle: Text(
+                'Opens in a spreadsheet. To restore your data later, use '
+                'Export data instead.',
+              ),
+            ),
+            for (final f in _CsvFile.values)
+              ListTile(
+                key: Key('csv-${f.name}'),
+                leading: const Icon(Icons.table_chart_outlined),
+                title: Text(f.label),
+                onTap: () => Navigator.of(context).pop(f),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (file != null && mounted) await _share(file);
+  }
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    key: const Key('export-csv'),
+    leading: const Icon(Icons.table_chart_outlined),
+    title: const Text('Export as CSV'),
+    subtitle: const Text('Food log, weigh-ins or targets for a spreadsheet'),
+    trailing: _busy
+        ? const SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : null,
+    onTap: _busy ? null : _choose,
   );
 }
 
