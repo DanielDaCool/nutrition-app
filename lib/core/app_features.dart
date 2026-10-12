@@ -131,6 +131,15 @@ enum AppFeature {
     description:
         'The "Export as CSV" row in Settings that shares your food log, '
         'weigh-ins or targets as a spreadsheet file.',
+  ),
+
+  /// Evening card on Today offering to mark the day as fully logged.
+  closeDayPrompt(
+    storageKey: 'closeDayPrompt',
+    label: 'Close the day',
+    description:
+        'The evening card on Today that asks whether you are done eating '
+        'and offers to mark the day as fully logged.',
   );
 
   const AppFeature({

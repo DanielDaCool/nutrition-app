@@ -1,6 +1,8 @@
 // OWNER: weight & charts agent (D). Contract stub: keep the class name/constructor.
 // Today tab: day navigation plus the check-in banner, calorie card, quick
 // weigh-in, meals and activity for the selected day.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -15,7 +17,10 @@ import '../targets/checkin_screen.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
 import '../weight/widgets/weigh_in_dialog.dart';
+import '../food/food_providers.dart';
+import 'close_day_logic.dart';
 import 'widgets/calorie_card.dart';
+import 'widgets/close_day_prompt.dart';
 import 'widgets/quick_weigh_in.dart';
 import 'widgets/yesterday_prompt.dart';
 
@@ -37,6 +42,10 @@ class TodayScreen extends ConsumerStatefulWidget {
 class _TodayScreenState extends ConsumerState<TodayScreen> {
   late final AppLifecycleListener _lifecycle;
 
+  /// Fires once when the evening threshold passes while the app stays open,
+  /// so the close-the-day prompt can appear without a restart or resume.
+  Timer? _eveningTimer;
+
   /// Today's dayKey when the screen opened or last resumed.
   late String _today;
 
@@ -47,10 +56,22 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     super.initState();
     _today = _now();
     _lifecycle = AppLifecycleListener(onResume: _checkDayRollover);
+    _scheduleEvening();
+  }
+
+  void _scheduleEvening() {
+    _eveningTimer?.cancel();
+    final now = ref.read(clockProvider)();
+    final threshold = DateTime(now.year, now.month, now.day, kCloseDayFromHour);
+    if (!threshold.isAfter(now)) return;
+    _eveningTimer = Timer(threshold.difference(now), () {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _eveningTimer?.cancel();
     _lifecycle.dispose();
     super.dispose();
   }
@@ -59,6 +80,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   void _checkDayRollover() {
     if (!mounted) return;
     final now = _now();
+    // Resuming can also be the first moment after the evening threshold.
+    _scheduleEvening();
+    setState(() {});
     if (now == _today) return;
     final wasOnToday = ref.read(selectedDayProvider) == _today;
     _today = now;
@@ -83,6 +107,21 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final showYesterdayPrompt = ref.watch(
       featureEnabledProvider(AppFeature.yesterdayPrompt),
     );
+
+    final showCloseDayPrompt = ref.watch(
+      featureEnabledProvider(AppFeature.closeDayPrompt),
+    );
+    // At most one prompt card at a time: the yesterday question goes first.
+    final yesterdayPromptShowing =
+        showYesterdayPrompt && ref.watch(yesterdayPromptVisibleProvider(today));
+    final closeDay = isToday && showCloseDayPrompt && !yesterdayPromptShowing
+        ? showCloseDay(
+            now: ref.read(clockProvider)(),
+            todayKey: today,
+            today: ref.watch(dayIntakeProvider(today)).value,
+            dismissedOn: ref.watch(closeDayDismissedProvider),
+          )
+        : false;
 
     final Widget? weight = weighIns == null
         ? null
@@ -148,6 +187,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             const SizedBox(height: 4),
           ],
           if (isToday && showYesterdayPrompt) YesterdayPrompt(today: today),
+          if (closeDay) CloseDayPrompt(today: today),
           if (isToday && weight != null) weight,
           CalorieCard(dayKey: dayKey),
           if (!isToday && weight != null) weight,
