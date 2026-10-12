@@ -903,6 +903,34 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the step goal tile is left out while Steps is off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.activity,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+    expect(find.byType(StepGoalSettingsTile), findsNothing);
+    expect(find.byType(HealthConnectSettingsTile), findsOneWidget);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byKey(const Key('chooseFeaturesTile')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the walk reminder tile is left out while its gate is off', (
     tester,
   ) async {

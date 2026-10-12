@@ -74,7 +74,8 @@ class SettingsScreen extends ConsumerWidget {
           if (!isWeb) ...[
             const Divider(),
             const HealthConnectSettingsTile(),
-            const StepGoalSettingsTile(),
+            if (ref.watch(featureEnabledProvider(AppFeature.activity)))
+              const StepGoalSettingsTile(),
             if (ref.watch(featureEnabledProvider(AppFeature.walkReminders)))
               const WalkReminderSettingsTile(),
           ],
