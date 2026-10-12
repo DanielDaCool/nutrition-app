@@ -17,6 +17,7 @@ import '../../domain/models.dart';
 import '../activity/widgets/health_connect_tile.dart';
 import '../activity/widgets/step_goal_tile.dart';
 import '../activity/widgets/walk_reminder_tile.dart';
+import '../targets/checkin_history_screen.dart';
 import '../targets/checkin_screen.dart';
 import '../targets/engine/engine.dart';
 import '../targets/engine/explain.dart';
@@ -43,9 +44,11 @@ class SettingsScreen extends ConsumerWidget {
       _SectionHeader('Profile', key: Key('profileHeader')),
       ProfileForm(key: Key('profileForm'), lockable: true),
     ];
-    const targetsSection = [
-      CurrentTargetsCard(key: Key('targetsCard')),
-      CheckInTile(key: Key('checkInTile')),
+    final targetsSection = [
+      const CurrentTargetsCard(key: Key('targetsCard')),
+      const CheckInTile(key: Key('checkInTile')),
+      if (ref.watch(featureEnabledProvider(AppFeature.targetInsights)))
+        const CheckInHistoryTile(key: Key('checkInHistoryTile')),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -204,6 +207,22 @@ class CheckInTile extends ConsumerWidget {
           .push(MaterialPageRoute<void>(builder: (_) => const CheckInScreen())),
     );
   }
+}
+
+/// Opens [CheckInHistoryScreen].
+class CheckInHistoryTile extends StatelessWidget {
+  const CheckInHistoryTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: const Icon(Icons.history),
+    title: const Text('Check-in history'),
+    subtitle: const Text('Past targets and how they were worked out'),
+    trailing: const Icon(Icons.chevron_right),
+    onTap: () => Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CheckInHistoryScreen()),
+    ),
+  );
 }
 
 const _activityText = {

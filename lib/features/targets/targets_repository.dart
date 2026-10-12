@@ -11,6 +11,8 @@ import '../../core/day_key.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import 'engine/engine.dart';
+import 'engine/history.dart';
+import 'engine/readiness.dart';
 
 /// Loads engine input from the DB, and reads/writes Profiles + TargetHistory.
 class TargetsRepository {
@@ -444,6 +446,61 @@ class TargetsRepository {
     );
     return controller.stream;
   }
+
+  // ---- History and readiness --------------------------------------------
+
+  /// Every stored target, newest first, as check-in history entries. A row
+  /// whose explanation can't be read (legacy, marker-only skip with no
+  /// target to follow, damaged JSON) comes back with `explanation: null`.
+  Future<List<CheckInEntry>> loadHistory() async {
+    final rows =
+        await (db.select(db.targetHistory)..orderBy([
+              (t) => OrderingTerm.desc(t.effectiveFrom),
+              (t) => OrderingTerm.desc(t.id),
+            ]))
+            .get();
+    final jsonById = {for (final r in rows) r.id: r.explanationJson};
+    return [
+      for (final r in rows)
+        entryFromRow(
+          effectiveFrom: r.effectiveFrom,
+          macros: Macros(
+            kcal: r.kcal,
+            proteinG: r.proteinG,
+            fatG: r.fatG,
+            carbsG: r.carbsG,
+          ),
+          maintenanceKcal: r.maintenanceKcal,
+          methodIndex: r.method,
+          explanationJson: r.explanationJson,
+          resolvedExplanation: resolveExplanationMap(
+            r.explanationJson,
+            jsonById,
+          ),
+        ),
+    ];
+  }
+
+  /// Stream behind `checkInHistoryProvider`; see [loadHistory].
+  Stream<List<CheckInEntry>> watchHistory() =>
+      watch([db.targetHistory], loadHistory);
+
+  /// How far today's data is from adapting the target, or null without a
+  /// profile or weigh-in.
+  Future<Readiness?> readinessToday() async {
+    final input = await loadInput();
+    if (input == null) return null;
+    return readinessOf(input, recommend(input).explanation);
+  }
+
+  /// Stream behind `targetReadinessProvider`; see [readinessToday].
+  Stream<Readiness?> watchReadiness() => watch([
+    db.profiles,
+    db.weighIns,
+    db.foodLogEntries,
+    db.dayStatuses,
+    db.targetHistory,
+  ], readinessToday);
 
   /// Stream behind `currentTargetsProvider`; see [currentTargets].
   Stream<DailyTargets?> watchCurrentTargets() =>

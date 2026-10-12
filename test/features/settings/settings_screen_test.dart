@@ -14,6 +14,7 @@ import 'package:nutrition_app/features/activity/widgets/walk_reminder_tile.dart'
 import 'package:nutrition_app/features/settings/data_export.dart';
 import 'package:nutrition_app/features/settings/report_problem_tile.dart';
 import 'package:nutrition_app/features/settings/settings_screen.dart';
+import 'package:nutrition_app/features/targets/checkin_history_screen.dart';
 
 import '../../helpers/test_db.dart';
 
@@ -882,6 +883,52 @@ void main() {
     expect(find.byKey(const Key('profileForm')), findsOneWidget);
     expect(find.byKey(const Key('goalWeightKg')), findsOneWidget);
     expect(find.byKey(const Key('goalDirection')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Check-in history opens from Settings', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    expect(find.text('Check-in history'), findsOneWidget);
+    await tester.tap(find.text('Check-in history'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CheckInHistoryScreen), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('the check-in history row is left out when switched off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.targetInsights,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    expect(find.byKey(const Key('checkInTile')), findsOneWidget);
+    expect(find.byType(CheckInHistoryTile), findsNothing);
+    expect(find.text('Check-in history'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

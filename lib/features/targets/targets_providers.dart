@@ -8,6 +8,8 @@ import '../../app/providers.dart';
 import '../../data/db/database.dart';
 import '../../domain/models.dart';
 import 'engine/engine.dart';
+import 'engine/history.dart';
+import 'engine/readiness.dart';
 import 'targets_repository.dart';
 
 /// The [TargetsRepository] bound to the app DB and clock.
@@ -43,3 +45,14 @@ final checkInRecommendationProvider =
     FutureProvider.autoDispose<Recommendation?>(
       (ref) => ref.watch(targetsRepositoryProvider).recommendToday(),
     );
+
+/// Every stored target, newest first (the check-in history).
+final checkInHistoryProvider = StreamProvider<List<CheckInEntry>>(
+  (ref) => ref.watch(targetsRepositoryProvider).watchHistory(),
+);
+
+/// What today's data still lacks before the target adapts to it (null
+/// without a profile or weigh-in).
+final targetReadinessProvider = StreamProvider<Readiness?>(
+  (ref) => ref.watch(targetsRepositoryProvider).watchReadiness(),
+);

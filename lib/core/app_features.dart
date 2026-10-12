@@ -93,6 +93,16 @@ enum AppFeature {
         'The banner telling you a newer version is out, with a link to '
         'download it.',
     androidOnly: true,
+  ),
+
+  /// Check-in history in Settings, and what the engine still needs on the
+  /// weekly check-in.
+  targetInsights(
+    storageKey: 'targetInsights',
+    label: 'Target details',
+    description:
+        'Check-in history in Settings, and what the engine still needs, on '
+        'the weekly check-in.',
   );
 
   const AppFeature({

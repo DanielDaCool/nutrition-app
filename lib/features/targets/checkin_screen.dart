@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../app/providers.dart';
+import '../../core/app_features.dart';
 import '../../domain/models.dart';
 import '../settings/error_retry.dart';
 import '../settings/setup_screen.dart';
@@ -13,6 +15,8 @@ import 'engine/engine.dart';
 import 'engine/explain.dart';
 import 'targets_providers.dart';
 import 'targets_repository.dart';
+import 'widgets/maintenance_confidence.dart';
+import 'widgets/readiness_note.dart';
 
 /// Weekly check-in: shows the new recommendation and why, user accepts it.
 ///
@@ -132,11 +136,19 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     DailyTargets? cur,
     TargetsRepository repo,
   ) {
+    final insights = ref.watch(
+      featureEnabledProvider(AppFeature.targetInsights),
+    );
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _Comparison(current: cur, next: r),
+        if (insights) ...[
+          const SizedBox(height: 8),
+          MaintenanceConfidenceLine(explanation: r.explanation),
+        ],
         const SizedBox(height: 16),
+        if (insights) const ReadinessNote(),
         Text('Why', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         for (final line in explainLines(r.explanation))
