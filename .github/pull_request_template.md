@@ -7,6 +7,7 @@
 - [ ] `flutter analyze` is clean
 - [ ] `flutter test` passes
 - [ ] Schema change? Migration, backup `_upgrade` step and tests all added (see CONTRIBUTING.md)
+- [ ] `feature` PR? Feature registered in `AppFeature`, UI gated, gate-off widget test added
 
 ## Label
 
