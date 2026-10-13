@@ -10,8 +10,9 @@
 
 A personal app for losing (or gaining) weight: log what you eat, weigh in every morning, and get
 calorie and macro targets that adjust every week based on how your weight is actually moving.
-Steps and gym workouts come in automatically from Health Connect (Hevy writes workouts there), or
-you can log a workout by hand.
+On Android, steps and gym workouts come in automatically from Health Connect (Hevy writes
+workouts there), or you can log a workout by hand. The web build has no Health Connect, so it has
+no steps or workouts.
 
 Everything is stored on the phone (or the browser, for the web build). There's no account, no
 server and no login. Each person's data stays on their own device; Settings → Export data saves
@@ -75,7 +76,7 @@ lib/
     dashboard/            charts over time
     recipes/              bundled recipe catalog, search/filters, recommendations
 test/                     unit, provider and widget tests (in-memory database)
-docs/                     plan, calorie engine spec, and the user manual's source
+docs/                     plan, calorie engine spec, product research, and the user manual's source
 ```
 
 Tech: Flutter, Riverpod 3 for state, Drift for the local database, `health` for Health Connect,
@@ -94,10 +95,13 @@ Merging to `main` doesn't change what friends have; only [a release](#releasing-
 ## How the calorie recommendation works
 
 1. **Start:** before there's enough data, maintenance = Mifflin-St Jeor BMR × your activity level.
-2. **Learn:** once there are at least 7 fully logged days, 6 weigh-ins and a 10-day trend in the
-   last 21 days, the app measures maintenance:
-   `average intake − (trend weight change × 7700 kcal/kg) ÷ days`.
-   It blends from the formula to the measured value as more logged days come in.
+2. **Learn:** once the last 28 days (ending yesterday) hold at least 7 fully logged days and 6
+   weigh-ins spanning at least 14 days, the app measures maintenance:
+   `average intake − (trend weight change × kcal per kg) ÷ days`. The kcal per kg comes from an
+   estimated body-fat percentage (fat and lean tissue store different energy), not a flat 7700.
+   The first 14 days after a change of diet phase are left out, because early water and glycogen
+   loss would read as fat loss. Each weekly measurement is smoothed against the previous ones
+   with a Kalman filter, then blended with the formula as more logged days and weigh-ins come in.
 3. **Target:** maintenance minus the deficit (losing) or plus the surplus (gaining) for your
    weekly rate, which you pick with a slider from 0.25 % of body weight a week up to a cap the
    app sets from your BMI and body fat. Losing: cap is 0.5–1.0 % (higher BMI/body fat allows a
