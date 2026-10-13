@@ -122,6 +122,15 @@ enum AppFeature {
     description:
         'The lightning button when adding food that logs a calorie number '
         'with optional protein, fat and carbs, without picking a food.',
+  ),
+
+  /// "Export as CSV" in Settings.
+  csvExport(
+    storageKey: 'csvExport',
+    label: 'CSV export',
+    description:
+        'The "Export as CSV" row in Settings that shares your food log, '
+        'weigh-ins or targets as a spreadsheet file.',
   );
 
   const AppFeature({
