@@ -105,14 +105,14 @@ enum AppFeature {
         'the weekly check-in.',
   ),
 
-  /// Saving a meal as a named group of foods, and logging it again from the
-  /// Saved tab when adding food.
+  /// Saving a meal as a named group of foods, logging it again from the
+  /// Saved tab when adding food, and logging a serving of a recipe.
   savedMeals(
     storageKey: 'savedMeals',
     label: 'Saved meals',
     description:
-        'Save a meal from its menu on Today, and add it again in one tap '
-        'from the Saved tab when adding food.',
+        'Save a meal from its menu on Today, add it again in one tap from '
+        'the Saved tab when adding food, and log a serving of a recipe.',
   );
 
   const AppFeature({
