@@ -103,6 +103,16 @@ enum AppFeature {
     description:
         'Check-in history in Settings, and what the engine still needs, on '
         'the weekly check-in.',
+  ),
+
+  /// Saving a meal as a named group of foods, logging it again from the
+  /// Saved tab when adding food, and logging a serving of a recipe.
+  savedMeals(
+    storageKey: 'savedMeals',
+    label: 'Saved meals',
+    description:
+        'Save a meal from its menu on Today, add it again in one tap from '
+        'the Saved tab when adding food, and log a serving of a recipe.',
   );
 
   const AppFeature({

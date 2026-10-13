@@ -10,6 +10,13 @@ abstract final class FoodSource {
   /// A food from the built-in list (typical values); `externalId` is its
   /// key in `builtin_foods.dart`. Saved the first time it is logged.
   static const builtin = 'builtin';
+
+  /// A recipe from the Recipes tab, saved as a hidden food the first time a
+  /// serving is logged; `externalId` is the recipe id. Its per-100 g values
+  /// equal one serving and `servingGrams` is 100, so one serving is 100
+  /// "pseudo-grams": the catalog has no real weights or yield. It is left
+  /// out of describe matching but shows under Recent and Favorites.
+  static const recipe = 'recipe';
 }
 
 /// A food from Open Food Facts or USDA. Nutrients are per 100 g; null means

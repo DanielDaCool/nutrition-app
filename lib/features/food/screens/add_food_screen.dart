@@ -19,6 +19,7 @@ import '../nutrition_math.dart';
 import '../widgets/error_retry.dart';
 import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
+import '../widgets/saved_meal_list.dart';
 import '../widgets/undo_snack.dart';
 import 'barcode_scan_screen.dart';
 import 'custom_food_screen.dart';
@@ -137,6 +138,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
           grams,
           macrosForGrams(per100gOf(food), grams).kcal,
           widget.meal,
+          source: food.source,
         ),
         [id],
       );
@@ -240,8 +242,12 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     final scanEnabled = ref.watch(
       featureEnabledProvider(AppFeature.barcodeScan),
     );
+    // The Saved tab is behind a feature gate: without it there are 4 tabs.
+    final savedEnabled = ref.watch(
+      featureEnabledProvider(AppFeature.savedMeals),
+    );
     return DefaultTabController(
-      length: 4,
+      length: savedEnabled ? 5 : 4,
       child: Scaffold(
         appBar: AppBar(
           title: Text(
@@ -259,12 +265,17 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
               onPressed: _busy ? null : () => _createFood(),
             ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
+            // Five labels need tighter padding to fit a phone width.
+            labelPadding: savedEnabled
+                ? const EdgeInsets.symmetric(horizontal: 4)
+                : null,
             tabs: [
-              Tab(text: 'Recent'),
-              Tab(text: 'Favorites'),
-              Tab(text: 'My foods'),
-              Tab(text: 'Search'),
+              const Tab(text: 'Recent'),
+              const Tab(text: 'Favorites'),
+              const Tab(text: 'My foods'),
+              const Tab(text: 'Search'),
+              if (savedEnabled) const Tab(text: 'Saved'),
             ],
           ),
         ),
@@ -331,6 +342,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
                     onEdit: _editFood,
                   ),
                   FoodSearchPanel(onPick: _pickRemote, onPickLocal: _pickLocal),
+                  if (savedEnabled)
+                    SavedMealList(dayKey: widget.dayKey, meal: widget.meal),
                 ],
               ),
             ),
@@ -427,7 +440,7 @@ class _FoodList extends ConsumerWidget {
                 ? null
                 : IconButton(
                     key: Key('quick-add-${f.id}'),
-                    tooltip: 'Add ${fmtNum(last)} g',
+                    tooltip: 'Add ${fmtAmount(last, f.source)}',
                     icon: Icon(Icons.add_circle, color: scheme.primary),
                     onPressed: () => onQuickAdd!(f, last),
                   ),

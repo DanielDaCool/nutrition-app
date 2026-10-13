@@ -9,6 +9,7 @@ import '../../../core/day_key.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
 import '../data/food_repository.dart';
+import '../data/remote_food.dart';
 import '../food_providers.dart';
 import '../nutrition_math.dart';
 import '../widgets/food_format.dart';
@@ -40,6 +41,9 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
       ? _Unit.servings
       : _Unit.grams;
   late final _amount = TextEditingController();
+
+  /// A recipe food is only ever counted in servings (100 pseudo-grams).
+  bool get _isRecipe => widget.food.source == FoodSource.recipe;
   bool _saving = false;
 
   /// Set once the user types or switches unit, so the remembered amount
@@ -78,7 +82,9 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
       return;
     }
     if (last == null || !mounted || _touched) return;
-    final servings = evenServings(last, widget.food.servingGrams);
+    final servings = _isRecipe
+        ? last / recipeServingGrams
+        : evenServings(last, widget.food.servingGrams);
     setState(() {
       _lastGrams = last;
       _unit = servings == null ? _Unit.grams : _Unit.servings;
@@ -94,7 +100,7 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
     if (grams == null) return null;
     final same = _lastGrams != null && (grams - _lastGrams!).abs() < 1e-6;
     final parts = [
-      if (_unit == _Unit.servings) '= ${fmtNum(grams)} g',
+      if (_unit == _Unit.servings && !_isRecipe) '= ${fmtNum(grams)} g',
       if (same) 'Same as last time',
     ];
     return parts.isEmpty ? null : parts.join(' · ');
@@ -154,6 +160,7 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
           grams,
           macrosForGrams(per100gOf(food), grams).kcal,
           widget.meal,
+          source: food.source,
         ),
         [id],
       );
@@ -206,7 +213,7 @@ class _PortionScreenState extends ConsumerState<PortionScreen> {
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          if (food.servingGrams != null) ...[
+          if (food.servingGrams != null && !_isRecipe) ...[
             SegmentedButton<_Unit>(
               segments: [
                 const ButtonSegment(value: _Unit.grams, label: Text('Grams')),

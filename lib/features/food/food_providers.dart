@@ -91,6 +91,11 @@ final customFoodsProvider = StreamProvider<List<Food>>(
   (ref) => ref.watch(foodRepositoryProvider).watchCustom(),
 );
 
+/// Saved meals by name, with their items at current food values.
+final savedMealsProvider = StreamProvider<List<SavedMealView>>(
+  (ref) => ref.watch(foodRepositoryProvider).watchSavedMeals(),
+);
+
 /// Grams logged last time per food id (only foods with an entry).
 final lastGramsByFoodProvider = StreamProvider<Map<int, double>>(
   (ref) => ref.watch(foodRepositoryProvider).watchLastGrams(),
