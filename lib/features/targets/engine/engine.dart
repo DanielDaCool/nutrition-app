@@ -597,6 +597,14 @@ double? weightSlopeStdErrKgPerDay(List<(double, double)> points, double slope) {
 /// `YYYY-MM-DD`).
 String _laterDay(String a, String b) => a.compareTo(b) >= 0 ? a : b;
 
+/// Whether the weight change over the measurement window is taken from the
+/// smoothed trend (true) or from a regression through the raw weigh-ins
+/// (false): the trend is used once it has run [kTrendWarmupDays] before
+/// [measurementStart]. The raw-weigh-in regression is the one that also needs
+/// the weigh-ins to span [kMinSpanDays].
+bool usesTrendDifference(String firstWeighIn, String measurementStart) =>
+    daysBetween(firstWeighIn, measurementStart) >= kTrendWarmupDays;
+
 /// Computes the recommended daily targets for [EngineInput.today].
 ///
 /// Throws [ArgumentError] when there is no weigh-in on or before today.
@@ -711,8 +719,7 @@ Recommendation recommend(EngineInput input) {
     final firstWeighIn = weighIns.keys.reduce(
       (a, b) => a.compareTo(b) < 0 ? a : b,
     );
-    final useTrend =
-        daysBetween(firstWeighIn, measurementStart) >= kTrendWarmupDays;
+    final useTrend = usesTrendDifference(firstWeighIn, measurementStart);
 
     final double kgPerDay;
     final int span;
