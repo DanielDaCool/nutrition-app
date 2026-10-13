@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/app_features.dart';
 import '../../core/day_key.dart';
 import '../../domain/models.dart';
+import '../food/data/remote_food.dart' show FoodSource;
 import '../food/food_providers.dart';
 import '../food/widgets/food_format.dart' show addedMessage, friendlyError;
 import '../food/widgets/undo_snack.dart';
@@ -444,12 +446,12 @@ void _showRecipeDetail(BuildContext context, Recipe recipe) {
   );
 }
 
-class _RecipeDetailSheet extends StatelessWidget {
+class _RecipeDetailSheet extends ConsumerWidget {
   const _RecipeDetailSheet({required this.recipe});
   final Recipe recipe;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final macros = recipe.perServing;
@@ -482,16 +484,18 @@ class _RecipeDetailSheet extends StatelessWidget {
               _MacroChip(label: 'Carbs ${macros.carbsG.round()}g'),
             ],
           ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            key: const Key('log-recipe'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
+          if (ref.watch(featureEnabledProvider(AppFeature.savedMeals))) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              key: const Key('log-recipe'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              onPressed: () => _showLogRecipe(context, recipe),
+              icon: const Icon(Icons.add),
+              label: const Text('Log a serving'),
             ),
-            onPressed: () => _showLogRecipe(context, recipe),
-            icon: const Icon(Icons.add),
-            label: const Text('Log a serving'),
-          ),
+          ],
           const SizedBox(height: 20),
           Text('Ingredients', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -600,7 +604,7 @@ class _LogRecipeSheetState extends ConsumerState<_LogRecipeSheet> {
           _servings * 100,
           recipe.perServing.kcal * _servings,
           _meal,
-          source: 'recipe',
+          source: FoodSource.recipe,
         ),
         [id],
       );

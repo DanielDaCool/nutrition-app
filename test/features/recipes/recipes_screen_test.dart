@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/recipes/data/recipe_catalog.dart';
@@ -15,7 +16,10 @@ void main() {
   setUp(() => db = openTestDatabase());
   tearDown(() => db.close());
 
-  Future<void> pumpRecipes(WidgetTester tester) async {
+  Future<void> pumpRecipes(
+    WidgetTester tester, {
+    Set<AppFeature> featuresOff = const {},
+  }) async {
     tester.view.physicalSize = const Size(800, 3000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -24,6 +28,10 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           clockProvider.overrideWithValue(() => DateTime(2026, 9, 25, 12)),
+          if (featuresOff.isNotEmpty)
+            featureEnabledProvider.overrideWith(
+              (ref, f) => !featuresOff.contains(f),
+            ),
         ],
         child: const MaterialApp(home: RecipesScreen()),
       ),
@@ -54,6 +62,27 @@ void main() {
       scrollable: scrollable,
     );
     expect(find.text('Snacks'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
+  testWidgets('gate off: the recipe sheet has no Log a serving button', (
+    tester,
+  ) async {
+    await pumpRecipes(tester, featuresOff: const {AppFeature.savedMeals});
+    final recipe = recipeCatalog.firstWhere(
+      (r) => r.category == Meal.breakfast,
+    );
+    final card = find.text(recipe.name).first;
+    await tester.ensureVisible(card);
+    await tester.tap(card);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull);
+    expect(find.text('Ingredients'), findsOneWidget);
+    expect(find.byKey(const Key('log-recipe')), findsNothing);
+    expect(find.text('Log a serving'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
