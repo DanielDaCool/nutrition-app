@@ -15,6 +15,11 @@ const _order = [
   AppFeature.yesterdayPrompt,
   AppFeature.dashboard,
   AppFeature.walkReminders,
+  AppFeature.savedMeals,
+  AppFeature.quickCalories,
+  AppFeature.closeDayPrompt,
+  AppFeature.targetInsights,
+  AppFeature.csvExport,
 ];
 
 /// Lists the features the user can switch on or off on this platform.

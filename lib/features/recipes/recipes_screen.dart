@@ -6,8 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/app_features.dart';
 import '../../core/day_key.dart';
 import '../../domain/models.dart';
+import '../food/data/remote_food.dart' show FoodSource;
+import '../food/food_providers.dart';
+import '../food/widgets/food_format.dart' show addedMessage, friendlyError;
+import '../food/widgets/undo_snack.dart';
 import 'recipe_filters.dart';
 import 'recipes_providers.dart';
 
@@ -441,12 +446,12 @@ void _showRecipeDetail(BuildContext context, Recipe recipe) {
   );
 }
 
-class _RecipeDetailSheet extends StatelessWidget {
+class _RecipeDetailSheet extends ConsumerWidget {
   const _RecipeDetailSheet({required this.recipe});
   final Recipe recipe;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final macros = recipe.perServing;
@@ -479,6 +484,18 @@ class _RecipeDetailSheet extends StatelessWidget {
               _MacroChip(label: 'Carbs ${macros.carbsG.round()}g'),
             ],
           ),
+          if (ref.watch(featureEnabledProvider(AppFeature.savedMeals))) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              key: const Key('log-recipe'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              onPressed: () => _showLogRecipe(context, recipe),
+              icon: const Icon(Icons.add),
+              label: const Text('Log a serving'),
+            ),
+          ],
           const SizedBox(height: 20),
           Text('Ingredients', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -520,6 +537,189 @@ class _RecipeDetailSheet extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Opens the sheet that logs servings of [recipe] to a meal and day.
+void _showLogRecipe(BuildContext context, Recipe recipe) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (_) => _LogRecipeSheet(recipe: recipe),
+  );
+}
+
+/// Servings (0.5 steps), meal (defaults to the recipe's category) and day
+/// (today or yesterday), then Add with an Undo snackbar. Writes through the
+/// food repository: a recipe is logged as a hidden food, one serving being
+/// 100 pseudo-grams of it.
+class _LogRecipeSheet extends ConsumerStatefulWidget {
+  const _LogRecipeSheet({required this.recipe});
+  final Recipe recipe;
+
+  @override
+  ConsumerState<_LogRecipeSheet> createState() => _LogRecipeSheetState();
+}
+
+class _LogRecipeSheetState extends ConsumerState<_LogRecipeSheet> {
+  double _servings = 1;
+  late Meal _meal = widget.recipe.category;
+  bool _yesterday = false;
+  bool _saving = false;
+
+  static String _servingsText(double v) {
+    final t = v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+    return '$t ${v == 1 ? 'serving' : 'servings'}';
+  }
+
+  Future<void> _add() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final repo = ref.read(foodRepositoryProvider);
+    final today = dayKeyOf(ref.read(clockProvider)());
+    final dayKey = _yesterday ? addDays(today, -1) : today;
+    final recipe = widget.recipe;
+    try {
+      final id = await repo.logRecipe(
+        dayKey: dayKey,
+        meal: _meal,
+        recipe: recipe,
+        servings: _servings,
+      );
+      // Close this sheet and the recipe sheet under it, so the snackbar
+      // (and its Undo) isn't left behind a modal barrier.
+      navigator.pop();
+      navigator.pop();
+      showAddedSnack(
+        messenger,
+        repo,
+        addedMessage(
+          recipe.name,
+          _servings * 100,
+          recipe.perServing.kcal * _servings,
+          _meal,
+          source: FoodSource.recipe,
+        ),
+        [id],
+      );
+    } catch (e, st) {
+      final message = friendlyError(e, st);
+      if (!mounted) return;
+      setState(() => _saving = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not add it. $message')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final kcal = widget.recipe.perServing.kcal * _servings;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        16 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.recipe.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                IconButton.filledTonal(
+                  key: const Key('servings-minus'),
+                  tooltip: 'Fewer servings',
+                  onPressed: _servings > 0.5
+                      ? () => setState(() => _servings -= 0.5)
+                      : null,
+                  icon: const Icon(Icons.remove),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        _servingsText(_servings),
+                        key: const Key('servings-text'),
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      Text('${kcal.round()} kcal'),
+                    ],
+                  ),
+                ),
+                IconButton.filledTonal(
+                  key: const Key('servings-plus'),
+                  tooltip: 'More servings',
+                  onPressed: _servings < 20
+                      ? () => setState(() => _servings += 0.5)
+                      : null,
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text('Meal', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final m in _categories)
+                  ChoiceChip(
+                    key: Key('log-meal-${m.name}'),
+                    label: Text(_categoryLabel(m)),
+                    selected: m == _meal,
+                    onSelected: (_) => setState(() => _meal = m),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text('Day', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  key: const Key('log-day-today'),
+                  label: const Text('Today'),
+                  selected: !_yesterday,
+                  onSelected: (_) => setState(() => _yesterday = false),
+                ),
+                ChoiceChip(
+                  key: const Key('log-day-yesterday'),
+                  label: const Text('Yesterday'),
+                  selected: _yesterday,
+                  onSelected: (_) => setState(() => _yesterday = true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              key: const Key('log-recipe-add'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+              onPressed: _saving ? null : _add,
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ),
     );
   }

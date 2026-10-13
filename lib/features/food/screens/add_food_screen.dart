@@ -19,6 +19,8 @@ import '../nutrition_math.dart';
 import '../widgets/error_retry.dart';
 import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
+import '../widgets/quick_calories_sheet.dart';
+import '../widgets/saved_meal_list.dart';
 import '../widgets/undo_snack.dart';
 import 'barcode_scan_screen.dart';
 import 'custom_food_screen.dart';
@@ -137,9 +139,46 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
           grams,
           macrosForGrams(per100gOf(food), grams).kcal,
           widget.meal,
+          source: food.source,
         ),
         [id],
       );
+    } catch (e, st) {
+      _showError('Could not add it.', e, st);
+    }
+  }
+
+  /// Asks for calories (and optional macros) and logs them without a food,
+  /// then closes this screen.
+  Future<void> _quickCalories() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final input = await showQuickCaloriesSheet(context);
+    if (input == null || !mounted) return;
+    final repo = ref.read(foodRepositoryProvider);
+    try {
+      final id = await repo.logQuickCalories(
+        dayKey: widget.dayKey,
+        meal: widget.meal,
+        kcal: input.kcal,
+        proteinG: input.proteinG,
+        fatG: input.fatG,
+        carbsG: input.carbsG,
+        label: input.label,
+      );
+      showAddedSnack(
+        messenger,
+        repo,
+        addedMessage(
+          input.label ?? 'Quick add',
+          100,
+          input.kcal,
+          widget.meal,
+          source: FoodSource.quick,
+        ),
+        [id],
+      );
+      navigator.pop();
     } catch (e, st) {
       _showError('Could not add it.', e, st);
     }
@@ -240,8 +279,16 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     final scanEnabled = ref.watch(
       featureEnabledProvider(AppFeature.barcodeScan),
     );
+    // The Saved tab is behind a feature gate: without it there are 4 tabs.
+    final savedEnabled = ref.watch(
+      featureEnabledProvider(AppFeature.savedMeals),
+    );
+    // Quick add calories is behind a feature gate too.
+    final quickEnabled = ref.watch(
+      featureEnabledProvider(AppFeature.quickCalories),
+    );
     return DefaultTabController(
-      length: 4,
+      length: savedEnabled ? 5 : 4,
       child: Scaffold(
         appBar: AppBar(
           title: Text(
@@ -252,6 +299,13 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
             ),
           ),
           actions: [
+            if (quickEnabled)
+              IconButton(
+                key: const Key('quick-calories-button'),
+                tooltip: 'Quick add calories',
+                icon: const Icon(Icons.bolt),
+                onPressed: _busy ? null : _quickCalories,
+              ),
             IconButton(
               key: const Key('new-food-button'),
               tooltip: 'New food',
@@ -259,12 +313,17 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
               onPressed: _busy ? null : () => _createFood(),
             ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
+            // Five labels need tighter padding to fit a phone width.
+            labelPadding: savedEnabled
+                ? const EdgeInsets.symmetric(horizontal: 4)
+                : null,
             tabs: [
-              Tab(text: 'Recent'),
-              Tab(text: 'Favorites'),
-              Tab(text: 'My foods'),
-              Tab(text: 'Search'),
+              const Tab(text: 'Recent'),
+              const Tab(text: 'Favorites'),
+              const Tab(text: 'My foods'),
+              const Tab(text: 'Search'),
+              if (savedEnabled) const Tab(text: 'Saved'),
             ],
           ),
         ),
@@ -331,6 +390,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
                     onEdit: _editFood,
                   ),
                   FoodSearchPanel(onPick: _pickRemote, onPickLocal: _pickLocal),
+                  if (savedEnabled)
+                    SavedMealList(dayKey: widget.dayKey, meal: widget.meal),
                 ],
               ),
             ),
@@ -427,7 +488,7 @@ class _FoodList extends ConsumerWidget {
                 ? null
                 : IconButton(
                     key: Key('quick-add-${f.id}'),
-                    tooltip: 'Add ${fmtNum(last)} g',
+                    tooltip: 'Add ${fmtAmount(last, f.source)}',
                     icon: Icon(Icons.add_circle, color: scheme.primary),
                     onPressed: () => onQuickAdd!(f, last),
                   ),

@@ -15,6 +15,7 @@ import 'package:nutrition_app/features/settings/choose_features_screen.dart';
 import 'package:nutrition_app/features/settings/data_export.dart';
 import 'package:nutrition_app/features/settings/report_problem_tile.dart';
 import 'package:nutrition_app/features/settings/settings_screen.dart';
+import 'package:nutrition_app/features/targets/checkin_history_screen.dart';
 
 import '../../helpers/test_db.dart';
 
@@ -727,9 +728,84 @@ void main() {
     expect(find.byKey(const Key('profileForm')), findsOneWidget);
     expect(find.byType(ExportDataTile), findsNothing);
     expect(find.byType(ImportDataTile), findsNothing);
-    expect(find.text('Your data'), findsNothing);
+    // The section header stays for the CSV row (see the CSV tests below).
+    expect(find.text('Your data'), findsOneWidget);
     // Android-only rows stay, since only the backup gate is off here.
     expect(find.byType(HealthConnectSettingsTile), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  Future<AppDatabase> pumpSettings(
+    WidgetTester tester, {
+    Set<AppFeature> featuresOff = const {},
+  }) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          if (featuresOff.isNotEmpty)
+            featureEnabledProvider.overrideWith(
+              (ref, f) => !featuresOff.contains(f),
+            ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+    return db;
+  }
+
+  testWidgets('Export as CSV sits in Your data and offers three files', (
+    tester,
+  ) async {
+    await pumpSettings(tester);
+    expect(find.byType(ExportCsvTile), findsOneWidget);
+    expect(find.text('Export as CSV'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('export-csv')));
+    await settle(tester);
+    expect(find.byKey(const Key('csv-foodLog')), findsOneWidget);
+    expect(find.byKey(const Key('csv-weighIns')), findsOneWidget);
+    expect(find.byKey(const Key('csv-targets')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the CSV row is left out when switched off', (tester) async {
+    await pumpSettings(tester, featuresOff: const {AppFeature.csvExport});
+    expect(find.byType(ExportCsvTile), findsNothing);
+    expect(find.text('Export as CSV'), findsNothing);
+    // The rest of Your data is exactly as before.
+    expect(find.text('Your data'), findsOneWidget);
+    expect(find.byType(ExportDataTile), findsOneWidget);
+    expect(find.byType(ImportDataTile), findsOneWidget);
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('backups off but CSV on shows only the CSV row', (tester) async {
+    await pumpSettings(tester, featuresOff: const {AppFeature.backup});
+    expect(find.text('Your data'), findsOneWidget);
+    expect(find.byType(ExportCsvTile), findsOneWidget);
+    expect(find.byType(ExportDataTile), findsNothing);
+    expect(find.byType(ImportDataTile), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('both off leaves no Your data section', (tester) async {
+    await pumpSettings(
+      tester,
+      featuresOff: const {AppFeature.backup, AppFeature.csvExport},
+    );
+    expect(find.text('Your data'), findsNothing);
+    expect(find.byType(ExportCsvTile), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
@@ -883,6 +959,52 @@ void main() {
     expect(find.byKey(const Key('profileForm')), findsOneWidget);
     expect(find.byKey(const Key('goalWeightKg')), findsOneWidget);
     expect(find.byKey(const Key('goalDirection')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Check-in history opens from Settings', (tester) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    expect(find.text('Check-in history'), findsOneWidget);
+    await tester.tap(find.text('Check-in history'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CheckInHistoryScreen), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await settle(tester);
+  });
+
+  testWidgets('the check-in history row is left out when switched off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.targetInsights,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byKey(const Key('profileForm')), findsOneWidget);
+    expect(find.byKey(const Key('checkInTile')), findsOneWidget);
+    expect(find.byType(CheckInHistoryTile), findsNothing);
+    expect(find.text('Check-in history'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

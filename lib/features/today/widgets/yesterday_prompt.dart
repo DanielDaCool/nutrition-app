@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/day_key.dart';
 import '../../dashboard/dashboard_providers.dart';
 import '../../food/food_providers.dart';
+import '../close_day_logic.dart';
+import 'mark_day_complete.dart';
 
 /// The day (today's dayKey) on which the prompt was last answered. Kept in
 /// memory only: answering hides it for the rest of that day.
@@ -22,6 +24,23 @@ class YesterdayPromptAnswered extends Notifier<String?> {
   void answer(String todayKey) => state = todayKey;
 }
 
+/// Whether the yesterday prompt has something to ask on [today] (a dayKey):
+/// not answered yet, yesterday has food and isn't complete, and the app's
+/// data reaches back to yesterday. Also lets Today show one prompt at a time.
+final yesterdayPromptVisibleProvider = Provider.family<bool, String>((
+  ref,
+  today,
+) {
+  if (ref.watch(yesterdayPromptAnsweredProvider) == today) return false;
+  final yesterday = addDays(today, -1);
+  final intake = ref.watch(dayIntakeProvider(yesterday)).value;
+  if (!dayHasFood(intake) || intake!.fullyLogged) return false;
+  // Nothing to ask about when the app's own usage doesn't reach back to
+  // yesterday at all (e.g. right after onboarding, on the very first day).
+  final earliest = ref.watch(earliestDataDayProvider).value;
+  return earliest != null && earliest.compareTo(yesterday) <= 0;
+});
+
 /// One-line prompt shown on [today] when yesterday has food entries but
 /// isn't marked fully logged. Hidden once answered that day.
 class YesterdayPrompt extends ConsumerWidget {
@@ -34,71 +53,21 @@ class YesterdayPrompt extends ConsumerWidget {
     WidgetRef ref,
     String yesterday,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final repo = ref.read(foodRepositoryProvider);
     ref.read(yesterdayPromptAnsweredProvider.notifier).answer(today);
-
-    // Sets yesterday's fully-logged flag, retrying via [onRetry] and showing
-    // a snackbar on failure instead of letting the error go unhandled.
-    Future<void> setFullyLogged(bool value, VoidCallback onRetry) async {
-      try {
-        await repo.setFullyLogged(yesterday, value);
-      } catch (e, st) {
-        debugPrint('Setting yesterday fully-logged failed: $e\n$st');
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text("Couldn't save that."),
-            persist: false,
-            action: SnackBarAction(label: 'Try again', onPressed: onRetry),
-          ),
-        );
-      }
-    }
-
-    void undo() => setFullyLogged(false, undo);
-    void markComplete() => setFullyLogged(true, markComplete);
-
-    try {
-      await repo.setFullyLogged(yesterday, true);
-    } catch (e, st) {
-      debugPrint('Marking yesterday complete failed: $e\n$st');
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text("Couldn't save that."),
-          persist: false,
-          action: SnackBarAction(label: 'Try again', onPressed: markComplete),
-        ),
-      );
-      return;
-    }
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text('Yesterday marked as complete'),
-          persist: false,
-          action: SnackBarAction(label: 'Undo', onPressed: undo),
-        ),
-      );
+    await markDayComplete(
+      context,
+      ref,
+      dayKey: yesterday,
+      message: 'Yesterday marked as complete',
+    );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(yesterdayPromptAnsweredProvider) == today) {
+    if (!ref.watch(yesterdayPromptVisibleProvider(today))) {
       return const SizedBox.shrink();
     }
     final yesterday = addDays(today, -1);
-    final intake = ref.watch(dayIntakeProvider(yesterday)).value;
-    final hasFood =
-        intake != null && (intake.byMeal.isNotEmpty || intake.total.kcal > 0);
-    if (!hasFood || intake.fullyLogged) return const SizedBox.shrink();
-
-    // Nothing to ask about when the app's own usage doesn't reach back to
-    // yesterday at all (e.g. right after onboarding, on the very first day).
-    final earliest = ref.watch(earliestDataDayProvider).value;
-    if (earliest == null || earliest.compareTo(yesterday) > 0) {
-      return const SizedBox.shrink();
-    }
 
     final theme = Theme.of(context);
     return Card(

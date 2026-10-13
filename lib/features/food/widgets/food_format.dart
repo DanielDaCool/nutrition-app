@@ -36,11 +36,16 @@ String sourceLabel(String source) => switch (source) {
   'off' => 'Open Food Facts',
   'usda' => 'USDA',
   'builtin' => 'Typical values',
+  'recipe' => 'Recipe',
+  'quick' || 'quickKcal' => 'Quick add',
   _ => 'My food',
 };
 
 /// One-line summary for food lists: brand, kcal per 100 g and serving size.
 String foodSubtitle(Food f) {
+  if (f.source == FoodSource.recipe) {
+    return '${f.kcalPer100g.round()} kcal per serving';
+  }
   final parts = <String>[
     if (f.brand != null) f.brand!,
     '${f.kcalPer100g.round()} kcal/100 g',
@@ -79,14 +84,32 @@ String withDay(String title, String dayKey, String todayKey) {
   return day == null ? title : '$title · $day';
 }
 
+/// An amount as the user thinks of it: "150 g", or "1.5 servings" for a
+/// recipe ([FoodSource.recipe] stores a serving as 100 pseudo-grams). A quick
+/// add has no amount, so it reads "Quick add".
+String fmtAmount(double grams, String source) {
+  if (FoodSource.isQuick(source)) return 'Quick add';
+  if (source != FoodSource.recipe) return '${fmtNum(grams)} g';
+  final servings = grams / 100;
+  return '${fmtNum(servings, decimals: 2)} '
+      '${(servings - 1).abs() < 1e-9 ? 'serving' : 'servings'}';
+}
+
 /// "Added Greek yogurt · 150 g · 146 kcal to Breakfast".
-String addedMessage(String foodName, double grams, double kcal, Meal meal) =>
-    'Added $foodName · ${fmtNum(grams)} g · ${fmtKcal(kcal)} '
-    'to ${mealLabel(meal)}';
+String addedMessage(
+  String foodName,
+  double grams,
+  double kcal,
+  Meal meal, {
+  String source = '',
+}) => FoodSource.isQuick(source)
+    ? 'Added $foodName · ${fmtKcal(kcal)} to ${mealLabel(meal)}'
+    : 'Added $foodName · ${fmtAmount(grams, source)} · ${fmtKcal(kcal)} '
+          'to ${mealLabel(meal)}';
 
 /// "150 g last time · 248 kcal" for a food's last logged amount.
 String lastTimeLine(Food f, double grams) =>
-    '${fmtNum(grams)} g last time · '
+    '${fmtAmount(grams, f.source)} last time · '
     '${fmtKcal(f.kcalPer100g * grams / 100)}';
 
 /// "1 item" / "4 items".

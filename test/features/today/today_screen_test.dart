@@ -13,6 +13,8 @@ import 'package:nutrition_app/features/food/food_providers.dart';
 import 'package:nutrition_app/features/food/widgets/meals_section.dart';
 import 'package:nutrition_app/features/targets/targets_providers.dart';
 import 'package:nutrition_app/features/today/today_screen.dart';
+import 'package:nutrition_app/features/targets/engine/readiness.dart';
+import 'package:nutrition_app/features/today/widgets/close_day_prompt.dart';
 import 'package:nutrition_app/features/today/widgets/yesterday_prompt.dart';
 
 import '../../helpers/test_db.dart';
@@ -587,6 +589,181 @@ void main() {
     expect(find.byType(ActivityCard), findsOneWidget);
     expect(tester.takeException(), isNull);
     await unmount(tester);
+  });
+
+  group('close-the-day prompt', () {
+    final evening = DateTime(2026, 9, 25, 20);
+    const eaten = Macros(kcal: 1800, proteinG: 0, fatG: 0, carbsG: 0);
+
+    testWidgets('shows after 19:00, Mark complete saves and Undo restores', (
+      tester,
+    ) async {
+      await pumpToday(
+        tester,
+        targets: targets,
+        eaten: eaten,
+        clock: () => evening,
+      );
+      expect(find.byKey(const Key('closeDayPrompt')), findsOneWidget);
+      expect(find.text('Done eating today?'), findsOneWidget);
+      expect(
+        find.text('Mark it complete only if everything you ate is logged.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Mark complete'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+      expect(find.byKey(const Key('closeDayPrompt')), findsNothing);
+      var status = await db.select(db.dayStatuses).getSingle();
+      expect(status.dayKey, '2026-09-25');
+      expect(status.fullyLogged, isTrue);
+      expect(find.text('Today marked as complete'), findsOneWidget);
+
+      // Let the snackbar finish sliding in before tapping its action.
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.text('Undo'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+      status = await db.select(db.dayStatuses).getSingle();
+      expect(status.fullyLogged, isFalse);
+      await unmount(tester);
+    });
+
+    testWidgets('Not yet hides it without saving anything', (tester) async {
+      await pumpToday(
+        tester,
+        targets: targets,
+        eaten: eaten,
+        clock: () => evening,
+      );
+      await tester.tap(find.text('Not yet'));
+      await tester.pump();
+      expect(find.byKey(const Key('closeDayPrompt')), findsNothing);
+      expect(await db.select(db.dayStatuses).get(), isEmpty);
+      await unmount(tester);
+    });
+
+    testWidgets('not shown before 19:00 or with nothing logged', (
+      tester,
+    ) async {
+      await pumpToday(tester, targets: targets, eaten: eaten);
+      expect(find.byKey(const Key('closeDayPrompt')), findsNothing);
+      await unmount(tester);
+
+      await pumpToday(tester, targets: targets, clock: () => evening);
+      expect(find.byKey(const Key('closeDayPrompt')), findsNothing);
+      await unmount(tester);
+    });
+
+    testWidgets('hidden while the yesterday prompt shows, then appears', (
+      tester,
+    ) async {
+      DayIntake intake(String dayKey) => DayIntake(
+        dayKey: dayKey,
+        total: eaten,
+        byMeal: const {},
+        fullyLogged: false,
+      );
+      await pumpToday(
+        tester,
+        targets: targets,
+        intakeFor: intake,
+        clock: () => evening,
+      );
+      expect(find.byKey(const Key('yesterdayPrompt')), findsOneWidget);
+      expect(find.byKey(const Key('closeDayPrompt')), findsNothing);
+
+      await tester.tap(find.text('Not really'));
+      await tester.pump();
+      expect(find.byKey(const Key('yesterdayPrompt')), findsNothing);
+      expect(find.byKey(const Key('closeDayPrompt')), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('appears when the evening threshold passes while open', (
+      tester,
+    ) async {
+      var now = DateTime(2026, 9, 25, 18, 59, 59);
+      await pumpToday(
+        tester,
+        targets: targets,
+        eaten: eaten,
+        clock: () => now,
+      );
+      expect(find.byKey(const Key('closeDayPrompt')), findsNothing);
+      now = DateTime(2026, 9, 25, 19, 0, 1);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.byKey(const Key('closeDayPrompt')), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('shows what is missing only with target details on', (
+      tester,
+    ) async {
+      const readiness = Readiness(
+        loggedDays: 5,
+        weighIns: 4,
+        weighInSpanDays: 6,
+        needsSpan: false,
+        settlingDaysLeft: 0,
+        weight: 0,
+        adapting: false,
+      );
+      final overrides = [
+        targetReadinessProvider.overrideWith((ref) => Stream.value(readiness)),
+      ];
+      await pumpToday(
+        tester,
+        targets: targets,
+        eaten: eaten,
+        clock: () => evening,
+        extra: overrides,
+      );
+      expect(find.byKey(const Key('closeDayReadiness')), findsOneWidget);
+      expect(find.textContaining('5 of the'), findsOneWidget);
+      await unmount(tester);
+
+      await pumpToday(
+        tester,
+        targets: targets,
+        eaten: eaten,
+        clock: () => evening,
+        extra: [
+          ...overrides,
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.targetInsights,
+          ),
+        ],
+      );
+      expect(find.byKey(const Key('closeDayPrompt')), findsOneWidget);
+      expect(find.byKey(const Key('closeDayReadiness')), findsNothing);
+      await unmount(tester);
+    });
+
+    testWidgets('left out when switched off, Today renders as before', (
+      tester,
+    ) async {
+      await pumpToday(
+        tester,
+        targets: targets,
+        eaten: eaten,
+        clock: () => evening,
+        extra: [
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.closeDayPrompt,
+          ),
+        ],
+      );
+      expect(find.byType(CloseDayPrompt), findsNothing);
+      expect(find.text('Done eating today?'), findsNothing);
+      expect(find.byType(MealsSection), findsOneWidget);
+      expect(find.byType(ActivityCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await unmount(tester);
+    });
   });
 }
 

@@ -1,15 +1,18 @@
-import 'package:drift/drift.dart' hide isNotNull;
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/core/day_key.dart';
+import 'package:nutrition_app/core/app_features.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/settings/setup_screen.dart';
 import 'package:nutrition_app/features/targets/checkin_screen.dart';
 import 'package:nutrition_app/features/targets/engine/explain.dart';
 import 'package:nutrition_app/features/targets/targets_providers.dart';
+import 'package:nutrition_app/features/targets/widgets/maintenance_confidence.dart';
+import 'package:nutrition_app/features/targets/widgets/readiness_note.dart';
 
 import '../../helpers/test_db.dart';
 
@@ -110,6 +113,13 @@ Future<void> settle(WidgetTester tester) async {
   }
 }
 
+/// A tall screen so the whole check-in list is built and tappable.
+void tallScreen(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 2000);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+}
+
 void main() {
   testWidgets('shows why and accepting saves a TargetHistory row', (
     tester,
@@ -170,6 +180,7 @@ void main() {
   });
 
   testWidgets('skip keeps the current target', (tester) async {
+    tallScreen(tester);
     final db = openTestDatabase();
     addTearDown(db.close);
     await tester.runAsync(() => seed(db));
@@ -247,6 +258,7 @@ void main() {
     testWidgets('unchanged numbers are saved as effective today', (
       tester,
     ) async {
+      tallScreen(tester);
       final db = openTestDatabase();
       addTearDown(db.close);
       // Formula only (one weigh-in, no logs): the numbers don't move
@@ -329,6 +341,100 @@ void main() {
       await settle(tester);
       expect(await days(tester, db), ['2026-09-20', '2026-09-28']);
 
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+    });
+  });
+
+  group('target insights', () {
+    /// Leaves only the last five days marked fully logged, so the engine
+    /// still has a recommendation but is far from adapting.
+    Future<void> thinOut(AppDatabase db) async {
+      final cut = addDays(dayKeyOf(now), -5);
+      await (db.update(db.dayStatuses)
+            ..where((s) => s.dayKey.isSmallerThanValue(cut)))
+          .write(const DayStatusesCompanion(fullyLogged: Value(false)));
+    }
+
+    Widget gated(AppDatabase db, {required bool on}) => ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        clockProvider.overrideWithValue(() => now),
+        featureEnabledProvider.overrideWith(
+          (ref, f) => f != AppFeature.targetInsights || on,
+        ),
+      ],
+      child: const MaterialApp(home: CheckInScreen()),
+    );
+
+    testWidgets('shows the basis line and what is still missing', (
+      tester,
+    ) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() async {
+        await seed(db);
+        await thinOut(db);
+      });
+      await tester.pumpWidget(gated(db, on: true));
+      await settle(tester);
+
+      expect(find.byType(MaintenanceConfidenceLine), findsOneWidget);
+      expect(
+        find.text('Formula estimate: rough until your own data counts.'),
+        findsOneWidget,
+      );
+      expect(find.byType(ReadinessNote), findsOneWidget);
+      expect(
+        find.textContaining('5 of the 8 fully logged days needed'),
+        findsOneWidget,
+      );
+      expect(find.text('Why'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+    });
+
+    testWidgets('with full data the note is empty but the basis shows', (
+      tester,
+    ) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() => seed(db));
+      await tester.pumpWidget(gated(db, on: true));
+      await settle(tester);
+
+      expect(find.byKey(const Key('readinessNote')), findsNothing);
+      expect(
+        find.textContaining('Based on 28 fully logged days'),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+    });
+
+    testWidgets('gate off: no basis line or note, the rest renders', (
+      tester,
+    ) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() async {
+        await seed(db);
+        await thinOut(db);
+      });
+      await tester.pumpWidget(gated(db, on: false));
+      await settle(tester);
+
+      expect(find.byType(MaintenanceConfidenceLine), findsNothing);
+      expect(find.byType(ReadinessNote), findsNothing);
+      expect(find.textContaining('fully logged days needed'), findsNothing);
+      expect(find.text('Current'), findsOneWidget);
+      expect(find.text('Why'), findsOneWidget);
+      expect(find.text('Accept'), findsOneWidget);
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await settle(tester);
     });

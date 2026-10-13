@@ -27,8 +27,8 @@ void main() {
     expect(AppFeature.workouts.storageKey, 'workouts');
     expect(AppFeature.workouts.label, 'Workouts');
     expect(AppFeature.workouts.androidOnly, isTrue);
-    // Appended at the end, so the earlier values keep their order.
-    expect(AppFeature.values.skip(AppFeature.values.length - 3), [
+    // Appended after updateAvailable, so the earlier values keep their order.
+    expect(AppFeature.values.skip(AppFeature.updateAvailable.index + 1).take(3), [
       AppFeature.dashboard,
       AppFeature.walkReminders,
       AppFeature.workouts,
@@ -68,6 +68,11 @@ void main() {
       AppFeature.dashboard,
       AppFeature.walkReminders,
       AppFeature.workouts,
+      AppFeature.targetInsights,
+      AppFeature.savedMeals,
+      AppFeature.quickCalories,
+      AppFeature.csvExport,
+      AppFeature.closeDayPrompt,
     });
   });
 

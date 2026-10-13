@@ -47,27 +47,41 @@ Future<Map<String, Object?>> exportAllTables(
 /// to the caller.
 Future<ShareResult> shareExport(AppDatabase db, DateTime now) async {
   final data = await exportAllTables(db, now: now);
-  final name = 'nutrition-export-${dayKeyOf(now)}.json';
-  final text = const JsonEncoder.withIndent(' ').convert(data);
+  return shareTextFile(
+    name: 'nutrition-export-${dayKeyOf(now)}.json',
+    mimeType: 'application/json',
+    text: const JsonEncoder.withIndent(' ').convert(data),
+    subject: 'Nutrition data export',
+    title: 'Export data',
+  );
+}
+
+/// Shares [text] as one file called [name] through the system share sheet.
+/// On Android the file is written to a temp directory first; the web has no
+/// file system, so it shares the bytes and the browser downloads them if it
+/// can't share files. Errors (I/O, sharing) propagate to the caller.
+Future<ShareResult> shareTextFile({
+  required String name,
+  required String mimeType,
+  required String text,
+  required String subject,
+  required String title,
+}) async {
   final XFile file;
   if (kIsWeb) {
-    file = XFile.fromData(
-      utf8.encode(text),
-      name: name,
-      mimeType: 'application/json',
-    );
+    file = XFile.fromData(utf8.encode(text), name: name, mimeType: mimeType);
   } else {
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}/$name';
     await File(path).writeAsString(text);
-    file = XFile(path, mimeType: 'application/json');
+    file = XFile(path, mimeType: mimeType);
   }
   return SharePlus.instance.share(
     ShareParams(
       files: [file],
       fileNameOverrides: [name],
-      subject: 'Nutrition data export',
-      title: 'Export data',
+      subject: subject,
+      title: title,
     ),
   );
 }

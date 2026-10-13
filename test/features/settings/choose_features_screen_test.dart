@@ -42,7 +42,7 @@ void main() {
   ) async {
     await pumpScreen(tester);
     expect(find.text('Choose features'), findsOneWidget);
-    expect(find.byType(CheckboxListTile), findsNWidgets(6));
+    expect(find.byType(CheckboxListTile), findsNWidgets(11));
     for (final key in [
       'activity',
       'workouts',
@@ -50,6 +50,11 @@ void main() {
       'yesterdayPrompt',
       'dashboard',
       'walkReminders',
+      'savedMeals',
+      'quickCalories',
+      'closeDayPrompt',
+      'targetInsights',
+      'csvExport',
     ]) {
       final tile = tester.widget<CheckboxListTile>(
         find.byKey(Key('feature-$key')),
@@ -135,7 +140,7 @@ void main() {
     expect(find.byKey(const Key('feature-activity')), findsNothing);
     expect(find.byKey(const Key('feature-workouts')), findsNothing);
     expect(find.byKey(const Key('feature-walkReminders')), findsNothing);
-    expect(find.byType(CheckboxListTile), findsNWidgets(3));
+    expect(find.byType(CheckboxListTile), findsNWidgets(8));
     expect(find.byKey(const Key('feature-recipes')), findsOneWidget);
     expect(find.byKey(const Key('feature-yesterdayPrompt')), findsOneWidget);
     expect(find.byKey(const Key('feature-dashboard')), findsOneWidget);

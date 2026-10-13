@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: User manual
+    url: https://danieldacool.github.io/nutrition-app/manual/
+    about: Setup and how to use each screen.
