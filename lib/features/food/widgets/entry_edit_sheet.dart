@@ -51,11 +51,14 @@ class _EntryEditSheetState extends State<EntryEditSheet> {
   late final bool _isRecipe = widget.item.source == FoodSource.recipe;
   late final double _unitGrams = _isRecipe ? recipeServingGrams : 1;
 
-  /// The amount as first shown (grams rounded to 0.1 g, or servings).
-  late final _shownGrams = fmtNum(
-    widget.item.grams / _unitGrams,
-    decimals: _isRecipe ? 2 : 1,
-  );
+  /// A quick-add entry is edited in kcal; its grams follow so the macros
+  /// scale with it.
+  late final bool _isQuick = widget.item.isQuick;
+
+  /// The amount as first shown (grams rounded to 0.1 g, servings, or kcal).
+  late final _shownGrams = _isQuick
+      ? fmtNum(widget.item.macros.kcal)
+      : fmtNum(widget.item.grams / _unitGrams, decimals: _isRecipe ? 2 : 1);
   late final _grams = TextEditingController(
     text: _shownGrams,
   )..selection = TextSelection(baseOffset: 0, extentOffset: _shownGrams.length);
@@ -73,7 +76,13 @@ class _EntryEditSheetState extends State<EntryEditSheet> {
     // entry to another meal doesn't nudge 14.86 g to 14.9 g.
     if (_grams.text.trim() == _shownGrams) return widget.item.grams;
     final v = parseAmount(_grams.text);
-    return v == null || v <= 0 ? null : v * _unitGrams;
+    if (v == null || v <= 0) return null;
+    if (_isQuick) {
+      // New kcal as a share of the snapshot's, applied to the grams.
+      final kcal = widget.item.macros.kcal;
+      return kcal <= 0 ? null : v / kcal * widget.item.grams;
+    }
+    return v * _unitGrams;
   }
 
   void _save() {
@@ -119,11 +128,23 @@ class _EntryEditSheetState extends State<EntryEditSheet> {
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: _isRecipe ? 'Servings' : 'Amount',
-                suffixText: _isRecipe ? '× serving' : 'g',
+                labelText: _isQuick
+                    ? 'Calories'
+                    : _isRecipe
+                    ? 'Servings'
+                    : 'Amount',
+                suffixText: _isQuick
+                    ? 'kcal'
+                    : _isRecipe
+                    ? '× serving'
+                    : 'g',
                 border: const OutlineInputBorder(),
                 errorText: _error,
-                helperText: kcal == null ? null : fmtKcal(kcal),
+                helperText: _isQuick
+                    ? (item.macrosIncomplete
+                          ? 'Protein, fat and carbs scale with it'
+                          : null)
+                    : (kcal == null ? null : fmtKcal(kcal)),
               ),
               onChanged: (_) => setState(() => _error = null),
               onSubmitted: (_) => _save(),
@@ -210,7 +231,10 @@ class LoggedItemTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${fmtAmount(item.grams, item.source)} · ${macroLine(item.macros)}',
+          item.macrosIncomplete
+              ? 'Quick add · macros not entered'
+              : '${fmtAmount(item.grams, item.source)} · '
+                    '${macroLine(item.macros)}',
         ),
         trailing: Text(fmtKcal(item.macros.kcal)),
         onTap: onTap,

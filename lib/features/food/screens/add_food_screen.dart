@@ -19,6 +19,7 @@ import '../nutrition_math.dart';
 import '../widgets/error_retry.dart';
 import '../widgets/food_format.dart';
 import '../widgets/food_search_panel.dart';
+import '../widgets/quick_calories_sheet.dart';
 import '../widgets/saved_meal_list.dart';
 import '../widgets/undo_snack.dart';
 import 'barcode_scan_screen.dart';
@@ -147,6 +148,42 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     }
   }
 
+  /// Asks for calories (and optional macros) and logs them without a food,
+  /// then closes this screen.
+  Future<void> _quickCalories() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final input = await showQuickCaloriesSheet(context);
+    if (input == null || !mounted) return;
+    final repo = ref.read(foodRepositoryProvider);
+    try {
+      final id = await repo.logQuickCalories(
+        dayKey: widget.dayKey,
+        meal: widget.meal,
+        kcal: input.kcal,
+        proteinG: input.proteinG,
+        fatG: input.fatG,
+        carbsG: input.carbsG,
+        label: input.label,
+      );
+      showAddedSnack(
+        messenger,
+        repo,
+        addedMessage(
+          input.label ?? 'Quick add',
+          100,
+          input.kcal,
+          widget.meal,
+          source: FoodSource.quick,
+        ),
+        [id],
+      );
+      navigator.pop();
+    } catch (e, st) {
+      _showError('Could not add it.', e, st);
+    }
+  }
+
   void _showError(String what, Object error, StackTrace st) {
     final message = friendlyError(error, st);
     if (!mounted) return;
@@ -246,6 +283,10 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     final savedEnabled = ref.watch(
       featureEnabledProvider(AppFeature.savedMeals),
     );
+    // Quick add calories is behind a feature gate too.
+    final quickEnabled = ref.watch(
+      featureEnabledProvider(AppFeature.quickCalories),
+    );
     return DefaultTabController(
       length: savedEnabled ? 5 : 4,
       child: Scaffold(
@@ -258,6 +299,13 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
             ),
           ),
           actions: [
+            if (quickEnabled)
+              IconButton(
+                key: const Key('quick-calories-button'),
+                tooltip: 'Quick add calories',
+                icon: const Icon(Icons.bolt),
+                onPressed: _busy ? null : _quickCalories,
+              ),
             IconButton(
               key: const Key('new-food-button'),
               tooltip: 'New food',

@@ -17,6 +17,20 @@ abstract final class FoodSource {
   /// "pseudo-grams": the catalog has no real weights or yield. It is left
   /// out of describe matching but shows under Recent and Favorites.
   static const recipe = 'recipe';
+
+  /// A "Quick add calories" entry with all four values typed. Saved as a
+  /// hidden food with `servingGrams` 100 and the typed numbers as its
+  /// per-100 g values, so the entry (100 g) reproduces them exactly. Left
+  /// out of Recent, Favorites and describe matching.
+  static const quick = 'quick';
+
+  /// Like [quick], but at least one of protein, fat and carbs was left blank
+  /// (stored as 0). Told apart from [quick] because a typed 0 and a blank
+  /// would otherwise look the same; days with such entries say so.
+  static const quickKcal = 'quickKcal';
+
+  /// Whether [source] is one of the hidden quick-add sources.
+  static bool isQuick(String source) => source == quick || source == quickKcal;
 }
 
 /// A food from Open Food Facts or USDA. Nutrients are per 100 g; null means
