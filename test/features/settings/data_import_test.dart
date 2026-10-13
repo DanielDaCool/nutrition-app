@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nutrition_app/core/app_features.dart';
+import 'package:nutrition_app/core/feature_choices_repository.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/features/settings/data_export.dart';
 import 'package:nutrition_app/features/settings/data_import.dart';
@@ -175,6 +177,27 @@ void main() {
 
     await restoreExport(target, export);
     expect(await tablesOf(target), await tablesOf(source));
+  });
+
+  test('the switched-off features travel with a backup', () async {
+    await seedEverything(source);
+    await setFeatureEnabled(source, AppFeature.dashboard, false);
+    await setFeatureEnabled(source, AppFeature.recipes, false);
+    await restoreExport(
+      target,
+      parseExport(
+        await exportText(source),
+        currentSchemaVersion: target.schemaVersion,
+      ),
+    );
+    final rows = await (target.select(
+      target.keyValues,
+    )..where((t) => t.key.equals(disabledFeaturesKey))).get();
+    expect(rows.single.value, 'dashboard,recipes');
+    expect(await watchDisabledFeatureKeys(target).first, {
+      'dashboard',
+      'recipes',
+    });
   });
 
   test('replaces what was on the device', () async {

@@ -24,6 +24,7 @@ import '../targets/engine/engine.dart';
 import '../targets/engine/explain.dart';
 import '../targets/targets_providers.dart';
 import '../weight/weight_providers.dart';
+import 'choose_features_screen.dart';
 import 'csv_data.dart';
 import 'data_export.dart';
 import 'error_retry.dart';
@@ -75,12 +76,28 @@ class SettingsScreen extends ConsumerWidget {
           ],
           // Health Connect and walk reminders are Android-only; the step
           // goal only applies to Health Connect steps.
-          if (!isWeb) ...const [
-            Divider(),
-            HealthConnectSettingsTile(),
-            StepGoalSettingsTile(),
-            WalkReminderSettingsTile(),
+          if (!isWeb) ...[
+            const Divider(),
+            const HealthConnectSettingsTile(),
+            if (ref.watch(featureEnabledProvider(AppFeature.activity)))
+              const StepGoalSettingsTile(),
+            if (ref.watch(featureEnabledProvider(AppFeature.walkReminders)))
+              const WalkReminderSettingsTile(),
           ],
+          const Divider(),
+          ListTile(
+            key: const Key('chooseFeaturesTile'),
+            leading: const Icon(Icons.tune),
+            title: const Text('Choose features'),
+            subtitle: const Text('Switch off the parts you do not use'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                fullscreenDialog: true,
+                builder: (_) => const ChooseFeaturesScreen(),
+              ),
+            ),
+          ),
           // "Your data" shows when either backups or CSV export is on.
           if (ref.watch(featureEnabledProvider(AppFeature.backup)) ||
               ref.watch(featureEnabledProvider(AppFeature.csvExport))) ...[

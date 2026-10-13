@@ -11,12 +11,16 @@ import 'package:nutrition_app/app/install_hint_banner.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/app/update_available_banner.dart';
 import 'package:nutrition_app/core/app_features.dart';
+import 'package:nutrition_app/core/feature_choices_repository.dart';
 import 'package:nutrition_app/core/install_hint.dart';
 import 'package:nutrition_app/core/install_hint_repository.dart';
 import 'package:nutrition_app/core/update_check_repository.dart';
 import 'package:nutrition_app/data/db/database.dart';
 import 'package:nutrition_app/domain/models.dart';
 import 'package:nutrition_app/features/activity/activity_providers.dart';
+import 'package:nutrition_app/features/activity/walk_reminder_providers.dart';
+import 'package:nutrition_app/features/activity/walk_reminder_repository.dart';
+import 'package:nutrition_app/features/activity/walk_reminder_scheduler.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_providers.dart';
 import 'package:nutrition_app/features/dashboard/dashboard_screen.dart';
 import 'package:nutrition_app/features/recipes/recipes_screen.dart';
@@ -640,6 +644,139 @@ void main() {
     expect(find.byType(SettingsScreen), findsOneWidget);
     await unmount(tester);
   });
+
+  testWidgets('the Dashboard tab is left out when its gate is off', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(
+      app(
+        db,
+        extra: [
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.dashboard,
+          ),
+        ],
+      ),
+    );
+    await settle(tester);
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    expect(destination('Dashboard'), findsNothing);
+    expect(find.byType(DashboardScreen, skipOffstage: false), findsNothing);
+    expect(destination('Recipes'), findsOneWidget);
+    expect(destination('Settings'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await unmount(tester);
+  });
+
+  testWidgets(
+    'switching the Dashboard off in the database hides its tab live',
+    (tester) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      await tester.runAsync(() => seedProfile(db));
+      await tester.pumpWidget(app(db));
+      await settle(tester);
+      expect(find.byType(NavigationDestination), findsNWidgets(5));
+      expect(destination('Dashboard'), findsOneWidget);
+
+      await tester.runAsync(
+        () => setFeatureEnabled(db, AppFeature.dashboard, false),
+      );
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.byType(NavigationDestination), findsNWidgets(4));
+      expect(destination('Dashboard'), findsNothing);
+
+      await tester.runAsync(
+        () => setFeatureEnabled(db, AppFeature.dashboard, true),
+      );
+      await settle(tester);
+      expect(find.byType(NavigationDestination), findsNWidgets(5));
+      expect(destination('Dashboard'), findsOneWidget);
+      await unmount(tester);
+    },
+  );
+
+  testWidgets('a selected Dashboard that is switched off falls back to Today', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+    await tester.tap(destination('Dashboard'));
+    await settle(tester);
+    expect(selectedIndex(tester), 2);
+    expect(find.byType(DashboardScreen), findsOneWidget);
+
+    await tester.runAsync(
+      () => setFeatureEnabled(db, AppFeature.dashboard, false),
+    );
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(destination('Dashboard'), findsNothing);
+    expect(selectedIndex(tester), 0);
+    expect(find.byType(TodayScreen), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets(
+    'switching the walk reminder off cancels its check and keeps the saved setting',
+    (tester) async {
+      tallScreen(tester);
+      final db = openTestDatabase();
+      addTearDown(db.close);
+      final scheduler = _RecordingScheduler();
+      await tester.runAsync(() async {
+        await seedProfile(db);
+        await saveWalkReminderSettings(
+          db,
+          WalkReminderSettings.defaults.copyWith(enabled: true),
+        );
+      });
+      await tester.pumpWidget(
+        app(
+          db,
+          extra: [walkReminderSchedulerProvider.overrideWithValue(scheduler)],
+        ),
+      );
+      await settle(tester);
+      // Nothing changed yet: the existing check is left alone.
+      expect(scheduler.applied, isEmpty);
+
+      await tester.runAsync(
+        () => setFeatureEnabled(db, AppFeature.walkReminders, false),
+      );
+      await settle(tester);
+      expect(scheduler.applied.last.enabled, isFalse);
+      final saved = await tester.runAsync(() => loadWalkReminderSettings(db));
+      expect(saved!.enabled, isTrue);
+
+      await tester.runAsync(
+        () => setFeatureEnabled(db, AppFeature.walkReminders, true),
+      );
+      await settle(tester);
+      expect(scheduler.applied.last.enabled, isTrue);
+      await unmount(tester);
+    },
+  );
+}
+
+/// Records the walk reminder settings the app asks the scheduler to apply.
+class _RecordingScheduler implements WalkReminderScheduler {
+  final applied = <WalkReminderSettings>[];
+
+  @override
+  Future<void> apply(WalkReminderSettings settings) async {
+    applied.add(settings);
+  }
 }
 
 /// Whether the Recipes gate is open, so a test can flip it while the app runs.

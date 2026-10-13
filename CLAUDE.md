@@ -61,17 +61,16 @@ matching `vX.Y` tag on that commit. Don't do this unless asked.
 | E. Recipes | food agent | `lib/features/recipes/**`, `test/features/recipes/**` | (reads only; no tables of its own) |
 
 Contract names (keep them; replace stub bodies):
-- A: `currentTargetsProvider`, `checkInDueProvider`, `CheckInScreen`, `SettingsScreen`
+- A: `currentTargetsProvider`, `checkInDueProvider`, `CheckInScreen`, `SettingsScreen`, `ChooseFeaturesScreen`
 - B: `dayIntakeProvider(dayKey)`, `intakeRangeProvider((from, to))`, `MealsSection(dayKey:)`
 - C: `dayActivityProvider(dayKey)`, `activityRangeProvider((from, to))`, `healthSyncProvider` (`syncNow()`), `ActivityCard(dayKey:)`, `HealthConnectSettingsTile()`
 - D: `weighInsProvider`, `weightTrendProvider`, `TodayScreen`, `WeightScreen`, `DashboardScreen`
 
 Need a change in a file you don't own (schema, pubspec, manifest, contracts)? Don't edit it: report what and why to the lead.
 
-* Feature gates. Every PR labeled `feature` must register the feature and gate its UI, so that builds which let the user switch features off (a fork does; this app does not) can hide it. In this app the gate is always on, so this changes nothing here.
-   1. Append a value to the `AppFeature` enum in `lib/core/app_features.dart` with a `storageKey` (stable, never renamed), a short `label`, and a one-sentence `description` of what the feature shows. Set `androidOnly: true` if it can't work in the web build. Only append values; never rename or remove one.
+* Feature gates. Users can switch features off in Settings -> Choose features (`ChooseFeaturesScreen`). The choice is one KeyValues row, `app.disabledFeatures`: the sorted, comma-separated storage keys of the switched-off features (no row = everything on). `lib/core/feature_choices_repository.dart` reads and writes it. It travels with backups like any other KeyValues row, so it needs no schema change or `_upgrade` step. `featureEnabledProvider` (`lib/app/providers.dart`) is on when the feature exists on this platform (`androidOnly` features are off on web) and, unless the feature is `userChoosable: false`, it is not switched off. While the choices are loading or can't be read, features stay on. Every PR labeled `feature` must register the feature and gate its UI, so that switching it off hides it. Switching off only hides: no data is deleted and saved settings are kept.
+   1. Append a value to the `AppFeature` enum in `lib/core/app_features.dart` with a `storageKey` (stable, never renamed), a short `label`, and a one-sentence `description` of what the feature shows. Set `androidOnly: true` if it can't work in the web build. Set `userChoosable: false` if hiding it could strand data or hide a safety notice, or if it is always on (backups are one). Only append values; never rename or remove one.
    2. Wrap every entry point of the feature's UI (tabs, screens, cards, buttons, settings rows) in `if (ref.watch(featureEnabledProvider(AppFeature.yourFeature)))`. With the gate off, the app must look and behave exactly as it did before the feature existed: no dead buttons, no empty gaps, and existing data still works.
    3. Gate only UI and user-triggered behavior. Never gate database schema changes, migrations, or changes to models and enums: those must always run.
    4. Add a widget test that overrides `featureEnabledProvider` to return false for the feature, and checks that its UI is gone and the screen still renders without errors.
-Do not add a settings screen or any storage for these gates, and do not change `featureEnabledProvider` itself: here it always returns true.
 * PR labels. Label every PR with exactly one of `feature`, `bug fix`, `design`, `docs`, `ci`. Only `feature` PRs follow the steps above.

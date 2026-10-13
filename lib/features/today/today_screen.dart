@@ -102,8 +102,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final weighIns = ref.watch(weighInsProvider).value;
     final isToday = dayKey == today;
     final canGoForward = dayKey.compareTo(today) < 0;
-    // Both are behind a feature gate (see featureEnabledProvider).
-    final showActivity = ref.watch(featureEnabledProvider(AppFeature.activity));
+    // Both are behind a feature gate (see featureEnabledProvider). The
+    // activity card shows when either of its parts (steps, workouts) is on.
+    final showActivity =
+        ref.watch(featureEnabledProvider(AppFeature.activity)) ||
+        ref.watch(featureEnabledProvider(AppFeature.workouts));
     final showYesterdayPrompt = ref.watch(
       featureEnabledProvider(AppFeature.yesterdayPrompt),
     );
