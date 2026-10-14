@@ -1,0 +1,67 @@
+// CI-only probe (see .github/workflows/label-probe.yml): runs the real ML Kit
+// recognizer on photos in assets/probe and compares the parsed values with
+// Open Food Facts' values. Not part of the app or its test suite.
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:nutrition_app/features/food/label_parser.dart';
+import 'package:path_provider/path_provider.dart';
+
+String verdict(double? got, num truth) {
+  if (got == null) return 'missing';
+  final tol = truth.abs() * 0.06 + 0.6;
+  return (got - truth).abs() <= tol ? 'ok' : 'WRONG';
+}
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('probe', timeout: const Timeout(Duration(minutes: 30)), (t) async {
+    final truth =
+        jsonDecode(await rootBundle.loadString('probe/truth.json'))
+            as Map<String, dynamic>;
+    final dir = await getTemporaryDirectory();
+    final rec = TextRecognizer(script: TextRecognitionScript.latin);
+    final tally = <String, int>{};
+    for (final name in truth.keys) {
+      final data = await rootBundle.load('probe/$name.jpg');
+      final f = File('${dir.path}/$name.jpg')
+        ..writeAsBytesSync(data.buffer.asUint8List());
+      final text = (await rec.processImage(InputImage.fromFilePath(f.path)))
+          .text;
+      final tr = truth[name] as Map<String, dynamic>;
+      final s = parseNutritionLabel(text);
+      // Compare per 100 g; a per-serving read is converted when possible.
+      double? conv(double? v) {
+        if (v == null) return null;
+        if (s.basis == ScannedBasis.perServing) {
+          final g = s.servingGrams;
+          return g == null ? null : v * 100 / g;
+        }
+        return v;
+      }
+
+      final r = {
+        'kcal': verdict(conv(s.kcal), tr['kcal']),
+        'protein': verdict(conv(s.proteinG), tr['protein']),
+        'fat': verdict(conv(s.fatG), tr['fat']),
+        'carbs': verdict(conv(s.carbsG), tr['carbs']),
+      };
+      for (final e in r.entries) {
+        tally[e.value] = (tally[e.value] ?? 0) + 1;
+      }
+      // ignore: avoid_print
+      print(
+        'PROBE ${jsonEncode({'id': name, 'product': tr['product'], 'basis': s.basis?.name, 'serving': s.servingGrams, 'got': [s.kcal, s.proteinG, s.fatG, s.carbsG], 'truth': [tr['kcal'], tr['protein'], tr['fat'], tr['carbs']], 'verdict': r, 'chars': text.length})}',
+      );
+      // ignore: avoid_print
+      print('PROBETEXT ${jsonEncode({'id': name, 'text': text})}');
+    }
+    await rec.close();
+    // ignore: avoid_print
+    print('PROBESUMMARY ${jsonEncode(tally)} over ${truth.length} photos');
+  });
+}
