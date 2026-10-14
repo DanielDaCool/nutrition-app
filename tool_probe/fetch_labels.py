@@ -12,7 +12,12 @@ def get(url, tries=4):
             with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r:
                 return r.read()
         except Exception as e:
-            print("retry", url[:90], e, file=sys.stderr)
+            body = ""
+            try:
+                body = e.read()[:200].decode("utf8", "replace")
+            except Exception:
+                pass
+            print("FETCH retry", url[:110], repr(e)[:120], body, flush=True)
             time.sleep(2 * (i + 1))
     return None
 
@@ -26,7 +31,9 @@ for country, want in groups:
     })
     raw = get("https://world.openfoodfacts.org/api/v2/search?" + q)
     if not raw:
+        print("FETCH no search result for", country, flush=True)
         continue
+    print("FETCH", country, "products:", len(json.loads(raw).get("products", [])), flush=True)
     got = 0
     for p in json.loads(raw).get("products", []):
         n = p.get("nutriments") or {}
@@ -48,6 +55,8 @@ for country, want in groups:
         got += 1
         if got >= want:
             break
-    print(country, got, file=sys.stderr)
+    print("FETCH", country, "usable:", got, flush=True)
 json.dump(truth, open(f"{OUT}/truth.json", "w"), ensure_ascii=False)
-print("total", len(truth))
+print("FETCH total", len(truth), flush=True)
+if not truth:
+    sys.exit(1)
