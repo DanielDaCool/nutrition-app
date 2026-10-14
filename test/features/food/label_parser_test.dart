@@ -210,4 +210,105 @@ Fat/Dniy 8 g''');
       expect([s.kcal, s.proteinG, s.carbsG, s.fatG], [250, 6, 40, 8]);
     });
   });
+
+  // Text as ML Kit's Latin recognizer returned it for real label photos
+  // (Open Food Facts nutrition-table images, read on an Android emulator).
+  group('real ML Kit output', () {
+    test(
+      'names in one block, per-100 g and per-slice values in two blocks',
+      () {
+        final s = parseNutritionLabel('''
+R
+Typical Values
+Energy
+Fat
+-of which saturates
+Carbohydrate
+-of which sugars
+Fibre
+Protein
+Salt
+Typical Values
+Magnesium
+Iron
+NUTRITIONAL INFORMATION
+Zinc
+Per 100g
+1475 kJ
+349 kcal
+0.9g
+0.2g
+68g
+2.6g
+14g
+11g
+0.93g
+Per 100g
+96.2mg
+2.8mg
+2.1mg
+Per Slice (10.5g)
+155kJ
+37 kcal
+0.1g
+0.02g
+''');
+        expect(s.basis, ScannedBasis.per100g);
+        expect([s.kcal, s.fatG, s.carbsG, s.proteinG], [349, 0.9, 68, 11]);
+      },
+    );
+
+    test('a reference-intake footnote is not the energy', () {
+      final s = parseNutritionLabel('''
+Hranilna vrednost
+Energijska vrednost/
+Maščobe/Grăsimi
+RI (reference intake) =
+osebo (8400 kJ/2000 kcal
+o/100g
+244 KJ/
+58 kcal
+2,0 g
+''');
+      expect(s.kcal, isNot(2000));
+    });
+
+    test(
+      'numbers before the name on a line belong to the previous nutrient',
+      () {
+        final s = parseNutritionLabel('''
+Nutrition Facts Serv Sze:1 Tbsp (21g)
+Servings about 32, Amount Per Serving:
+Calories 60, Total Fat 0g (0% DV), Sodium
+Omg (0% DV Total Carb i7g(6% DV), Sugars
+17g (34% DV), Protein Dg
+''');
+        expect(s.basis, ScannedBasis.perServing);
+        expect(s.servingGrams, 21);
+        expect(s.kcal, 60);
+        expect(s.proteinG, isNull);
+      },
+    );
+
+    test('a misread leading zero and a "per 100 g" header are not values', () {
+      expect(parseNutritionLabel('Energy 21 24J/S08kcal').kcal, isNull);
+      final s = parseNutritionLabel('''
+Valores energéticos y nutricionales
+Valor energético: 2143kI514 kcal
+Grasas:
+medios por 100 g
+Proteínas:
+''');
+      expect(s.kcal, 514);
+      expect(s.fatG, isNull);
+    });
+
+    test('typos in nutrient names still match, similar words do not', () {
+      final s = parseNutritionLabel(
+        'Enerqy 400 kcal\nFat 12 g\nNutrition Facts 5 g',
+      );
+      expect(s.kcal, 400);
+      expect(s.fatG, 12);
+    });
+  });
 }
