@@ -42,7 +42,7 @@ void main() {
   ) async {
     await pumpScreen(tester);
     expect(find.text('Choose features'), findsOneWidget);
-    expect(find.byType(CheckboxListTile), findsNWidgets(11));
+    expect(find.byType(CheckboxListTile), findsNWidgets(12));
     for (final key in [
       'activity',
       'workouts',
@@ -55,6 +55,7 @@ void main() {
       'closeDayPrompt',
       'targetInsights',
       'csvExport',
+      'labelScan',
     ]) {
       final tile = tester.widget<CheckboxListTile>(
         find.byKey(Key('feature-$key')),
@@ -86,9 +87,13 @@ void main() {
     tester,
   ) async {
     await pumpScreen(tester);
-    ProviderContainer container() =>
-        ProviderScope.containerOf(tester.element(find.byType(ChooseFeaturesScreen)));
-    expect(container().read(featureEnabledProvider(AppFeature.recipes)), isTrue);
+    ProviderContainer container() => ProviderScope.containerOf(
+      tester.element(find.byType(ChooseFeaturesScreen)),
+    );
+    expect(
+      container().read(featureEnabledProvider(AppFeature.recipes)),
+      isTrue,
+    );
 
     await tester.tap(find.byKey(const Key('feature-recipes')));
     await waitForWrite(tester);
@@ -97,11 +102,13 @@ void main() {
       find.byKey(const Key('feature-recipes')),
     );
     expect(tile.value, isFalse);
+    expect(await tester.runAsync(() => watchDisabledFeatureKeys(db).first), {
+      'recipes',
+    });
     expect(
-      await tester.runAsync(() => watchDisabledFeatureKeys(db).first),
-      {'recipes'},
+      container().read(featureEnabledProvider(AppFeature.recipes)),
+      isFalse,
     );
-    expect(container().read(featureEnabledProvider(AppFeature.recipes)), isFalse);
     expect(tester.takeException(), isNull);
   });
 
