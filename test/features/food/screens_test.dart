@@ -361,7 +361,9 @@ Protein 7 g
       await finish(tester);
     });
 
-    testWidgets('serving size and serving name fields line up', (tester) async {
+    testWidgets('serving size and serving name fields line up', (
+      tester,
+    ) async {
       await pump(tester, const CustomFoodScreen());
       final sizeTop = tester
           .getTopLeft(find.byKey(const Key('serving-grams-field')))
@@ -589,7 +591,11 @@ Protein 7 g
           .width;
       await finish(tester);
 
-      await pump(tester, screen, featuresOff: const {AppFeature.barcodeScan});
+      await pump(
+        tester,
+        screen,
+        featuresOff: const {AppFeature.barcodeScan},
+      );
       expect(tester.takeException(), isNull);
       expect(find.byKey(const Key('scan-button')), findsNothing);
       expect(find.text('Scan'), findsNothing);

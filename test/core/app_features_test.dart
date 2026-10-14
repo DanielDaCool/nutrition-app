@@ -30,10 +30,11 @@ void main() {
     expect(AppFeature.workouts.label, 'Workouts');
     expect(AppFeature.workouts.androidOnly, isTrue);
     // Appended after updateAvailable, so the earlier values keep their order.
-    expect(
-      AppFeature.values.skip(AppFeature.updateAvailable.index + 1).take(3),
-      [AppFeature.dashboard, AppFeature.walkReminders, AppFeature.workouts],
-    );
+    expect(AppFeature.values.skip(AppFeature.updateAvailable.index + 1).take(3), [
+      AppFeature.dashboard,
+      AppFeature.walkReminders,
+      AppFeature.workouts,
+    ]);
   });
 
   test('the steps feature keeps its key and is labelled Steps', () {

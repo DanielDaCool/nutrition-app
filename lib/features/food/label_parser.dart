@@ -1,9 +1,11 @@
 /// Reads the text a photo of a nutrition label produced into numbers for the
 /// "Add from label" form. Pure Dart: no Flutter or DB imports.
 ///
-/// This is a best-effort reader of noisy OCR text. It only fills in what it
-/// finds on the same line (or the line right after) as a nutrient's name, and
-/// leaves the rest null; the user always reviews the numbers before saving.
+/// This is a best-effort reader of noisy OCR text. It fills in a nutrient from
+/// the numbers on its own line (or the next line or two), pairs a run of names
+/// with the run of values that follows when OCR split a table into blocks, and
+/// leaves anything it is unsure of null; the user always reviews the numbers
+/// before saving.
 library;
 
 import 'nutrition_math.dart' show kjPerKcal;
@@ -96,8 +98,8 @@ enum _Kind { energy, protein, fat, carbs, sub, other }
 // Word lists per kind. Latin words are matched with a small typo allowance
 // (OCR turns "saturates" into "soturates"); Hebrew by substring.
 const _energyWords = [
-  'energy', 'energie', 'energia', 'energi', 'calories', 'calorie', 'kcal',
-  'kalorier', 'kalorien', 'valoare', //
+  'energy', 'energie', 'energia', 'energi', 'calories', 'calorie',
+  'kalorier', 'kalorien', //
 ];
 const _proteinWords = [
   'protein',
@@ -499,7 +501,6 @@ Map<_Kind, double> _alignBlocks(
   // Energy printed as "kJ" then "kcal" uses two values.
   final energyIdx = names.indexOf(_Kind.energy);
   var energyKcal = double.nan;
-  var idx = 0;
   final out = <_Kind, double>{};
   final expectedPlain = names.length;
   var values = List<double>.from(first);
@@ -521,7 +522,7 @@ Map<_Kind, double> _alignBlocks(
   } else if (energyIdx >= 0) {
     energyKcal = values[energyIdx];
   }
-  for (; idx < names.length; idx++) {
+  for (var idx = 0; idx < names.length; idx++) {
     switch (names[idx]) {
       case _Kind.energy:
         if (!energyKcal.isNaN) out[_Kind.energy] = energyKcal;

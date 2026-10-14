@@ -87,13 +87,9 @@ void main() {
     tester,
   ) async {
     await pumpScreen(tester);
-    ProviderContainer container() => ProviderScope.containerOf(
-      tester.element(find.byType(ChooseFeaturesScreen)),
-    );
-    expect(
-      container().read(featureEnabledProvider(AppFeature.recipes)),
-      isTrue,
-    );
+    ProviderContainer container() =>
+        ProviderScope.containerOf(tester.element(find.byType(ChooseFeaturesScreen)));
+    expect(container().read(featureEnabledProvider(AppFeature.recipes)), isTrue);
 
     await tester.tap(find.byKey(const Key('feature-recipes')));
     await waitForWrite(tester);
@@ -102,13 +98,11 @@ void main() {
       find.byKey(const Key('feature-recipes')),
     );
     expect(tile.value, isFalse);
-    expect(await tester.runAsync(() => watchDisabledFeatureKeys(db).first), {
-      'recipes',
-    });
     expect(
-      container().read(featureEnabledProvider(AppFeature.recipes)),
-      isFalse,
+      await tester.runAsync(() => watchDisabledFeatureKeys(db).first),
+      {'recipes'},
     );
+    expect(container().read(featureEnabledProvider(AppFeature.recipes)), isFalse);
     expect(tester.takeException(), isNull);
   });
 
