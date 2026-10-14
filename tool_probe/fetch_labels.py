@@ -39,6 +39,7 @@ for country, want in groups:
     if prods and country == "israel":
         q0 = prods[0]
         print("FETCH sample keys", sorted(q0.keys()), "nutr keys", sorted((q0.get("nutriments") or {}).keys())[:12], "sel", str(q0.get("selected_images"))[:200], flush=True)
+    c = {"url": 0, "nutr": 0, "img_ok": 0}
     for p in prods:
         n = p.get("nutriments") or {}
         url = p.get("image_nutrition_url")
@@ -47,11 +48,14 @@ for country, want in groups:
             if disp:
                 url = disp.get("en") or next(iter(disp.values()))
         keys = ["energy-kcal_100g", "proteins_100g", "fat_100g", "carbohydrates_100g"]
+        c["url"] += bool(url)
+        c["nutr"] += all(n.get(k) is not None for k in keys)
         if not url or any(n.get(k) is None for k in keys):
             continue
         img = get(url.replace(".400.jpg", ".full.jpg")) or get(url)
         if not img or len(img) < 5000:
             continue
+        c["img_ok"] += 1
         name = f"{country}_{p['code']}"
         open(f"{OUT}/{name}.jpg", "wb").write(img)
         truth[name] = {
@@ -63,7 +67,7 @@ for country, want in groups:
         got += 1
         if got >= want:
             break
-    print("FETCH", country, "usable:", got, flush=True)
+    print("FETCH", country, "usable:", got, c, "nutrition selected sample:", str((prods[0].get("selected_images") or {}).get("nutrition"))[:160] if prods else "", "kcalkeys", [k for k in (prods[0].get("nutriments") or {}) if "kcal" in k][:4] if prods else "", flush=True)
 json.dump(truth, open(f"{OUT}/truth.json", "w"), ensure_ascii=False)
 print("FETCH total", len(truth), flush=True)
 if not truth:
