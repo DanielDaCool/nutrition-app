@@ -21,7 +21,7 @@ def get(url, tries=4):
             time.sleep(2 * (i + 1))
     return None
 
-FIELDS = "code,product_name,image_nutrition_url,nutriments,languages_tags,nutrition_data_per"
+FIELDS = "code,product_name,selected_images,images,image_nutrition_url,nutriments,languages_tags,nutrition_data_per"
 groups = [("israel", 30), ("united-states", 8), ("united-kingdom", 8), ("france", 6), ("germany", 6)]
 truth = {}
 for country, want in groups:
@@ -35,9 +35,17 @@ for country, want in groups:
         continue
     print("FETCH", country, "products:", len(json.loads(raw).get("products", [])), flush=True)
     got = 0
-    for p in json.loads(raw).get("products", []):
+    prods = json.loads(raw).get("products", [])
+    if prods and country == "israel":
+        q0 = prods[0]
+        print("FETCH sample keys", sorted(q0.keys()), "nutr keys", sorted((q0.get("nutriments") or {}).keys())[:12], "sel", str(q0.get("selected_images"))[:200], flush=True)
+    for p in prods:
         n = p.get("nutriments") or {}
         url = p.get("image_nutrition_url")
+        if not url:
+            disp = ((p.get("selected_images") or {}).get("nutrition") or {}).get("display") or {}
+            if disp:
+                url = disp.get("en") or next(iter(disp.values()))
         keys = ["energy-kcal_100g", "proteins_100g", "fat_100g", "carbohydrates_100g"]
         if not url or any(n.get(k) is None for k in keys):
             continue
