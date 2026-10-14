@@ -126,6 +126,34 @@ Protein 7 g
       await finish(tester);
     });
 
+    testWidgets('a macro the scan missed must be filled in, not saved as 0', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const CustomFoodScreen(),
+        labelReader: _FakeReader(
+          'Energy 400 kcal\nFat 10 g\nCarbohydrate 60 g',
+        ),
+      );
+      await tester.enterText(find.byKey(const Key('name-field')), 'Bar');
+      await tester.tap(find.byKey(const Key('scan-label')));
+      await settle(tester);
+      await tester.tap(find.byKey(const Key('scan-camera')));
+      await settle(tester);
+      expect(find.textContaining('Not found: protein'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('save-food')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.byKey(const Key('save-food')));
+      await settle(tester);
+      expect(find.text('Required'), findsOneWidget);
+      expect(await db.select(db.foods).get(), isEmpty);
+      await finish(tester);
+    });
+
     testWidgets('a photo with no nutrition shows a message', (tester) async {
       await pump(
         tester,
@@ -153,6 +181,25 @@ Protein 7 g
       expect(find.text('Nutrition on the label'), findsOneWidget);
       expect(find.byKey(const Key('kcal-field')), findsOneWidget);
       expect(tester.takeException(), isNull);
+      await finish(tester);
+    });
+
+    testWidgets('on web the Scan label button is not offered', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.5;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            isWebProvider.overrideWithValue(true),
+          ],
+          child: const MaterialApp(home: CustomFoodScreen()),
+        ),
+      );
+      await settle(tester);
+      expect(find.byKey(const Key('scan-label')), findsNothing);
+      expect(find.byKey(const Key('kcal-field')), findsOneWidget);
       await finish(tester);
     });
 

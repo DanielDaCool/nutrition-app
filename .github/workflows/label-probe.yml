@@ -6,7 +6,6 @@ on:
   push:
     paths:
       - '.github/workflows/label-probe.yml'
-      - 'integration_test/**'
       - 'tool_probe/**'
 
 jobs:
@@ -35,6 +34,10 @@ jobs:
           open('pubspec.yaml', 'w').write(s)
           PY
           flutter pub get
+      - name: Install the probe test (CI only)
+        run: |
+          mkdir -p integration_test
+          cp tool_probe/label_probe_test.dart.txt integration_test/label_probe_test.dart
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

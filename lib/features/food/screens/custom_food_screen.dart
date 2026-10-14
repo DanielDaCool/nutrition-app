@@ -52,8 +52,15 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
   bool _saving = false;
   bool _scanning = false;
 
-  /// What the last label scan could not read (null: no scan yet).
-  List<String>? _scanMissing;
+  /// Macros the last scan could not read, which must then be filled in or
+  /// set to 0 by hand rather than silently saved as 0.
+  Set<String> _scanMissing = {};
+
+  /// A scan has filled the form.
+  bool _scanned = false;
+
+  /// Names of everything the last scan did not find, for the note.
+  List<String> _scanNotFound = const [];
 
   /// The last scan didn't say whether its numbers were per 100 g or per
   /// serving, so the form assumed per 100 g.
@@ -279,7 +286,13 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     if (scan.servingGrams != null) _servingGrams.text = num(scan.servingGrams);
     setState(() {
       _basis = perServing ? LabelBasis.perServing : LabelBasis.per100g;
-      _scanMissing = scan.missing;
+      _scanned = true;
+      _scanMissing = {
+        if (scan.proteinG == null) 'protein',
+        if (scan.fatG == null) 'fat',
+        if (scan.carbsG == null) 'carbs',
+      };
+      _scanNotFound = scan.missing;
       _scanBasisGuessed = scan.basis == null;
     });
   }
@@ -399,7 +412,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
                     : const Icon(Icons.document_scanner_outlined),
                 label: Text(_scanning ? 'Reading…' : 'Scan label'),
               ),
-              if (_scanMissing != null) ...[
+              if (_scanned) ...[
                 const SizedBox(height: 8),
                 Card(
                   key: const Key('scan-note'),
@@ -410,7 +423,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
                       'Filled in from the photo. Check every number against '
                       'the label before saving.'
                       '${_scanBasisGuessed ? ' Could not tell if the values are per 100 g or per serving; per 100 g is selected.' : ''}'
-                      '${_scanMissing!.isEmpty ? '' : ' Not found: ${_scanMissing!.join(', ')}.'}',
+                      '${_scanNotFound.isEmpty ? '' : ' Not found: ${_scanNotFound.join(', ')}.'}',
                       style: TextStyle(
                         color: theme.colorScheme.onSecondaryContainer,
                       ),
@@ -501,7 +514,9 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
               _protein,
               'Protein $unit',
               'g',
-              required: _missing.contains('protein'),
+              required:
+                  _missing.contains('protein') ||
+                  _scanMissing.contains('protein'),
             ),
             const SizedBox(height: 12),
             numberField(
@@ -509,7 +524,8 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
               _fat,
               'Fat $unit',
               'g',
-              required: _missing.contains('fat'),
+              required:
+                  _missing.contains('fat') || _scanMissing.contains('fat'),
             ),
             const SizedBox(height: 12),
             numberField(
@@ -517,7 +533,8 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
               _carbs,
               'Carbohydrates $unit',
               'g',
-              required: _missing.contains('carbs'),
+              required:
+                  _missing.contains('carbs') || _scanMissing.contains('carbs'),
             ),
             if (perServing && per100g != null) ...[
               const SizedBox(height: 8),
