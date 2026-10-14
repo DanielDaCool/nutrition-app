@@ -55,6 +55,10 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
   /// What the last label scan could not read (null: no scan yet).
   List<String>? _scanMissing;
 
+  /// The last scan didn't say whether its numbers were per 100 g or per
+  /// serving, so the form assumed per 100 g.
+  bool _scanBasisGuessed = false;
+
   /// Macros the draft's source didn't give; they must be filled in here.
   List<String> get _missing => widget.existing == null && widget.draft != null
       ? widget.draft!.missingMacros
@@ -276,6 +280,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     setState(() {
       _basis = perServing ? LabelBasis.perServing : LabelBasis.per100g;
       _scanMissing = scan.missing;
+      _scanBasisGuessed = scan.basis == null;
     });
   }
 
@@ -404,6 +409,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
                     child: Text(
                       'Filled in from the photo. Check every number against '
                       'the label before saving.'
+                      '${_scanBasisGuessed ? ' Could not tell if the values are per 100 g or per serving; per 100 g is selected.' : ''}'
                       '${_scanMissing!.isEmpty ? '' : ' Not found: ${_scanMissing!.join(', ')}.'}',
                       style: TextStyle(
                         color: theme.colorScheme.onSecondaryContainer,

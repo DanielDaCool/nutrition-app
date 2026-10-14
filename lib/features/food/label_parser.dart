@@ -58,6 +58,7 @@ final _kcalBeforeRe = RegExp(
   caseSensitive: false,
 );
 final _kjRe = RegExp('$_num\\s*(?:kj|קג"ז|קג״ז)', caseSensitive: false);
+final _loneNumberRe = RegExp(r'^\s*(\d+(?:[.,]\d+)?)\s*$');
 final _gramRe = RegExp(
   '$_num\\s*(?:g|gr|gram|grams|גרם|ג\'|ג)(?![a-z֐-׿])',
   caseSensitive: false,
@@ -70,6 +71,14 @@ final _per100Re = RegExp(
 final _perServingRe = RegExp(
   r'per\s+serving|per\s+portion|serving\s+size|\bserving\b|\bportion\b|'
   r'למנה|לכל מנה|גודל מנה|מנה',
+  caseSensitive: false,
+);
+// A column header for a serving ("per serving", "per 30 g", "למנה"), as
+// opposed to a mere mention of "serving size". Only this makes a label
+// two-column.
+final _servingColumnRe = RegExp(
+  r'per\s+serving|per\s+portion|\bper\s+(?!100\b)(\d+(?:[.,]\d+)?)\s*(?:g|gr)\b|'
+  r'למנה|לכל מנה',
   caseSensitive: false,
 );
 final _servingGramsRe = RegExp(
@@ -124,19 +133,19 @@ LabelScan parseNutritionLabel(String text) {
   // Two-column labels print one number per column, in that order.
   final joined = lines.join('\n');
   final p100 = _per100Re.firstMatch(joined);
-  final servingMatches = _perServingRe
+  final servingColumn = _servingColumnRe
       .allMatches(joined)
       .where((m) => p100 == null || !_overlaps(m, p100))
-      .toList();
-  final hasServing = servingMatches.isNotEmpty;
+      .firstOrNull;
+  final twoColumns = p100 != null && servingColumn != null;
   ScannedBasis? basis;
   var column = 0; // which of the numbers on a line to take
-  if (p100 != null && hasServing) {
+  if (twoColumns) {
     basis = ScannedBasis.per100g;
-    column = servingMatches.first.start < p100.start ? 1 : 0;
+    column = servingColumn.start < p100.start ? 1 : 0;
   } else if (p100 != null) {
     basis = ScannedBasis.per100g;
-  } else if (hasServing) {
+  } else if (servingColumn != null || _perServingRe.hasMatch(joined)) {
     basis = ScannedBasis.perServing;
   }
 
@@ -147,15 +156,18 @@ LabelScan parseNutritionLabel(String text) {
     final v = _toDouble(sm.group(1)!);
     if (v != null && v > 0) servingGrams = v;
   }
+  // "per 30 g serving" in a column header.
+  if (servingGrams == null && servingColumn?.group(1) != null) {
+    final v = _toDouble(servingColumn!.group(1)!);
+    if (v != null && v > 0) servingGrams = v;
+  }
 
   // The value in the [column]th position, or the only one there is.
   double? pick(List<double> values) {
     if (values.isEmpty) return null;
     if (values.length == 1) {
       // One number on a two-column label can't be told apart: skip it.
-      return basis == ScannedBasis.per100g && p100 != null && hasServing
-          ? null
-          : values.first;
+      return twoColumns ? null : values.first;
     }
     return column < values.length ? values[column] : values.first;
   }
@@ -164,7 +176,9 @@ LabelScan parseNutritionLabel(String text) {
   // when its own has none and the next is not another nutrient's name.
   String? valueText(int i, RegExp numbers) {
     if (numbers.hasMatch(lines[i])) return lines[i];
-    if (i + 1 < lines.length &&
+    // Two-column labels split into separate lines can't be told apart.
+    if (!twoColumns &&
+        i + 1 < lines.length &&
         numbers.hasMatch(lines[i + 1]) &&
         !_isNutrientName(lines[i + 1])) {
       return lines[i + 1];
@@ -186,27 +200,42 @@ LabelScan parseNutritionLabel(String text) {
   }
 
   double? readGrams(String t) => pick(_numbersIn(t, _gramRe));
-  double? readEnergy(String t) {
-    final kcal = _numbersIn(t, _kcalRe);
-    if (kcal.isNotEmpty) return pick(kcal);
-    final before = _numbersIn(t, _kcalBeforeRe);
-    if (before.isNotEmpty) return pick(before);
-    final kj = _numbersIn(t, _kjRe);
-    final v = pick(kj);
-    return v == null ? null : v / kjPerKcal;
+  // Energy: a kcal number on the keyword line or the (up to) two lines
+  // after it, before falling back to kJ (converted), as many labels print
+  // "Energy 1580 kJ" and "378 kcal" on separate lines. With no unit at all,
+  // a lone number on the next line ("Calories" / "230") counts.
+  double? findEnergy() {
+    for (var i = 0; i < lines.length; i++) {
+      if (!_energyRe.hasMatch(lines[i]) || _subLineRe.hasMatch(lines[i])) {
+        continue;
+      }
+      final window = <String>[lines[i]];
+      for (var j = i + 1; j < lines.length && j <= i + 2; j++) {
+        if (_isNutrientName(lines[j])) break;
+        if (twoColumns && !_kcalRe.hasMatch(lines[j])) break;
+        window.add(lines[j]);
+      }
+      for (final t in window) {
+        final v =
+            pick(_numbersIn(t, _kcalRe)) ?? pick(_numbersIn(t, _kcalBeforeRe));
+        if (v != null) return v;
+      }
+      for (final t in window) {
+        final v = pick(_numbersIn(t, _kjRe));
+        if (v != null) return (v / kjPerKcal).roundToDouble();
+      }
+      if (!twoColumns && window.length > 1 && !_kjRe.hasMatch(lines[i])) {
+        final m = _loneNumberRe.firstMatch(window[1]);
+        if (m != null) return _toDouble(m.group(1)!);
+      }
+    }
+    return null;
   }
 
-  final energyNumbers = RegExp(
-    '${_kcalRe.pattern}|${_kcalBeforeRe.pattern}|${_kjRe.pattern}',
-    caseSensitive: false,
-  );
-
-  var kcal = find(_energyRe, readEnergy, energyNumbers);
-  if (kcal != null) kcal = double.parse(kcal.toStringAsFixed(1));
 
   return LabelScan(
     basis: basis,
-    kcal: kcal,
+    kcal: findEnergy(),
     proteinG: find(_proteinRe, readGrams, _gramRe),
     fatG: find(_fatRe, readGrams, _gramRe),
     carbsG: find(_carbsRe, readGrams, _gramRe),

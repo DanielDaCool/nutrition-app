@@ -110,4 +110,104 @@ Fat 9 g
     expect(parseNutritionLabel('hello world').isEmpty, isTrue);
     expect(parseNutritionLabel('').isEmpty, isTrue);
   });
+
+  // Text read with an OCR engine from rendered labels (rows merged).
+  group('OCR-style layouts', () {
+    test('US label, label and number on separate lines', () {
+      final s = parseNutritionLabel('''
+Nutrition Facts
+Serving size 2/3 cup (55g)
+Calories
+230
+Total Fat
+8g
+Saturated Fat
+1g
+Total Carbohydrate
+37g
+Dietary Fiber
+4g
+Total Sugars
+12g
+Protein
+3g''');
+      expect(s.basis, ScannedBasis.perServing);
+      expect([s.kcal, s.fatG, s.carbsG, s.proteinG], [230, 8, 37, 3]);
+      expect(s.servingGrams, 55);
+    });
+
+    test('EU two-column table, kJ and kcal on different lines', () {
+      final s = parseNutritionLabel('''
+Nutrition information
+Typical values per 100 g per 30 g servin
+Energy 1580 kj 474 kJ
+378 kcal 113 kcal
+Fat 12 g 3.6 g
+of whichsaturates 2.1 g 0.6 g
+Carbohydrate 58 g 17 g
+of which sugars 6.5 g 1.9 g
+Protein 9.4 g 2.8 g''');
+      expect(s.basis, ScannedBasis.per100g);
+      expect([s.kcal, s.fatG, s.carbsG, s.proteinG], [378, 12, 58, 9.4]);
+      expect(s.servingGrams, 30);
+    });
+
+    test('two-column table split into one column per line reads nothing', () {
+      // Which number belongs to which column can't be told: better empty
+      // than the serving column's numbers shown as per 100 g.
+      final s = parseNutritionLabel('''
+Typical values
+per 100 g
+per 30 g servin
+Energy
+1580 kj
+474 kJ
+378 kcal
+113 kcal
+12 g
+Fat
+3.6 g
+Protein
+2.8 g''');
+      expect(s.fatG, isNull);
+      expect(s.proteinG, isNull);
+      expect(s.kcal, isNull);
+    });
+
+    test('single column, per 100 g misread, leaves the basis unknown', () {
+      final s = parseNutritionLabel('''
+Average values per 1o0 g
+Energy
+1850kJ/442kcal
+Fat
+20.5 g
+Protein
+7,5 g''');
+      expect(s.basis, isNull);
+      expect([s.kcal, s.fatG, s.proteinG], [442, 20.5, 7.5]);
+    });
+
+    test('a serving-size line on a per-100 g label is not a second column', () {
+      final s = parseNutritionLabel('''
+Nutrition per 100 g
+Serving size 30 g
+Energy 400 kcal
+Fat 10 g
+Carbohydrate 60 g
+Protein 8 g''');
+      expect(s.basis, ScannedBasis.per100g);
+      expect([s.kcal, s.fatG, s.carbsG, s.proteinG], [400, 10, 60, 8]);
+      expect(s.servingGrams, 30);
+    });
+
+    test('bilingual label with garbled Hebrew still reads the English', () {
+      final s = parseNutritionLabel('''
+Per100 g/na100-7
+Energy/wanxy 250 kcal
+Protein/7n 6 g
+Carbohydrate /nin'nno 40 g
+Fat/Dniy 8 g''');
+      expect([s.kcal, s.proteinG, s.carbsG, s.fatG], [250, 6, 40, 8]);
+    });
+  });
 }
