@@ -21,53 +21,67 @@ def get(url, tries=4):
             time.sleep(2 * (i + 1))
     return None
 
-FIELDS = "code,product_name,selected_images,images,image_nutrition_url,nutriments,languages_tags,nutrition_data_per"
+FIELDS = "code,product_name,images,nutriments,languages_tags"
+
+def nutrition_image_url(p):
+    """URL of the full-size nutrition-table photo from the images dict."""
+    code = p["code"]
+    if not code.isdigit():
+        return None
+    code = code.zfill(13)
+    folder = f"{code[0:3]}/{code[3:6]}/{code[6:9]}/{code[9:]}"
+    imgs = p.get("images") or {}
+    keys = sorted(k for k in imgs if k.startswith("nutrition_"))
+    # Prefer English, then Hebrew, then anything.
+    keys.sort(key=lambda k: (k != "nutrition_en", k != "nutrition_he"))
+    for k in keys:
+        rev = (imgs[k] or {}).get("rev")
+        if rev:
+            return f"https://images.openfoodfacts.org/images/products/{folder}/{k}.{rev}.full.jpg"
+    return None
+
 groups = [("israel", 30), ("united-states", 8), ("united-kingdom", 8), ("france", 6), ("germany", 6)]
 truth = {}
 for country, want in groups:
-    q = urllib.parse.urlencode({
-        "countries_tags_en": country, "fields": FIELDS, "page_size": 100,
-        "sort_by": "unique_scans_n", "states_tags": "en:nutrition-facts-completed",
-    })
-    raw = get("https://world.openfoodfacts.org/api/v2/search?" + q)
-    if not raw:
-        print("FETCH no search result for", country, flush=True)
-        continue
-    print("FETCH", country, "products:", len(json.loads(raw).get("products", [])), flush=True)
     got = 0
-    prods = json.loads(raw).get("products", [])
-    if prods and country == "israel":
-        q0 = prods[0]
-        print("FETCH sample keys", sorted(q0.keys()), "nutr keys", sorted((q0.get("nutriments") or {}).keys())[:12], "sel", str(q0.get("selected_images"))[:200], flush=True)
-    c = {"url": 0, "nutr": 0, "img_ok": 0}
-    for p in prods:
-        n = p.get("nutriments") or {}
-        url = p.get("image_nutrition_url")
-        if not url:
-            disp = ((p.get("selected_images") or {}).get("nutrition") or {}).get("display") or {}
-            if disp:
-                url = disp.get("en") or next(iter(disp.values()))
-        keys = ["energy-kcal_100g", "proteins_100g", "fat_100g", "carbohydrates_100g"]
-        c["url"] += bool(url)
-        c["nutr"] += all(n.get(k) is not None for k in keys)
-        if not url or any(n.get(k) is None for k in keys):
-            continue
-        img = get(url.replace(".400.jpg", ".full.jpg")) or get(url)
-        if not img or len(img) < 5000:
-            continue
-        c["img_ok"] += 1
-        name = f"{country}_{p['code']}"
-        open(f"{OUT}/{name}.jpg", "wb").write(img)
-        truth[name] = {
-            "product": p.get("product_name"), "country": country,
-            "langs": p.get("languages_tags"),
-            "kcal": n["energy-kcal_100g"], "protein": n["proteins_100g"],
-            "fat": n["fat_100g"], "carbs": n["carbohydrates_100g"],
-        }
-        got += 1
+    seen = dict(prods=0, url=0, nutr=0, img_ok=0)
+    for page in (1, 2, 3, 4):
         if got >= want:
             break
-    print("FETCH", country, "usable:", got, c, "nutrition selected sample:", str((prods[0].get("selected_images") or {}).get("nutrition"))[:160] if prods else "", "kcalkeys", [k for k in (prods[0].get("nutriments") or {}) if "kcal" in k][:4] if prods else "", flush=True)
+        q = urllib.parse.urlencode({
+            "countries_tags_en": country, "fields": FIELDS, "page_size": 100,
+            "page": page, "sort_by": "unique_scans_n",
+        })
+        raw = get("https://world.openfoodfacts.org/api/v2/search?" + q)
+        if not raw:
+            print("FETCH no search result for", country, page, flush=True)
+            continue
+        for p in json.loads(raw).get("products", []):
+            seen["prods"] += 1
+            n = p.get("nutriments") or {}
+            keys = ["energy-kcal_100g", "proteins_100g", "fat_100g", "carbohydrates_100g"]
+            url = nutrition_image_url(p)
+            seen["url"] += bool(url)
+            seen["nutr"] += all(n.get(k) is not None for k in keys)
+            if not url or any(n.get(k) is None for k in keys):
+                continue
+            img = get(url)
+            if not img or len(img) < 5000:
+                continue
+            seen["img_ok"] += 1
+            name = f"{country}_{p['code']}"
+            open(f"{OUT}/{name}.jpg", "wb").write(img)
+            truth[name] = {
+                "product": p.get("product_name"), "country": country,
+                "langs": p.get("languages_tags"),
+                "kcal": n["energy-kcal_100g"], "protein": n["proteins_100g"],
+                "fat": n["fat_100g"], "carbs": n["carbohydrates_100g"],
+            }
+            got += 1
+            if got >= want:
+                break
+    print("FETCH", country, "usable:", got, seen, flush=True)
+
 json.dump(truth, open(f"{OUT}/truth.json", "w"), ensure_ascii=False)
 print("FETCH total", len(truth), flush=True)
 if not truth:
