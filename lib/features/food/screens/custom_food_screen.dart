@@ -13,7 +13,6 @@ import '../data/remote_food.dart';
 import '../food_providers.dart';
 import '../label_parser.dart';
 import '../nutrition_math.dart';
-import '../ocr_page.dart';
 import '../widgets/food_format.dart';
 
 /// Whether the typed label values are per 100 g or per serving. Per-serving
@@ -242,9 +241,9 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     );
     if (source == null || !mounted) return;
     setState(() => _scanning = true);
-    OcrPage? page;
+    String? text;
     try {
-      page = await ref.read(labelTextReaderProvider).read(source);
+      text = await ref.read(labelTextReaderProvider).read(source);
     } catch (e, st) {
       if (!mounted) return;
       setState(() => _scanning = false);
@@ -257,8 +256,8 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     }
     if (!mounted) return;
     setState(() => _scanning = false);
-    if (page == null) return; // cancelled
-    final scan = parseNutritionLabel(page.text);
+    if (text == null) return; // cancelled
+    final scan = parseNutritionLabel(text);
     if (scan.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
