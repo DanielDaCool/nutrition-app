@@ -2,6 +2,7 @@
 import json, subprocess, os
 from PIL import Image
 pages = json.load(open("tool_probe/pages.json"))
+print("ROWDBG", len(pages), len(os.listdir("probe")), sorted(os.listdir("probe"))[:5], pages[0]["id"], flush=True)
 for p in pages:
     path = f"probe/{p['id']}.jpg"
     if not os.path.exists(path):
