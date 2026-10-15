@@ -174,6 +174,16 @@ enum AppFeature {
     description:
         'The evening card on Today that asks whether you are done eating '
         'and offers to mark the day as fully logged.',
+  ),
+
+  /// The "Scan label" button on the Add from label form.
+  labelScan(
+    storageKey: 'labelScan',
+    label: 'Scan nutrition label',
+    description:
+        'The "Scan label" button on the Add from label form that fills in '
+        'the nutrition from a photo of the label.',
+    androidOnly: true,
   );
 
   const AppFeature({

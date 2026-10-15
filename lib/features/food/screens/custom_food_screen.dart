@@ -3,11 +3,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
+import '../../../core/app_features.dart';
 import '../../../data/db/database.dart';
 import '../../../domain/models.dart';
 import '../data/food_repository.dart';
+import '../data/label_text_reader.dart';
 import '../data/remote_food.dart';
 import '../food_providers.dart';
+import '../label_parser.dart';
 import '../nutrition_math.dart';
 import '../widgets/food_format.dart';
 
@@ -46,6 +50,21 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
   late final TextEditingController _barcode;
   LabelBasis _basis = LabelBasis.per100g;
   bool _saving = false;
+  bool _scanning = false;
+
+  /// Macros the last scan could not read, which must then be filled in or
+  /// set to 0 by hand rather than silently saved as 0.
+  Set<String> _scanMissing = {};
+
+  /// A scan has filled the form.
+  bool _scanned = false;
+
+  /// Names of everything the last scan did not find, for the note.
+  List<String> _scanNotFound = const [];
+
+  /// The last scan didn't say whether its numbers were per 100 g or per
+  /// serving, so the form assumed per 100 g.
+  bool _scanBasisGuessed = false;
 
   /// Macros the draft's source didn't give; they must be filled in here.
   List<String> get _missing => widget.existing == null && widget.draft != null
@@ -195,6 +214,89 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     return null;
   }
 
+  /// Asks where the photo comes from, reads the label and fills the form.
+  /// Nothing is saved: the user checks the numbers and taps Save.
+  Future<void> _scanLabel() async {
+    final source = await showModalBottomSheet<LabelPhotoSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: const Key('scan-camera'),
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(ctx, LabelPhotoSource.camera),
+            ),
+            ListTile(
+              key: const Key('scan-gallery'),
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose a photo'),
+              onTap: () => Navigator.pop(ctx, LabelPhotoSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    setState(() => _scanning = true);
+    String? text;
+    try {
+      text = await ref.read(labelTextReaderProvider).read(source);
+    } catch (e, st) {
+      if (!mounted) return;
+      setState(() => _scanning = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not read the photo. ${friendlyError(e, st)}'),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _scanning = false);
+    if (text == null) return; // cancelled
+    final scan = parseNutritionLabel(text);
+    if (scan.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No nutrition values found. Try a sharper, well-lit photo of the '
+            'nutrition table, or type the values.',
+          ),
+        ),
+      );
+      return;
+    }
+    _applyScan(scan);
+  }
+
+  /// Puts what the scan found into the fields. Values the scan didn't find
+  /// are cleared, so nothing stale from an earlier scan stays behind.
+  void _applyScan(LabelScan scan) {
+    String num(double? v) => v == null ? '' : fmtNum(v, decimals: 2);
+    // A label that doesn't say which column it is gets read as per 100 g.
+    final perServing = scan.basis == ScannedBasis.perServing;
+    _converted.clear();
+    _kcal.text = num(scan.kcal);
+    _protein.text = num(scan.proteinG);
+    _fat.text = num(scan.fatG);
+    _carbs.text = num(scan.carbsG);
+    if (scan.servingGrams != null) _servingGrams.text = num(scan.servingGrams);
+    setState(() {
+      _basis = perServing ? LabelBasis.perServing : LabelBasis.per100g;
+      _scanned = true;
+      _scanMissing = {
+        if (scan.proteinG == null) 'protein',
+        if (scan.fatG == null) 'fat',
+        if (scan.carbsG == null) 'carbs',
+      };
+      _scanNotFound = scan.missing;
+      _scanBasisGuessed = scan.basis == null;
+    });
+  }
+
   /// Validates, creates or updates the food, and pops with it. Errors show a
   /// snackbar and keep the form open.
   Future<void> _save() async {
@@ -233,6 +335,9 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
     final perServing = _basis == LabelBasis.perServing;
     final unit = perServing ? 'per serving' : 'per 100 g';
     final theme = Theme.of(context);
+    final scanEnabled =
+        widget.existing == null &&
+        ref.watch(featureEnabledProvider(AppFeature.labelScan));
 
     InputDecoration dec(String label, {String? suffix, String? helper}) =>
         InputDecoration(
@@ -293,6 +398,40 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
             ),
             const SizedBox(height: 16),
             Text('Nutrition on the label', style: theme.textTheme.titleSmall),
+            if (scanEnabled) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const Key('scan-label'),
+                onPressed: _scanning ? null : _scanLabel,
+                icon: _scanning
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.document_scanner_outlined),
+                label: Text(_scanning ? 'Reading…' : 'Scan label'),
+              ),
+              if (_scanned) ...[
+                const SizedBox(height: 8),
+                Card(
+                  key: const Key('scan-note'),
+                  color: theme.colorScheme.secondaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      'Filled in from the photo. Check every number against '
+                      'the label before saving.'
+                      '${_scanBasisGuessed ? ' Could not tell if the values are per 100 g or per serving; per 100 g is selected.' : ''}'
+                      '${_scanNotFound.isEmpty ? '' : ' Not found: ${_scanNotFound.join(', ')}.'}',
+                      style: TextStyle(
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
             const SizedBox(height: 8),
             SegmentedButton<LabelBasis>(
               segments: const [
@@ -375,7 +514,9 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
               _protein,
               'Protein $unit',
               'g',
-              required: _missing.contains('protein'),
+              required:
+                  _missing.contains('protein') ||
+                  _scanMissing.contains('protein'),
             ),
             const SizedBox(height: 12),
             numberField(
@@ -383,7 +524,8 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
               _fat,
               'Fat $unit',
               'g',
-              required: _missing.contains('fat'),
+              required:
+                  _missing.contains('fat') || _scanMissing.contains('fat'),
             ),
             const SizedBox(height: 12),
             numberField(
@@ -391,7 +533,8 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
               _carbs,
               'Carbohydrates $unit',
               'g',
-              required: _missing.contains('carbs'),
+              required:
+                  _missing.contains('carbs') || _scanMissing.contains('carbs'),
             ),
             if (perServing && per100g != null) ...[
               const SizedBox(height: 8),
