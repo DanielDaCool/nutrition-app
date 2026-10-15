@@ -1,0 +1,58 @@
+name: Label OCR probe (temporary)
+
+# One-off check of the real ML Kit text recognizer on real label photos.
+# Remove once the results are in.
+on:
+  push:
+    paths:
+      - '.github/workflows/label-probe.yml'
+      - 'tool_probe/**'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.5
+          channel: stable
+          cache: true
+      - name: Download label photos
+        run: python3 tool_probe/fetch_labels.py
+      - name: Add probe assets and the integration test package (CI only)
+        run: |
+          python3 - <<'PY'
+          s = open('pubspec.yaml').read()
+          s = s.replace("  uses-material-design: true", "  uses-material-design: true\n  assets:\n    - probe/")
+          s = s.replace("dev_dependencies:\n", "dev_dependencies:\n  integration_test:\n    sdk: flutter\n")
+          open('pubspec.yaml', 'w').write(s)
+          PY
+          flutter pub get
+      - name: Install the probe test (CI only)
+        run: |
+          mkdir -p integration_test
+          cp tool_probe/label_probe_test.dart.txt integration_test/label_probe_test.dart
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run recognizer on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: default
+          disable-animations: true
+          script: flutter test integration_test/label_probe_test.dart -d emulator-5554 2>&1 | tee probe.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: probe-log
+          path: probe.log

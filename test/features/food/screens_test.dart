@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:nutrition_app/features/food/data/label_text_reader.dart';
+import 'package:nutrition_app/features/food/ocr_page.dart';
 import 'package:nutrition_app/features/food/data/remote_food.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/core/app_features.dart';
@@ -916,8 +917,9 @@ class _FakeReader implements LabelTextReader {
   final sources = <LabelPhotoSource>[];
 
   @override
-  Future<String?> read(LabelPhotoSource source) async {
+  Future<OcrPage?> read(LabelPhotoSource source) async {
     sources.add(source);
-    return text;
+    final t = text;
+    return t == null ? null : OcrPage.fromText(t);
   }
 }
