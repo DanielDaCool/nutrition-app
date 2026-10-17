@@ -63,26 +63,24 @@ class DashboardScreen extends ConsumerWidget {
         onRefresh: () => _refresh(ref),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
             if (setupIncomplete)
               _FinishSetupCard(
                 needsProfile: needsProfile,
                 needsWeighIn: needsWeighIn,
               ),
-            Wrap(
-              spacing: 8,
-              children: [
+            SegmentedButton<DashboardRange>(
+              showSelectedIcon: false,
+              segments: [
                 for (final r in DashboardRange.values)
-                  ChoiceChip(
-                    label: Text(r.label),
-                    selected: r == range,
-                    onSelected: (_) =>
-                        ref.read(dashboardRangeProvider.notifier).set(r),
-                  ),
+                  ButtonSegment(value: r, label: Text(r.label)),
               ],
+              selected: {range},
+              onSelectionChanged: (s) =>
+                  ref.read(dashboardRangeProvider.notifier).set(s.first),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             ...switch (window.value) {
               final w? => [
                 _WeightSection(hideWhenEmpty: setupIncomplete),
@@ -155,6 +153,8 @@ class _FinishSetupCard extends ConsumerWidget {
 
     return Card(
       key: const Key('finishSetupCard'),
+      margin: const EdgeInsets.only(bottom: 12),
+      color: scheme.primaryContainer.withValues(alpha: 0.35),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Column(
@@ -189,7 +189,8 @@ class _FinishSetupCard extends ConsumerWidget {
   }
 }
 
-/// Card with a title, optional headline number, subtitle, chart and legend.
+/// Card with a small title, a large headline number, a muted subtitle, the
+/// chart and a legend. Cards are spaced evenly so the page reads as one list.
 class _Section extends StatelessWidget {
   const _Section({
     required this.title,
@@ -208,31 +209,44 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Card(
+      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: theme.textTheme.titleMedium),
-            if (headline != null)
+            Text(
+              title,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                letterSpacing: 0.2,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (headline != null) ...[
+              const SizedBox(height: 4),
               Text(
                 headline!,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            if (subtitle != null)
+            ],
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
               Text(
                 subtitle!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
-            const SizedBox(height: 12),
+            ],
+            const SizedBox(height: 16),
             child,
-            if (legend != null) ...[const SizedBox(height: 4), legend!],
+            if (legend != null) ...[const SizedBox(height: 8), legend!],
           ],
         ),
       ),
@@ -389,7 +403,10 @@ class _StepsSection extends ConsumerWidget {
     final avgActivity = ref.watch(activityRangeProvider(avgWindow));
     const title = 'Steps per day';
     final pending =
-        _pending(activity, () => ref.invalidate(activityRangeProvider(window))) ??
+        _pending(
+          activity,
+          () => ref.invalidate(activityRangeProvider(window)),
+        ) ??
         _pending(
           avgActivity,
           () => ref.invalidate(activityRangeProvider(avgWindow)),
@@ -399,7 +416,8 @@ class _StepsSection extends ConsumerWidget {
     final days = activity.value!;
     final empty = !hasAnySteps(days);
     if (empty && hideWhenEmpty) return const SizedBox.shrink();
-    final connected = ref.watch(healthStatusProvider).kind == HealthStatusKind.ok;
+    final connected =
+        ref.watch(healthStatusProvider).kind == HealthStatusKind.ok;
     return _Section(
       title: title,
       headline: stepsHeadline(days),
@@ -588,7 +606,10 @@ class _WorkoutsSection extends ConsumerWidget {
     final chartActivity = ref.watch(activityRangeProvider(chartWindow));
     const title = 'Workouts per week';
     final pending =
-        _pending(activity, () => ref.invalidate(activityRangeProvider(window))) ??
+        _pending(
+          activity,
+          () => ref.invalidate(activityRangeProvider(window)),
+        ) ??
         _pending(
           chartActivity,
           () => ref.invalidate(activityRangeProvider(chartWindow)),
@@ -734,6 +755,10 @@ class _MaintenanceChart extends StatelessWidget {
                 ),
                 color: scheme.primary,
                 barWidth: 3,
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: scheme.primary.withValues(alpha: 0.12),
+                ),
                 dotData: FlDotData(
                   getDotPainter: (spot, xPct, bar, index) => FlDotCirclePainter(
                     radius: 4,
@@ -849,7 +874,7 @@ class _WeekBars extends StatelessWidget {
                                 : colors[s],
                             width: rodWidth,
                             borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(3),
+                              top: Radius.circular(6),
                             ),
                           ),
                       ],
@@ -872,7 +897,7 @@ class _Legend extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.labelMedium;
     return Wrap(
-      alignment: WrapAlignment.center,
+      alignment: WrapAlignment.start,
       spacing: 16,
       children: [
         for (final (label, color) in items)
@@ -880,14 +905,11 @@ class _Legend extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               Text(label, style: style),
             ],
           ),
@@ -903,8 +925,11 @@ TextStyle? _labelStyle(BuildContext context) =>
 FlGridData _grid(ColorScheme scheme, double interval) => FlGridData(
   drawVerticalLine: false,
   horizontalInterval: interval > 0 ? interval : null,
-  getDrawingHorizontalLine: (_) =>
-      FlLine(color: scheme.outlineVariant, strokeWidth: 1),
+  getDrawingHorizontalLine: (_) => FlLine(
+    color: scheme.outlineVariant.withValues(alpha: 0.6),
+    strokeWidth: 1,
+    dashArray: [4, 4],
+  ),
 );
 
 /// Shared axis titles: [unit] on the left axis, [xLabel] along the bottom.
