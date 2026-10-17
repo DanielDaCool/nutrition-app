@@ -47,6 +47,7 @@ final ColorScheme appColorScheme =
 
 ThemeData buildAppTheme() {
   final scheme = appColorScheme;
+  final base = ThemeData(useMaterial3: true, colorScheme: scheme);
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
@@ -56,9 +57,9 @@ ThemeData buildAppTheme() {
       foregroundColor: scheme.onSurface,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(
+      titleTextStyle: base.textTheme.titleLarge?.copyWith(
         color: scheme.onSurface,
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
       ),
@@ -98,8 +99,8 @@ ThemeData buildAppTheme() {
       indicatorColor: scheme.primaryContainer,
       elevation: 0,
       height: 68,
-      labelTextStyle: const WidgetStatePropertyAll(
-        TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      labelTextStyle: WidgetStatePropertyAll(
+        base.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     ),
     dialogTheme: DialogThemeData(backgroundColor: scheme.surfaceContainerHigh),
