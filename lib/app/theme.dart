@@ -47,6 +47,7 @@ final ColorScheme appColorScheme =
 
 ThemeData buildAppTheme() {
   final scheme = appColorScheme;
+  final base = ThemeData(useMaterial3: true, colorScheme: scheme);
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
@@ -56,16 +57,51 @@ ThemeData buildAppTheme() {
       foregroundColor: scheme.onSurface,
       scrolledUnderElevation: 0,
       centerTitle: false,
+      titleTextStyle: base.textTheme.titleLarge?.copyWith(
+        color: scheme.onSurface,
+        fontSize: 24,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+      ),
     ),
     cardTheme: CardThemeData(
       color: scheme.surfaceContainer,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
+      ),
     ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        side: WidgetStatePropertyAll(BorderSide(color: scheme.outlineVariant)),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? scheme.primaryContainer
+              : Colors.transparent,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? scheme.onPrimaryContainer
+              : scheme.onSurfaceVariant,
+        ),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      side: BorderSide(color: scheme.outlineVariant),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+    listTileTheme: const ListTileThemeData(minVerticalPadding: 8),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: scheme.surfaceContainerLow,
       indicatorColor: scheme.primaryContainer,
       elevation: 0,
+      height: 68,
+      labelTextStyle: WidgetStatePropertyAll(
+        base.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+      ),
     ),
     dialogTheme: DialogThemeData(backgroundColor: scheme.surfaceContainerHigh),
     bottomSheetTheme: BottomSheetThemeData(
