@@ -1,0 +1,17 @@
+name: Hebrew detector experiment (temporary)
+on:
+  push:
+    paths:
+      - '.github/workflows/hebrew-train.yml'
+      - 'tool_hebrew/**'
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-eng python3-pip
+      - run: pip install --quiet pillow ultralytics --extra-index-url https://download.pytorch.org/whl/cpu
+      - run: python3 tool_hebrew/fetch_dataset.py
+      - run: python3 tool_hebrew/autolabel.py
+      - run: python3 tool_hebrew/train.py
