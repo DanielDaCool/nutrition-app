@@ -9,13 +9,30 @@ CLASSES = ["energy", "protein", "fat", "carbs"]
 truth = json.load(open(f"{RAW}/truth.json"))
 
 def words(path):
-    r = subprocess.run(["tesseract", path, "-", "-l", "eng", "--psm", "11",
-                        "-c", "tessedit_char_whitelist=0123456789.,", "tsv"],
+    out = []
+    im = Image.open(path).convert("L")
+    for scale in (1.0, 2.0):
+        for psm in ("11", "6"):
+            out += words_once(im, scale, psm)
+    return dedupe(out)
+
+def dedupe(ws):
+    keep = []
+    for w in ws:
+        if not any(abs(w[0] - k[0]) < 1e-9 and abs(w[1] - k[1]) < 0.6 * max(w[3], 12) and abs(w[2] - k[2]) < 0.6 * max(w[4], 12) for k in keep):
+            keep.append(w)
+    return keep
+
+def words_once(im, scale, psm):
+    if scale != 1.0:
+        im = im.resize((int(im.width * scale), int(im.height * scale)))
+    im.save("/tmp/a.png")
+    r = subprocess.run(["tesseract", "/tmp/a.png", "-", "-l", "heb+eng", "--psm", psm, "tsv"],
                        capture_output=True, text=True)
     out = []
     for row in csv.DictReader(io.StringIO(r.stdout), delimiter="\t", quoting=csv.QUOTE_NONE):
-        t = (row.get("text") or "").strip().strip(".,")
-        if not t or not any(c.isdigit() for c in t):
+        t = (row.get("text") or "").strip().strip(".,()%:;")
+        if not t or not t.replace(".", "").replace(",", "").isdigit():
             continue
         try:
             v = float(t.replace(",", "."))
@@ -23,7 +40,7 @@ def words(path):
             continue
         if len(t) > 1 and t[0] == "0" and t[1].isdigit():
             continue
-        x, y, w, h = (int(row[k]) for k in ("left", "top", "width", "height"))
+        x, y, w, h = (int(int(row[k]) / scale) for k in ("left", "top", "width", "height"))
         out.append((v, x, y, w, h))
     return out
 
@@ -59,7 +76,7 @@ print("AUTOLABEL", json.dumps(stats), flush=True)
 
 random.seed(7)
 random.shuffle(items)
-nval = max(10, len(items) // 6)
+nval = max(1, len(items) // 6)
 for split, part in (("val", items[:nval]), ("train", items[nval:])):
     os.makedirs(f"{OUT}/images/{split}", exist_ok=True)
     os.makedirs(f"{OUT}/labels/{split}", exist_ok=True)

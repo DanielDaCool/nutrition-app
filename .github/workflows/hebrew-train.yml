@@ -10,8 +10,15 @@ jobs:
     timeout-minutes: 340
     steps:
       - uses: actions/checkout@v5
-      - run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-eng python3-pip
+      - run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-heb python3-pip
       - run: pip install --quiet pillow ultralytics --extra-index-url https://download.pytorch.org/whl/cpu
-      - run: python3 tool_hebrew/fetch_dataset.py
+      - uses: actions/cache@v4
+        id: raw
+        with:
+          path: data/raw
+          key: hebrew-raw-v2
+      - if: steps.raw.outputs.cache-hit != 'true'
+        run: python3 tool_hebrew/fetch_dataset.py
       - run: python3 tool_hebrew/autolabel.py
       - run: python3 tool_hebrew/train.py
+        if: false
