@@ -40,12 +40,12 @@ def nutrition_image_url(p):
             return f"https://images.openfoodfacts.org/images/products/{folder}/{k}.{rev}.full.jpg"
     return None
 
-groups = [("israel", 450)]
+groups = [("israel", 400)]
 truth = {}
 for country, want in groups:
     got = 0
     seen = dict(prods=0, url=0, nutr=0, img_ok=0)
-    for page in range(1, 121):
+    for page in range(1, 201):
         if got >= want:
             break
         q = urllib.parse.urlencode({

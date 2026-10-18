@@ -1,27 +1,30 @@
-name: Hebrew detector experiment (temporary)
+name: Hebrew photo package (temporary)
 on:
   push:
     paths:
       - '.github/workflows/hebrew-train.yml'
-      - 'tool_hebrew/**'
+      - 'tool_hebrew/package.py'
+permissions:
+  contents: write
 jobs:
-  train:
+  package:
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
       - run: |
           sudo apt-get update
-          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng fonts-noto-core fonts-freefont-ttf fonts-dejavu-core fonts-liberation2
-          fc-list :lang=he family | sort -u | head -30
-      - run: pip install --quiet pillow ultralytics playwright opencv-python-headless --extra-index-url https://download.pytorch.org/whl/cpu
+          sudo apt-get install -y fonts-noto-core fonts-freefont-ttf fonts-dejavu-core fonts-liberation2
+      - run: pip install --quiet pillow playwright opencv-python-headless numpy
       - run: python3 -m playwright install --with-deps chromium
-      - uses: actions/cache@v4
-        with:
-          path: data/raw
-          key: hebrew-raw-v2
+      - run: python3 tool_hebrew/fetch_dataset.py
+      - run: python3 tool_hebrew/synth.py data/synth_train 320 11
+      - run: python3 tool_hebrew/package.py
       - run: |
-          python3 tool_hebrew/synth.py data/synth_train ${TRAIN_N:-900} 11
-          python3 tool_hebrew/synth.py data/synth_val 120 12
-          ls data/synth_train/images | wc -l
-      - run: python3 tool_hebrew/train.py
+          cd out
+          git init -q -b tmp-photos
+          git config user.name DanielDaCool
+          git config user.email 141853238+DanielDaCool@users.noreply.github.com
+          git add -A
+          git commit -q -m "Photos for labelling"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" tmp-photos
