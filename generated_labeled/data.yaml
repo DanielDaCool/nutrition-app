@@ -1,0 +1,7 @@
+train: images
+val: images
+names:
+  0: energy
+  1: protein
+  2: fat
+  3: carbs
