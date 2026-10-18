@@ -23,9 +23,11 @@ print("TRAINSET", len(glob.glob(f"{OUT}/images/train/*.jpg")), len(glob.glob(f"{
 
 model = YOLO("yolo11n.pt")
 model.train(data=f"{OUT}/data.yaml", epochs=EPOCHS, imgsz=IMGSZ, batch=16, workers=3,
-            device="cpu", project="runs", name="det", exist_ok=True, plots=False,
+            device="cpu", project=os.path.abspath("runs"), name="det", exist_ok=True, plots=False,
             verbose=False, fliplr=0.0, mosaic=0.5)
-best = YOLO("runs/det/weights/best.pt")
+BEST = str(model.trainer.best)
+print("BESTPATH", BEST, flush=True)
+best = YOLO(BEST)
 
 def read_number(crop):
     crop = crop.convert("L")
@@ -67,4 +69,4 @@ for name, t in sorted(truth.items()):
             tally["wrong"] += 1; row.append(f"WRONG({v} vs {T[ci]})")
     print("REAL", name, row, flush=True)
 print("RESULT", json.dumps(tally), "photos", len(truth), flush=True)
-print("MAPSYN", YOLO("runs/det/weights/best.pt").val(data=f"{OUT}/data.yaml", imgsz=IMGSZ, device="cpu", verbose=False).box.map50, flush=True)
+print("MAPSYN", YOLO(BEST).val(data=f"{OUT}/data.yaml", imgsz=IMGSZ, device="cpu", verbose=False).box.map50, flush=True)
