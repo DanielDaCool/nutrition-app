@@ -10,15 +10,18 @@ jobs:
     timeout-minutes: 340
     steps:
       - uses: actions/checkout@v5
-      - run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-heb python3-pip
-      - run: pip install --quiet pillow ultralytics --extra-index-url https://download.pytorch.org/whl/cpu
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng fonts-noto-core fonts-culmus fonts-freefont-ttf fonts-dejavu-core fonts-liberation2 fonts-arimo
+          fc-list :lang=he family | sort -u | head -30
+      - run: pip install --quiet pillow ultralytics playwright opencv-python-headless --extra-index-url https://download.pytorch.org/whl/cpu
+      - run: python3 -m playwright install --with-deps chromium
       - uses: actions/cache@v4
-        id: raw
         with:
           path: data/raw
           key: hebrew-raw-v2
-      - if: steps.raw.outputs.cache-hit != 'true'
-        run: python3 tool_hebrew/fetch_dataset.py
-      - run: python3 tool_hebrew/autolabel.py
+      - run: |
+          python3 tool_hebrew/synth.py data/synth_train ${TRAIN_N:-900} 11
+          python3 tool_hebrew/synth.py data/synth_val 120 12
+          ls data/synth_train/images | wc -l
       - run: python3 tool_hebrew/train.py
-        if: false
