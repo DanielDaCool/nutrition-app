@@ -15,8 +15,6 @@ void main() {
     expect(AppFeature.barcodeScan.storageKey, 'barcodeScan');
     expect(AppFeature.gainGoals.storageKey, 'gainGoals');
     expect(AppFeature.backup.storageKey, 'backup');
-    expect(AppFeature.labelScan.storageKey, 'labelScan');
-    expect(AppFeature.labelScan.androidOnly, isTrue);
   });
 
   test('the features added for Choose features are pinned', () {
@@ -75,7 +73,6 @@ void main() {
       AppFeature.quickCalories,
       AppFeature.csvExport,
       AppFeature.closeDayPrompt,
-      AppFeature.labelScan,
     });
   });
 
