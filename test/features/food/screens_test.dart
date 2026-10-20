@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:nutrition_app/features/food/data/label_text_reader.dart';
 import 'package:nutrition_app/features/food/data/remote_food.dart';
 import 'package:nutrition_app/app/providers.dart';
 import 'package:nutrition_app/core/app_features.dart';
@@ -45,7 +44,6 @@ void main() {
     Widget home, {
     http.Client? client,
     Set<AppFeature> featuresOff = const {},
-    LabelTextReader? labelReader,
   }) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.5;
@@ -58,8 +56,6 @@ void main() {
           foodHttpClientProvider.overrideWithValue(
             client ?? mock((_) => throw StateError('no network in tests')),
           ),
-          if (labelReader != null)
-            labelTextReaderProvider.overrideWithValue(labelReader),
           if (featuresOff.isNotEmpty)
             featureEnabledProvider.overrideWith(
               (ref, f) => !featuresOff.contains(f),
@@ -77,144 +73,6 @@ void main() {
   }
 
   group('CustomFoodScreen', () {
-    testWidgets('Scan label fills the form but does not save', (tester) async {
-      final reader = _FakeReader('''
-Per 100 g
-Energy 1850 kJ / 442 kcal
-Fat 20 g
-Carbohydrate 55 g
-Protein 7 g
-''');
-      await pump(tester, const CustomFoodScreen(), labelReader: reader);
-      await tester.tap(find.byKey(const Key('scan-label')));
-      await settle(tester);
-      await tester.tap(find.byKey(const Key('scan-camera')));
-      await settle(tester);
-      expect(reader.sources, [LabelPhotoSource.camera]);
-      String text(String k) =>
-          tester.widget<TextFormField>(find.byKey(Key(k))).controller!.text;
-      expect(text('kcal-field'), '442');
-      expect(text('fat-field'), '20');
-      expect(text('carbs-field'), '55');
-      expect(text('protein-field'), '7');
-      expect(find.byKey(const Key('scan-note')), findsOneWidget);
-      expect(await db.select(db.foods).get(), isEmpty);
-      await finish(tester);
-    });
-
-    testWidgets('a per-serving scan switches the basis', (tester) async {
-      await pump(
-        tester,
-        const CustomFoodScreen(),
-        labelReader: _FakeReader(
-          'Serving size 30 g\nCalories 120\nFat 4 g\nCarbohydrate 17 g\n'
-          'Protein 3 g',
-        ),
-      );
-      await tester.tap(find.byKey(const Key('scan-label')));
-      await settle(tester);
-      await tester.tap(find.byKey(const Key('scan-gallery')));
-      await settle(tester);
-      expect(find.text('Energy per serving'), findsOneWidget);
-      expect(
-        tester
-            .widget<TextFormField>(find.byKey(const Key('serving-grams-field')))
-            .controller!
-            .text,
-        '30',
-      );
-      await finish(tester);
-    });
-
-    testWidgets('a macro the scan missed must be filled in, not saved as 0', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        const CustomFoodScreen(),
-        labelReader: _FakeReader(
-          'Energy 400 kcal\nFat 10 g\nCarbohydrate 60 g',
-        ),
-      );
-      await tester.enterText(find.byKey(const Key('name-field')), 'Bar');
-      await tester.tap(find.byKey(const Key('scan-label')));
-      await settle(tester);
-      await tester.tap(find.byKey(const Key('scan-camera')));
-      await settle(tester);
-      expect(find.textContaining('Not found: protein'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('save-food')),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const Key('save-food')));
-      await settle(tester);
-      expect(find.text('Required'), findsOneWidget);
-      expect(await db.select(db.foods).get(), isEmpty);
-      await finish(tester);
-    });
-
-    testWidgets('a photo with no nutrition shows a message', (tester) async {
-      await pump(
-        tester,
-        const CustomFoodScreen(),
-        labelReader: _FakeReader('nothing useful'),
-      );
-      await tester.tap(find.byKey(const Key('scan-label')));
-      await settle(tester);
-      await tester.tap(find.byKey(const Key('scan-camera')));
-      await settle(tester);
-      expect(find.textContaining('No nutrition values found'), findsOneWidget);
-      expect(find.byKey(const Key('scan-note')), findsNothing);
-      await finish(tester);
-    });
-
-    testWidgets('with Scan nutrition label off the button is gone', (
-      tester,
-    ) async {
-      await pump(
-        tester,
-        const CustomFoodScreen(),
-        featuresOff: const {AppFeature.labelScan},
-      );
-      expect(find.byKey(const Key('scan-label')), findsNothing);
-      expect(find.text('Nutrition on the label'), findsOneWidget);
-      expect(find.byKey(const Key('kcal-field')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-      await finish(tester);
-    });
-
-    testWidgets('on web the Scan label button is not offered', (tester) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 2.5;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            databaseProvider.overrideWithValue(db),
-            isWebProvider.overrideWithValue(true),
-          ],
-          child: const MaterialApp(home: CustomFoodScreen()),
-        ),
-      );
-      await settle(tester);
-      expect(find.byKey(const Key('scan-label')), findsNothing);
-      expect(find.byKey(const Key('kcal-field')), findsOneWidget);
-      await finish(tester);
-    });
-
-    testWidgets('editing a food has no Scan label button', (tester) async {
-      final food = await repo.createCustom(
-        const CustomFoodInput(
-          name: 'Oats',
-          per100g: Macros(kcal: 370, proteinG: 13, fatG: 7, carbsG: 60),
-        ),
-      );
-      await pump(tester, CustomFoodScreen(existing: food));
-      expect(find.byKey(const Key('scan-label')), findsNothing);
-      await finish(tester);
-    });
-
     testWidgets('per-serving values are saved per 100 g', (tester) async {
       await pump(tester, const CustomFoodScreen(barcode: '7290000000031'));
       expect(find.text('Add from label'), findsOneWidget);
@@ -908,16 +766,4 @@ class _Launcher extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _FakeReader implements LabelTextReader {
-  _FakeReader(this.text);
-  final String? text;
-  final sources = <LabelPhotoSource>[];
-
-  @override
-  Future<String?> read(LabelPhotoSource source) async {
-    sources.add(source);
-    return text;
-  }
 }
