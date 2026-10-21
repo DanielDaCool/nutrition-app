@@ -605,6 +605,8 @@ void main() {
     await tester.pumpWidget(app(db, extra: updateOverrides('v0.1')));
     await settle(tester);
     expect(find.byType(UpdateAvailableBanner), findsOneWidget);
+    await tester.tapAt(const Offset(5, 5)); // close the dialog
+    await settle(tester);
 
     await tester.tap(find.byKey(const Key('updateBannerNotNow')));
     await settle(tester);
@@ -614,6 +616,47 @@ void main() {
 
     final dismissed = await tester.runAsync(() => loadUpdateDismissedTag(db));
     expect(dismissed, 'v0.1');
+    await unmount(tester);
+  });
+
+  testWidgets('the update dialog shows once; Not now hides the banner too', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db, extra: updateOverrides('v0.1')));
+    await settle(tester);
+    expect(find.byType(AlertDialog), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('updateDialogNotNow')));
+    await settle(tester);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(UpdateAvailableBanner), findsNothing);
+    expect(tester.takeException(), isNull);
+    final dismissed = await tester.runAsync(() => loadUpdateDismissedTag(db));
+    expect(dismissed, 'v0.1');
+    await unmount(tester);
+  });
+
+  testWidgets('closing the update dialog by accident keeps the banner', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() => seedProfile(db));
+    await tester.pumpWidget(app(db, extra: updateOverrides('v0.1')));
+    await settle(tester);
+    expect(find.byType(AlertDialog), findsOneWidget);
+
+    await tester.tapAt(const Offset(5, 5));
+    await settle(tester);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(UpdateAvailableBanner), findsOneWidget);
+    final dismissed = await tester.runAsync(() => loadUpdateDismissedTag(db));
+    expect(dismissed, isNull);
     await unmount(tester);
   });
 
@@ -637,6 +680,7 @@ void main() {
     );
     await settle(tester);
     expect(find.byType(UpdateAvailableBanner), findsNothing);
+    expect(find.byType(AlertDialog), findsNothing);
     expect(tester.takeException(), isNull);
     expect(find.byType(NavigationBar), findsOneWidget);
     await tester.tap(find.text('Settings').last);
