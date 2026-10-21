@@ -24,6 +24,7 @@ import 'install_hint_banner.dart';
 import 'providers.dart';
 import 'theme.dart';
 import 'update_available_banner.dart';
+import 'update_available_dialog.dart';
 
 /// Root `MaterialApp`: dark only (see theme.dart), whatever the phone's
 /// setting.
@@ -73,6 +74,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   /// Setup was already offered in this app session (don't nag after Later).
   bool _setupOffered = false;
+
+  /// The update dialog was already shown in this app session (once per start).
+  bool _updatePrompted = false;
 
   /// Day key as of the last check, so a date change while backgrounded is
   /// caught even on screens (Weight, Dashboard) that don't rebuild on their
@@ -128,6 +132,9 @@ class _HomeShellState extends ConsumerState<HomeShell>
     WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
     ref.listenManual(profileProvider, (_, next) {
       if (next case AsyncData(value: null)) _offerSetup();
+    }, fireImmediately: true);
+    ref.listenManual(updateAvailableTagProvider, (_, next) {
+      if (next != null) _promptUpdate(next);
     }, fireImmediately: true);
     // Only on changes: a build that starts with the walk reminder on keeps
     // the check it already has.
@@ -195,6 +202,17 @@ class _HomeShellState extends ConsumerState<HomeShell>
     // Not during build: listeners can fire while the tree is building.
     scheduleMicrotask(() {
       if (mounted) openSetup(context);
+    });
+  }
+
+  /// Offers the update once per app start. Not now dismisses the release (so
+  /// the banner goes too); closing the dialog any other way leaves the banner.
+  void _promptUpdate(String tag) {
+    if (_updatePrompted) return;
+    _updatePrompted = true;
+    // Not during build: listeners can fire while the tree is building.
+    scheduleMicrotask(() {
+      if (mounted) showUpdateAvailableDialog(context, ref, tag);
     });
   }
 

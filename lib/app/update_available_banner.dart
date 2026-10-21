@@ -7,7 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'providers.dart';
 
-const _downloadUrl =
+/// Where Update sends the user: the latest release's APK.
+const updateDownloadUrl =
     'https://github.com/DanielDaCool/nutrition-app/releases/latest/download/nutrition.apk';
 
 /// The "Update available" banner. Only rendered while
@@ -39,7 +40,7 @@ class UpdateAvailableBanner extends ConsumerWidget {
             TextButton(
               key: const Key('updateBannerUpdate'),
               onPressed: () => launchUrl(
-                Uri.parse(_downloadUrl),
+                Uri.parse(updateDownloadUrl),
                 mode: LaunchMode.externalApplication,
               ),
               child: const Text('Update'),
