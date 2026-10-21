@@ -578,6 +578,8 @@ void main() {
     await tester.pumpWidget(app(db, extra: updateOverrides('v0.1')));
     await settle(tester);
     expect(find.byType(UpdateAvailableBanner), findsOneWidget);
+    await tester.tapAt(const Offset(5, 5)); // close the dialog
+    await settle(tester);
     expect(find.textContaining('v0.1'), findsOneWidget);
     await unmount(tester);
   });
