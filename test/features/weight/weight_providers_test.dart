@@ -73,7 +73,7 @@ void main() {
     expect(trend.first.dayKey, '2026-09-20');
     expect(trend.last.dayKey, '2026-09-25');
     expect(trend, hasLength(6));
-    expect(trend[2].trendKg, closeTo(90.0 + 0.1 * (89.0 - 90.0), 1e-9));
+    expect(trend[2].trendKg, closeTo(90.0 + (1 - 0.81) * (89.0 - 90.0), 1e-9));
     expect(trend.last.trendKg, trend[2].trendKg);
     expect(trend.last.scaleKg, isNull);
   });
