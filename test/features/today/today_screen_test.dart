@@ -254,8 +254,9 @@ void main() {
       topOf(tester, row),
       lessThan(topOf(tester, find.byKey(const Key('kcalRemaining')))),
     );
-    // Trend: 83.0, +0.1*(82.4-83.0)=82.94, +0.1*(82.1-82.94)=82.856.
-    expect(find.text('82.1 kg · trend 82.9 · −0.1 this week'), findsOneWidget);
+    // Trend: 83.0, +(1-0.9^6)*(82.4-83.0)=82.719 after the 6-day gap,
+    // +0.1*(82.1-82.719)=82.657.
+    expect(find.text('82.1 kg · trend 82.7 · −0.3 this week'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Undo'));
@@ -687,12 +688,7 @@ void main() {
       tester,
     ) async {
       var now = DateTime(2026, 9, 25, 18, 59, 59);
-      await pumpToday(
-        tester,
-        targets: targets,
-        eaten: eaten,
-        clock: () => now,
-      );
+      await pumpToday(tester, targets: targets, eaten: eaten, clock: () => now);
       expect(find.byKey(const Key('closeDayPrompt')), findsNothing);
       now = DateTime(2026, 9, 25, 19, 0, 1);
       await tester.pump(const Duration(seconds: 2));

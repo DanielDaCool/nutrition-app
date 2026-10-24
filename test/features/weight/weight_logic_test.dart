@@ -75,10 +75,11 @@ void main() {
   test('weighInSummaryLine', () {
     final w = {'2026-09-18': 84.0, '2026-09-25': 82.4};
     final trend = computeTrend(w, until: '2026-09-25');
-    // trend: 84.0 until the 25th, then 84 + 0.1 * (82.4 - 84) = 83.84.
+    // trend: 84.0 until the 25th, then moved by 1 - 0.9^7 (7 days since
+    // the last weigh-in): 84 + 0.5217 * (82.4 - 84) = 83.165.
     expect(
       weighInSummaryLine(w, trend, '2026-09-25'),
-      '82.4 kg · trend 83.8 · −0.2 this week',
+      '82.4 kg · trend 83.2 · −0.8 this week',
     );
     // Not enough history for a weekly change.
     expect(weighInSummaryLine(w, trend, '2026-09-18'), '84.0 kg · trend 84.0');

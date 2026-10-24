@@ -6,7 +6,7 @@ Pure Dart in `lib/features/targets/engine/`. No Flutter or DB imports. All numbe
 - Profile: sex, age (from birthDate at `today`), heightCm, activityLevel, goalWeightKg,
   goalDirection (lose/gain), weeklyRatePct (0.25% up to a body-fat-dependent cap — see §4 — which
   is at most 1.0% when losing or 0.5% when gaining), proteinPerKg (1.6–2.2), checkInWeekday.
-- Weigh-ins: `Map<dayKey, kg>`. Trend via `computeTrend()` (`lib/domain/trend.dart`, EMA alpha 0.1).
+- Weigh-ins: `Map<dayKey, kg>`. Trend via `computeTrend()` (`lib/domain/trend.dart`, time-based EMA, alpha 0.1 per day: a weigh-in after a d-day gap moves the trend by 1 − 0.9^d, so 2–3 weigh-ins a week track the same trend as daily ones).
 - Intake per day with a `fullyLogged` flag. Only fully-logged days count.
 - Previous accepted target (may be null): its maintenance, and — decoded from its stored
   explanation, when readable — its phase-start day, weekly rate, formula, maintenance mode,
