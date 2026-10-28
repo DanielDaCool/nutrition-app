@@ -328,7 +328,7 @@ class _ManualCaloriesDialogState extends State<_ManualCaloriesDialog> {
           const SizedBox(height: 12),
           const Text(
             'Protein and fat follow your profile; carbs take the rest. '
-            'This stays until you skip the next weekly check-in or tap '
+            'This stays until you accept a new weekly check-in or tap '
             '"Use automatic".',
           ),
         ],
