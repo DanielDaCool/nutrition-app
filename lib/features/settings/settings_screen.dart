@@ -190,6 +190,8 @@ class CurrentTargetsCard extends ConsumerWidget {
                 const Text(
                   "See the Today tab for today's calories and macros.",
                 ),
+                if (ref.watch(featureEnabledProvider(AppFeature.manualCalories)))
+                  _ManualCaloriesButtons(targets: t),
               ],
             );
           },
@@ -199,10 +201,158 @@ class CurrentTargetsCard extends ConsumerWidget {
   }
 }
 
+/// Lowest and highest daily calories that can be typed in by hand.
+const int kManualKcalMin = 800;
+const int kManualKcalMax = 6000;
+
+/// "Set calories" (and "Use automatic" while a manual target is in effect)
+/// under the targets card. Protein and fat follow the usual rules, carbs take
+/// the rest.
+class _ManualCaloriesButtons extends ConsumerWidget {
+  const _ManualCaloriesButtons({required this.targets});
+
+  final DailyTargets targets;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isManual = targets.method == TargetMethod.manual;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          OutlinedButton(
+            key: const Key('setCaloriesButton'),
+            onPressed: () => _set(context, ref),
+            child: Text(isManual ? 'Change calories' : 'Set calories'),
+          ),
+          if (isManual)
+            TextButton(
+              key: const Key('useAutomaticButton'),
+              onPressed: () => _useAutomatic(context, ref),
+              child: const Text('Use automatic'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _set(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(targetsRepositoryProvider);
+    final value = await showDialog<int>(
+      context: context,
+      builder: (_) => _ManualCaloriesDialog(initialKcal: targets.macros.kcal),
+    );
+    if (value == null) return;
+    final ok = await repo.setManualCalories(value.toDouble());
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'Daily calories set to $value kcal' : "Couldn't set calories",
+        ),
+      ),
+    );
+  }
+
+  Future<void> _useAutomatic(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await ref.read(targetsRepositoryProvider).useAutomaticTarget();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'Back to the automatic target' : "Couldn't recalculate",
+        ),
+      ),
+    );
+  }
+}
+
+class _ManualCaloriesDialog extends StatefulWidget {
+  const _ManualCaloriesDialog({required this.initialKcal});
+
+  final double initialKcal;
+
+  @override
+  State<_ManualCaloriesDialog> createState() => _ManualCaloriesDialogState();
+}
+
+class _ManualCaloriesDialogState extends State<_ManualCaloriesDialog> {
+  late final _controller = TextEditingController(
+    text: widget.initialKcal.round().toString(),
+  );
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String? _validate(String? v) {
+    final n = int.tryParse((v ?? '').trim());
+    if (n == null || n < kManualKcalMin || n > kManualKcalMax) {
+      return 'Enter $kManualKcalMin to $kManualKcalMax kcal';
+    }
+    return null;
+  }
+
+  void _submit() {
+    if (_formKey.currentState!.validate()) {
+      Navigator.of(context).pop(int.parse(_controller.text.trim()));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Set daily calories'),
+    content: Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextFormField(
+            key: const Key('manualKcalField'),
+            controller: _controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              labelText: 'Calories per day',
+              suffixText: 'kcal',
+            ),
+            validator: _validate,
+            onFieldSubmitted: (_) => _submit(),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Protein and fat follow your profile; carbs take the rest. '
+            'This stays until you skip the next weekly check-in or tap '
+            '"Use automatic".',
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        key: const Key('manualKcalSave'),
+        onPressed: _submit,
+        child: const Text('Save'),
+      ),
+    ],
+  );
+}
+
 String _methodText(TargetMethod m) => switch (m) {
   TargetMethod.formula => 'formula',
   TargetMethod.blended => 'formula + your data',
   TargetMethod.adaptive => 'from your data',
+  TargetMethod.manual => 'set by you',
 };
 
 /// Opens [CheckInScreen]; highlights when a check-in is due.

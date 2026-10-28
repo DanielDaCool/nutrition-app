@@ -42,7 +42,7 @@ void main() {
   ) async {
     await pumpScreen(tester);
     expect(find.text('Choose features'), findsOneWidget);
-    expect(find.byType(CheckboxListTile), findsNWidgets(11));
+    expect(find.byType(CheckboxListTile), findsNWidgets(12));
     for (final key in [
       'activity',
       'workouts',
@@ -55,6 +55,7 @@ void main() {
       'closeDayPrompt',
       'targetInsights',
       'csvExport',
+      'manualCalories',
     ]) {
       final tile = tester.widget<CheckboxListTile>(
         find.byKey(Key('feature-$key')),

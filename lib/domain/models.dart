@@ -35,6 +35,9 @@ enum TargetMethod {
 
   /// Measured maintenance estimate only.
   adaptive,
+
+  /// Calories typed in by the user, overriding the engine.
+  manual,
 }
 
 /// Calories plus protein/fat/carbs, in kcal and grams. Used both for amounts

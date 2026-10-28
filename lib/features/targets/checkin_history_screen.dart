@@ -62,6 +62,7 @@ String _methodLabel(TargetMethod m) => switch (m) {
   TargetMethod.formula => 'Formula estimate',
   TargetMethod.blended => 'Formula + your data',
   TargetMethod.adaptive => 'From your data',
+  TargetMethod.manual => 'Set by you',
 };
 
 class _EntryTile extends StatelessWidget {

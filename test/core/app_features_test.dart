@@ -73,6 +73,7 @@ void main() {
       AppFeature.quickCalories,
       AppFeature.csvExport,
       AppFeature.closeDayPrompt,
+      AppFeature.manualCalories,
     });
   });
 

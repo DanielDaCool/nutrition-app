@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show OrderingTerm, Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1076,6 +1076,91 @@ void main() {
     expect(find.byType(WalkReminderSettingsTile), findsNothing);
     expect(find.byType(SettingsScreen), findsOneWidget);
     expect(find.byKey(const Key('chooseFeaturesTile')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  Future<AppDatabase> seedWithTarget(WidgetTester tester) async {
+    final db = openTestDatabase();
+    addTearDown(db.close);
+    await tester.runAsync(() async {
+      await seedProfile(db);
+      await db
+          .into(db.weighIns)
+          .insert(
+            WeighInsCompanion.insert(
+              dayKey: '2026-09-25',
+              weightKg: 90,
+              createdAt: now,
+            ),
+          );
+    });
+    return db;
+  }
+
+  testWidgets('Set calories overrides the target and Use automatic undoes it', (
+    tester,
+  ) async {
+    tallScreen(tester);
+    final db = await seedWithTarget(tester);
+    await tester.pumpWidget(app(db));
+    await settle(tester);
+
+    await tester.tap(find.byKey(const Key('setCaloriesButton')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('manualKcalField')), '700');
+    await tester.tap(find.byKey(const Key('manualKcalSave')));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter 800 to 6000 kcal'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('manualKcalField')), '2222');
+    await tester.tap(find.byKey(const Key('manualKcalSave')));
+    await tester.pumpAndSettle();
+    await settle(tester);
+    final row = await tester.runAsync(
+      () => (db.select(db.targetHistory)
+            ..orderBy([(t) => OrderingTerm.desc(t.id)])
+            ..limit(1))
+          .getSingle(),
+    );
+    expect(row!.kcal, 2222);
+    expect(row.method, TargetMethod.manual.index);
+    expect(find.byKey(const Key('useAutomaticButton')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('useAutomaticButton')));
+    await settle(tester);
+    final back = await tester.runAsync(
+      () => (db.select(db.targetHistory)
+            ..orderBy([(t) => OrderingTerm.desc(t.id)])
+            ..limit(1))
+          .getSingle(),
+    );
+    expect(back!.method, isNot(TargetMethod.manual.index));
+    expect(find.byKey(const Key('useAutomaticButton')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the Set calories button is left out while Manual calories is off',
+      (tester) async {
+    tallScreen(tester);
+    final db = await seedWithTarget(tester);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(() => now),
+          featureEnabledProvider.overrideWith(
+            (ref, f) => f != AppFeature.manualCalories,
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await settle(tester);
+
+    expect(find.byKey(const Key('targetsCard')), findsOneWidget);
+    expect(find.byKey(const Key('setCaloriesButton')), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
