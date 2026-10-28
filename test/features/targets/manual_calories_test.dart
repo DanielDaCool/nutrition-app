@@ -30,6 +30,7 @@ Future<TargetsRepository> seeded(AppDatabase db) async {
           createdAt: friday,
         ),
       );
+  await repo.currentTargets(); // creates the first formula target
   return repo;
 }
 

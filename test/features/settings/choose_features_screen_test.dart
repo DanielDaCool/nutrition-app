@@ -141,7 +141,7 @@ void main() {
     expect(find.byKey(const Key('feature-activity')), findsNothing);
     expect(find.byKey(const Key('feature-workouts')), findsNothing);
     expect(find.byKey(const Key('feature-walkReminders')), findsNothing);
-    expect(find.byType(CheckboxListTile), findsNWidgets(8));
+    expect(find.byType(CheckboxListTile), findsNWidgets(9));
     expect(find.byKey(const Key('feature-recipes')), findsOneWidget);
     expect(find.byKey(const Key('feature-yesterdayPrompt')), findsOneWidget);
     expect(find.byKey(const Key('feature-dashboard')), findsOneWidget);
