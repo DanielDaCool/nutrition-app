@@ -89,6 +89,9 @@ class TargetsRepository {
         before.goalDirection == goalDirection.index;
     final current = await latestTarget(today);
     if (current == null) return null;
+    // A manual target stays until the user goes back to automatic or accepts
+    // a check-in; a profile save doesn't replace it.
+    if (current.method == TargetMethod.manual.index) return null;
     if (unchanged &&
         !await _madeForOtherGoal(current, goalDirection, weeklyRatePct)) {
       return null;
@@ -217,6 +220,45 @@ class TargetsRepository {
       explanationJson: jsonEncode(explanation),
     );
   }
+
+  /// Overrides today's calories with [kcal]. Protein and fat follow the engine
+  /// rules (computeMacros) and carbs take the rest. The engine's maintenance
+  /// and explanation are kept, so the next check-in still adapts from the
+  /// same state; skipping that check-in keeps the manual target, accepting it
+  /// goes back to automatic. Returns false when there is nothing to override
+  /// yet (no profile, weigh-in or target).
+  Future<bool> setManualCalories(double kcal) => db.transaction(() async {
+    final profile = await loadProfile();
+    final current = await latestTarget(today);
+    if (profile == null || current == null) return false;
+    final kept = await _explanationMap(current);
+    var trendKg = (kept?['trendKg'] as num?)?.toDouble();
+    trendKg ??= (await recommendToday())?.explanation.trendKg;
+    if (trendKg == null) return false;
+    final macros = computeMacros(
+      targetKcal: kcal,
+      trendKg: trendKg,
+      goalWeightKg: profile.goalWeightKg,
+      proteinPerKg: profile.proteinPerKg,
+    );
+    await _saveRow(
+      effectiveFrom: today,
+      macros: macros,
+      maintenanceKcal: current.maintenanceKcal,
+      method: TargetMethod.manual,
+      explanationJson: jsonEncode({...?kept, 'manual': true}),
+    );
+    return true;
+  });
+
+  /// Drops a manual target: stores a fresh engine recommendation for today.
+  /// Returns false when none can be made (no profile or weigh-in).
+  Future<bool> useAutomaticTarget() => db.transaction(() async {
+    final rec = await recommendToday();
+    if (rec == null) return false;
+    await saveRecommendation(rec);
+    return true;
+  });
 
   /// The stored explanation of [row] as a JSON map. A skip row written
   /// before skips copied the explanation forward holds only
@@ -358,13 +400,39 @@ class TargetsRepository {
   Future<DailyTargets?> currentTargets() async {
     final day = today;
     final existing = await latestTarget(day);
-    if (existing != null) return toDailyTargets(existing);
+    if (existing != null) {
+      final stored = toDailyTargets(existing);
+      return existing.method == TargetMethod.manual.index
+          ? await _withLiveMacros(stored)
+          : stored;
+    }
     final anyTarget = await (db.select(db.targetHistory)..limit(1)).get();
     if (anyTarget.isNotEmpty) return null; // only future-dated targets
     final rec = await recommendToday();
     if (rec == null) return null;
     await saveRecommendation(rec);
     return rec.toDailyTargets();
+  }
+
+  /// A manual target keeps its calories but its protein/fat/carbs follow the
+  /// current profile and trend weight, so they move with the user. The stored
+  /// row isn't touched. Falls back to the stored macros when there is no
+  /// profile or recommendation to work from.
+  Future<DailyTargets> _withLiveMacros(DailyTargets stored) async {
+    final profile = await loadProfile();
+    final trendKg = (await recommendToday())?.explanation.trendKg;
+    if (profile == null || trendKg == null) return stored;
+    return DailyTargets(
+      effectiveFrom: stored.effectiveFrom,
+      macros: computeMacros(
+        targetKcal: stored.macros.kcal,
+        trendKg: trendKg,
+        goalWeightKg: profile.goalWeightKg,
+        proteinPerKg: profile.proteinPerKg,
+      ),
+      maintenanceKcal: stored.maintenanceKcal,
+      method: stored.method,
+    );
   }
 
   /// True when there is at least one weigh-in on or before [day].

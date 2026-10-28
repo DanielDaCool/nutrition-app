@@ -174,6 +174,15 @@ enum AppFeature {
     description:
         'The evening card on Today that asks whether you are done eating '
         'and offers to mark the day as fully logged.',
+  ),
+
+  /// Typing in your own daily calories in Settings.
+  manualCalories(
+    storageKey: 'manualCalories',
+    label: 'Manual calories',
+    description:
+        'The Set calories button in Settings that overrides the daily '
+        'calorie target with a number you choose.',
   );
 
   const AppFeature({
